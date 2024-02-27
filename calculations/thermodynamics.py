@@ -2,7 +2,10 @@ import sys
 import pandas as pd
 from numpy import seterr, nan, isnan, log, mean
 from scipy import interpolate, integrate
+import re
 import matplotlib.pyplot as plt
+
+import mendeleev
 
 sys.path.append('D:/Programming/Python')
 
@@ -14,7 +17,7 @@ from colorama import Fore
 seterr(invalid='ignore')  # игнорирование ошибок с nan
 
 T0 = 273.15  # Абсолютный ноль температуры
-R_gas_const = 8.314_462_618_153_24  # Универсальная газовая постоянная
+gas_const = 8.314_462_618_153_24  # Универсальная газовая постоянная
 FUELS = ('КЕРОСИН', 'KEROSENE', 'ТС-1',
          'БЕНЗИН', 'PETROL', 'GASOLINE',
          'ДИЗЕЛЬ', 'DIESEL',
@@ -40,27 +43,6 @@ def GDF(what: str, λ: float = nan, k: float = nan) -> float:
         raise 'No name' + str(what)
 
 
-class Substance:
-    """Вещество"""
-
-    def __init__(self, compound: dict[str:float]) -> None:
-        self.validate_compound(compound)
-        self.compound = compound
-
-    def validate_compound(self, compound) -> None:
-        assert type(compound) is dict, 'type(compound) is dict!'
-        assert compound, 'compound is not empty!'
-
-    def R(self, *args, **kwargs) -> float:
-        return sum([R_gas(k, *args, **kwargs) * v for k, v in self.compound.items()]) / sum(self.compound.values())
-
-    def Cp(self, *args, **kwargs) -> float:
-        return sum([Cp(k, *args, **kwargs) * v for k, v in self.compound.items()]) / sum(self.compound.values())
-
-    def a_ox(self):
-        return sum([v for k, v in self.compound.items() if k in OXIDIZERS]) / sum(self.compound.values())
-
-
 EXCEL_atmosphere_standard = pd.read_excel('table_values/Атмосфера стандартная.xlsx', header=None)
 T_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
                                              EXCEL_atmosphere_standard[1].iloc[1:],
@@ -71,7 +53,7 @@ P_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1
 del EXCEL_atmosphere_standard
 
 
-def atmosphere_standard(H) -> dict[str:float]:
+def atmosphere_standard(H: int | float) -> dict[str:float]:
     """Атмосфера стандартная ГОСТ 4401-81"""
     return {'T': float(T_atmosphere_standard(H)), 'P': float(P_atmosphere_standard(H))}
 
@@ -200,9 +182,10 @@ def Cp(substance, T=nan, P=nan, a_ox=nan, fuel='', **kwargs) -> float:
         else:
             # PTM 1677-83
             _T = T / 1000
-            k = (0.2521923, -0.1186612, 0.3360775, -0.3073812, 0.1382207, -0.03090246, 0.002745383)
-            return 4187 * sum([k[i] * _T ** i for i in range(len(k))])
-    elif substance.upper() in ('ЧИСТЫЙ ВЫХЛОП', 'ЧИСТЫЙ_ВЫХЛОП', 'CLEAN_EXHAUST', 'CLEAN EXHAUST') or \
+            coefs = (0.2521923, -0.1186612, 0.3360775, -0.3073812, 0.1382207, -0.03090246, 0.002745383)
+            return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
+    if substance.upper() in ('ЧИСТЫЙ ВЫХЛОП', 'ЧИСТЫЙ_ВЫХЛОП', 'CLEAN_EXHAUST', 'CLEAN EXHAUST') or \
             substance.upper() in ('EXHAUST', 'ВЫХЛОП') and a_ox == 1:
         """Чистая теплоемкость"""
         if fuel.upper() in ('KEROSENE', 'КЕРОСИН', 'ТС-1', 'PETROL', 'БЕНЗИН'):
@@ -212,15 +195,15 @@ def Cp(substance, T=nan, P=nan, a_ox=nan, fuel='', **kwargs) -> float:
         else:
             print(Fore.RED + 'Not found substance' + ' in function ' + Cp.__name__)
             return nan
-    elif substance.upper() in ('EXHAUST', 'ВЫХЛОП'):
+    if substance.upper() in ('EXHAUST', 'ВЫХЛОП'):
         return ((1 + l_stoichiometry(fuel)) * Cp('EXHAUST', T=T, a_ox=1, fuel=fuel) +
                 (a_ox - 1) * l_stoichiometry(fuel) * Cp('AIR', T=T)) / (1 + a_ox * l_stoichiometry(fuel))
-    elif substance.upper() in ('KEROSENE', 'TC-1',
-                               'КЕРОСИН', 'ТС-1'):
+    if substance.upper() in ('KEROSENE', 'TC-1',
+                             'КЕРОСИН', 'ТС-1'):
         return Cp_kerosene(T)
-    else:
-        print(Fore.RED + 'Not found substance' + ' in function ' + Cp.__name__)
-        return nan
+
+    print(Fore.RED + 'Not found substance' + ' in function ' + Cp.__name__)
+    return nan
 
 
 # print(Cp('AIR', T=75, P=10000000))
@@ -284,11 +267,109 @@ def mixing_param(params: list, mass_flows: list, contourings: list, error=0.01, 
         return nan
 
 
+class Substance:
+    """Вещество"""
+
+    def __init__(self, composition: dict, fraction: int | float) -> None:
+        self.__composition = dict()
+        if self.validate_composition(composition):
+            self.__composition = composition
+            self.__fraction = fraction
+
+    def validate_composition(self, composition: dict) -> bool:
+        assert isinstance(composition, dict), 'type(composition) is dict'
+        assert all(isinstance(key, str) for key in composition.keys()), \
+            'type(composition.keys()) is str'
+        assert all(isinstance(value, int) for value in composition.values()), \
+            'type(composition.values()) is int'
+        assert all(value >= 1 for value in composition.values()), 'values >= 1'
+        # assert sum(composition.values()) <= 1, 'sum(composition.values()) <= 1'
+        return True
+
+    def __add__(self, other):
+        assert isinstance(other, Substance), 'isinstance(other, Substance)'
+        m = sum(self.composition.values()) + sum(other.composition.values())
+        composition = dict()
+        for el in self.composition.keys():
+            composition[el] = self.composition[el] / m
+        for el in other.composition.keys():
+            composition[el] = other.composition[el] / m
+
+        return Substance(composition, self.)
+
+    @property
+    def composition(self) -> dict[str:int]:
+        return self.__composition
+
+    @property
+    def fraction(self) -> int | float:
+        return self.__fraction
+
+    @property
+    def mol_mass(self) -> tuple[float, str]:
+        """Молярная масса"""
+        if hasattr(self, "_Substance__mol_mass"): return self.__mol_mass
+        self.__mol_mass = 0
+        for el, atoms in self.composition.items():
+            self.__mol_mass += mendeleev.element(el).mass * atoms * self.fraction
+        self.__mol_mass = self.__mol_mass / 1000, 'kg/mol'
+        return self.__mol_mass
+
+    @property
+    def gas_const(self) -> tuple[float, str]:
+        """Газовая постоянная"""
+        if hasattr(self, "_Substance__gas_const"): return self.__gas_const
+        self.__gas_const = gas_const / self.mol_mass[0], 'J/kg/K'
+        return self.__gas_const
+
+    @property
+    def Cp(self, T, P) -> tuple[float, str]:
+        """Теплоемкость при постоянном давлении"""
+        Cp = 2
+        return Cp, 'J/kg/K'
+
+    @property
+    def excess_oxidizing(self) -> float:
+        """Коэффициент избытка окислителя"""
+        return 0
+
+    @timeit()
+    def summary(self) -> dict:
+        print(f'composition: {self.composition}')
+        print(f'mol_mass: {self.mol_mass}')
+        print(f'gas_const: {self.gas_const}')
+
+        return {'composition': self.composition,
+                'mol_mass': self.mol_mass,
+                'gas_const': self.gas_const}
+
+
 if __name__ == '__main__':
-    substance = Substance({'AIR': 1})
-    print(substance.Cp(T=288))
-    print(substance.R())
-    print(substance.a_ox())
+    s1 = Substance({'H': 2}, 1)
+    s1.summary()
+
+    s2 = Substance({'O': 1}, 1)
+    s2.summary()
+
+    s3 = s1 + s2
+    s3.summary()
+
+    s = Substance({'H': 2, 'O': 1}, 1)
+    s.summary()
+
+    s = Substance({'C': 1, 'O': 2}, 1)
+    s.summary()
+
+    s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008}, 1)
+    s.summary()
+
+    s1 = Substance({'N2': 1})
+    s2 = Substance({'O2': 1})
+    s3 = Substance({'Ar': 1})
+    s = s1 + s2 + s3
+    s.summary()
+    print()
+    print(dir(s))
 
     exit()
     print(av(Cp, [400, 500], [10 ** 5, 2 * 10 ** 5]))
