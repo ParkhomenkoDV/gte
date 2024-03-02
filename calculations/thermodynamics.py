@@ -2,8 +2,8 @@ import sys
 import pandas as pd
 from numpy import seterr, nan, isnan, log, mean
 from scipy import interpolate, integrate
-import re
 import matplotlib.pyplot as plt
+from functools import lru_cache
 
 import mendeleev
 
@@ -43,14 +43,20 @@ def GDF(what: str, λ: float = nan, k: float = nan) -> float:
         raise 'No name' + str(what)
 
 
-EXCEL_atmosphere_standard = pd.read_excel('table_values/Атмосфера стандартная.xlsx', header=None)
-T_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
-                                             EXCEL_atmosphere_standard[1].iloc[1:],
-                                             kind='linear', bounds_error=False)
-P_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
-                                             EXCEL_atmosphere_standard[2].iloc[1:],
-                                             kind='linear', bounds_error=False)
-del EXCEL_atmosphere_standard
+try:
+    file_path = 'table_values/Атмосфера стандартная.xlsx'
+    EXCEL_atmosphere_standard = pd.read_excel(file_path, header=None)
+    T_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
+                                                 EXCEL_atmosphere_standard[1].iloc[1:],
+                                                 kind='linear', bounds_error=False)
+    P_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
+                                                 EXCEL_atmosphere_standard[2].iloc[1:],
+                                                 kind='linear', bounds_error=False)
+    del EXCEL_atmosphere_standard
+except IOError as exception:
+    print(Fore.RED + f'file "{file_path}" did not found!' + Fore.RESET)
+    T_atmosphere_standard = lambda H: H * nan
+    P_atmosphere_standard = lambda H: H * nan
 
 
 def atmosphere_standard(H: int | float) -> dict[str:float]:
@@ -263,56 +269,91 @@ def mixing_param(params: list, mass_flows: list, contourings: list, error=0.01, 
         if eps('rel', mix_param, m_p) <= error: return m_p
         mix_param = m_p
     else:
-        print(f'{Fore.RED}Limit of iteration in mixing params!')
+        print(Fore.RED + f'Limit of iteration in {mixing_param.__name__}!' + Fore.RESET)
         return nan
 
 
 class Substance:
     """Вещество"""
 
-    def __init__(self, composition: dict, fraction: int | float) -> None:
+    def __init__(self, composition: dict) -> None:
         self.__composition = dict()
         if self.validate_composition(composition):
             self.__composition = composition
-            self.__fraction = fraction
 
     def validate_composition(self, composition: dict) -> bool:
-        assert isinstance(composition, dict), 'type(composition) is dict'
+        assert isinstance(composition, dict), 'type(composition) is dict!'
         assert all(isinstance(key, str) for key in composition.keys()), \
-            'type(composition.keys()) is str'
-        assert all(isinstance(value, int) for value in composition.values()), \
-            'type(composition.values()) is int'
-        assert all(value >= 1 for value in composition.values()), 'values >= 1'
-        # assert sum(composition.values()) <= 1, 'sum(composition.values()) <= 1'
+            'type(composition.keys()) is str!'
+        assert all(isinstance(value, (int, float)) for value in composition.values()), \
+            'type(composition.values()) is int or float!'
+        assert all(value >= 0 for value in composition.values()), 'composition.values() >= 0!'
         return True
 
     def __add__(self, other):
         assert isinstance(other, Substance), 'isinstance(other, Substance)'
         m = sum(self.composition.values()) + sum(other.composition.values())
         composition = dict()
+        # TODO а если элемент повторяется
         for el in self.composition.keys():
-            composition[el] = self.composition[el] / m
+            composition[el] = self.composition[el]
         for el in other.composition.keys():
-            composition[el] = other.composition[el] / m
+            composition[el] = other.composition[el]
 
-        return Substance(composition, self.)
+        return Substance(composition)
+
+    @staticmethod
+    def formula_to_dict(formula) -> dict[str: int]:
+        result = {}
+        i = 0
+        while i < len(formula):
+            if i + 1 < len(formula) and formula[i + 1].islower():
+                atom = formula[i:i + 2]
+                i += 2
+            else:
+                atom = formula[i]
+                i += 1
+
+            count = 0
+            while i < len(formula) and formula[i].isdigit():
+                count = count * 10 + int(formula[i])
+                i += 1
+
+            if count == 0:
+                count = 1
+
+            if atom in result:
+                result[atom] += count
+            else:
+                result[atom] = count
+
+        return result
 
     @property
     def composition(self) -> dict[str:int]:
         return self.__composition
 
     @property
-    def fraction(self) -> int | float:
-        return self.__fraction
-
-    @property
     def mol_mass(self) -> tuple[float, str]:
         """Молярная масса"""
         if hasattr(self, "_Substance__mol_mass"): return self.__mol_mass
+        m = sum(self.composition.values())
         self.__mol_mass = 0
-        for el, atoms in self.composition.items():
-            self.__mol_mass += mendeleev.element(el).mass * atoms * self.fraction
-        self.__mol_mass = self.__mol_mass / 1000, 'kg/mol'
+
+        @lru_cache(maxsize=None)  # кэширование медленнее, если не применяется!
+        def get_element_mass(element: str):
+            return mendeleev.element(element).mass
+
+        for formula, fraction in self.composition.items():
+            formula_dict = Substance.formula_to_dict(formula)
+            for el, atoms in formula_dict.items():
+                self.__mol_mass += get_element_mass(el) * atoms * fraction
+
+        '''for formula, fraction in self.composition.items():
+            for el, atoms in Substance.formula_to_dict(formula).items():
+                self.__mol_mass += mendeleev.element(el).mass * atoms * fraction'''
+
+        self.__mol_mass = self.__mol_mass / m / 1000, 'kg/mol'
         return self.__mol_mass
 
     @property
@@ -345,29 +386,28 @@ class Substance:
 
 
 if __name__ == '__main__':
-    s1 = Substance({'H': 2}, 1)
+    s1 = Substance({'N2': 75.5})
     s1.summary()
-
-    s2 = Substance({'O': 1}, 1)
+    s2 = Substance({'O2': 23.15})
     s2.summary()
-
-    s3 = s1 + s2
+    s3 = Substance({'Ar': 1.292})
     s3.summary()
+    s4 = Substance({'Ne': 0.0014})
+    s4.summary()
+    s5 = Substance({'H': 0.0008})
 
-    s = Substance({'H': 2, 'O': 1}, 1)
+    s = s1 + s2 + s3 + s4 + s5
     s.summary()
 
-    s = Substance({'C': 1, 'O': 2}, 1)
+    s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
     s.summary()
 
-    s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008}, 1)
+    s = Substance({'H2O': 11.25})
     s.summary()
 
-    s1 = Substance({'N2': 1})
-    s2 = Substance({'O2': 1})
-    s3 = Substance({'Ar': 1})
-    s = s1 + s2 + s3
+    s = Substance({'CO2': 12})
     s.summary()
+
     print()
     print(dir(s))
 
