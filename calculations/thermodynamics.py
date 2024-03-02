@@ -1,11 +1,15 @@
 import sys
-import pandas as pd
-from numpy import seterr, nan, isnan, log, mean
-from scipy import interpolate, integrate
-import matplotlib.pyplot as plt
+import os
+from tqdm import tqdm
 from functools import lru_cache
 
-import mendeleev
+import pandas as pd
+import numpy as np
+from numpy import seterr, nan, isnan, log
+from scipy import interpolate, integrate
+import matplotlib.pyplot as plt
+
+import mendeleev  # ПСХЭ Менделеева
 
 sys.path.append('D:/Programming/Python')
 
@@ -43,8 +47,8 @@ def GDF(what: str, λ: float = nan, k: float = nan) -> float:
         raise 'No name' + str(what)
 
 
+file_path = 'table_values/Атмосфера стандартная.xlsx'
 try:
-    file_path = 'table_values/Атмосфера стандартная.xlsx'
     EXCEL_atmosphere_standard = pd.read_excel(file_path, header=None)
     T_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
                                                  EXCEL_atmosphere_standard[1].iloc[1:],
@@ -55,10 +59,12 @@ try:
     del EXCEL_atmosphere_standard
 except IOError as exception:
     print(Fore.RED + f'file "{file_path}" did not found!' + Fore.RESET)
-    T_atmosphere_standard = lambda H: H * nan
-    P_atmosphere_standard = lambda H: H * nan
+    T_atmosphere_standard = lambda H: 288.15 - 0.00651 * H if H < 11_000 else 216.65
+    P_atmosphere_standard = lambda H: 101_325 * (T_atmosphere_standard(H) / 288.15) ** 5.2533 if H < 11_000 \
+        else 22_699.9 * np.exp((11_000 - H) / 6318)
 
 
+@lru_cache(maxsize=None)
 def atmosphere_standard(H: int | float) -> dict[str:float]:
     """Атмосфера стандартная ГОСТ 4401-81"""
     return {'T': float(T_atmosphere_standard(H)), 'P': float(P_atmosphere_standard(H))}
@@ -137,14 +143,14 @@ def l_stoichiometry(fuel) -> float:
                           'МАЗУТ', 'Ф5', 'Ф12'):
         return 13.31
     elif fuel.upper() in ('ПРИРОДНЫЙ ГАЗ', 'ПРИРОДНЫЙ_ГАЗ'):
-        return mean({'Березовский': 15.83,
-                     'Войвожский': 13.69,
-                     'Дашавский': 16.84,
-                     'Карадагеказский': 16.51,
-                     'Ленинградский': 15.96,
-                     'Саратовский': 16.34,
-                     'Ставропольский': 16.85,
-                     'Щебеленский': 15.93}.values())
+        return np.mean({'Березовский': 15.83,
+                        'Войвожский': 13.69,
+                        'Дашавский': 16.84,
+                        'Карадагеказский': 16.51,
+                        'Ленинградский': 15.96,
+                        'Саратовский': 16.34,
+                        'Ставропольский': 16.85,
+                        'Щебеленский': 15.93}.values())
     elif fuel.upper() in ('КОКСОВЫЙ ГАЗ', 'КОКСОВЫЙ_ГАЗ'):
         return 9.908
     else:
@@ -386,30 +392,36 @@ class Substance:
 
 
 if __name__ == '__main__':
-    s1 = Substance({'N2': 75.5})
-    s1.summary()
-    s2 = Substance({'O2': 23.15})
-    s2.summary()
-    s3 = Substance({'Ar': 1.292})
-    s3.summary()
-    s4 = Substance({'Ne': 0.0014})
-    s4.summary()
-    s5 = Substance({'H': 0.0008})
+    if 0:
+        print(Fore.YELLOW + f'testing {atmosphere_standard.__name__}' + Fore.RESET)
+        for H in (-2000, 0, 4_000, 11_000, 16_000):
+            print(f'H = {H}: {atmosphere_standard(H)}')
 
-    s = s1 + s2 + s3 + s4 + s5
-    s.summary()
+    if 1:
+        print(Fore.YELLOW + f'testing {Substance.__name__}' + Fore.RESET)
+        s1 = Substance({'N2': 75.5})
+        s1.summary()
+        s2 = Substance({'O2': 23.15})
+        s2.summary()
+        s3 = Substance({'Ar': 1.292})
+        s3.summary()
+        s4 = Substance({'Ne': 0.0014})
+        s4.summary()
+        s5 = Substance({'H': 0.0008})
 
-    s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
-    s.summary()
+        s = s1 + s2 + s3 + s4 + s5
+        s.summary()
 
-    s = Substance({'H2O': 11.25})
-    s.summary()
+        s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
+        s.summary()
 
-    s = Substance({'CO2': 12})
-    s.summary()
+        s = Substance({'H2O': 11.25})
+        s.summary()
 
-    print()
-    print(dir(s))
+        s = Substance({'CO2': 12})
+        s.summary()
+
+        print(dir(s))
 
     exit()
     print(av(Cp, [400, 500], [10 ** 5, 2 * 10 ** 5]))
