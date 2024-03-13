@@ -5,7 +5,7 @@ from functools import lru_cache
 
 import pandas as pd
 import numpy as np
-from numpy import seterr, nan, isnan, log
+from numpy import nan, isnan, log
 from scipy import interpolate, integrate
 import matplotlib.pyplot as plt
 
@@ -18,7 +18,7 @@ from decorators import timeit
 from tools import isnum, av, eps
 from colorama import Fore
 
-seterr(invalid='ignore')  # игнорирование ошибок с nan
+np.seterr(invalid='ignore')  # игнорирование ошибок с nan
 
 T0 = 273.15  # Абсолютный ноль температуры
 gas_const = 8.314_462_618_153_24  # Универсальная газовая постоянная
@@ -91,11 +91,10 @@ def η_polytropic(what='', ππ=nan, ηη=nan, k=nan) -> float:
     else:
         if what.upper() in ('С', 'СЖ', 'СЖАТИЕ', 'C', 'COMPRESSION'):
             return ((k - 1) / k) * log(ππ) / log((ππ ** ((k - 1) / k) - 1) / ηη + 1)
-        elif what.upper() in ('Р', 'РАС', 'РАСШИРЕНИЕ', 'E', 'EXTENSION'):
+        if what.upper() in ('Р', 'РАС', 'РАСШИРЕНИЕ', 'E', 'EXTENSION'):
             return -(k / (k - 1)) / log(ππ) * log(ηη * (1 / (ππ ** ((k - 1) / k)) - 1) + 1)
-        else:
-            print(Fore.RED + 'No find what is', Fore.RED + what, Fore.RED + 'in η_polytropic')
-            return nan
+        print(Fore.RED + 'No find what is', Fore.RED + what, Fore.RED + 'in η_polytropic')
+        return nan
 
 
 def R_gas(substance, a_ox=nan, fuel='', **kwargs) -> float:
@@ -127,7 +126,7 @@ def R_gas(substance, a_ox=nan, fuel='', **kwargs) -> float:
         return nan
 
 
-def l_stoichiometry(fuel) -> float:
+def l_stoichiometry(fuel: str) -> float:
     """Стехиометрический коэффициент []"""
     if fuel.upper() in ('KEROSENE', 'T-1', 'T-2', 'TC-1', 'ТС1',
                         'КЕРОСИН', 'Т-1', 'Т-2', 'ТС-1', 'TC1'):
@@ -236,7 +235,7 @@ def Qa1(fuel) -> float:
     elif fuel.upper in ('КОКСОВЫЙ ГАЗ', 'КОКСОВЫЙ_ГАЗ'):
         return nan
     else:
-        print(Fore.RED + 'not found fuel!' + ' in function ' + Qa1.__name__)
+        print(Fore.RED + 'not found fuel!' + ' in function ' + Qa1.__name__ + Fore.RESET)
         return nan
 
 
@@ -397,7 +396,7 @@ if __name__ == '__main__':
         for H in (-2000, 0, 4_000, 11_000, 16_000):
             print(f'H = {H}: {atmosphere_standard(H)}')
 
-    if 1:
+    if 0:
         print(Fore.YELLOW + f'testing {Substance.__name__}' + Fore.RESET)
         s1 = Substance({'N2': 75.5})
         s1.summary()
