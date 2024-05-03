@@ -1,2 +1,8 @@
-/README
+/documentation
 /drawing
+/useful
+
+calculations/.idea
+calculations/.ipynb_checkpoints
+calculations/exports
+calculations/__pycache__
