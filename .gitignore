@@ -1,8 +1,10 @@
-/documentation
-/drawing
-/useful
+.idea
+.ipynb_checkpoints
+__pycache__
 
-calculations/.idea
-calculations/.ipynb_checkpoints
-calculations/exports
-calculations/__pycache__
+/documentation/
+/drawing/
+/useful/
+
+calculations/exports/
+calculations/links/
