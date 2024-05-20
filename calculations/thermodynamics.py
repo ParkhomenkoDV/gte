@@ -47,7 +47,7 @@ def GDF(what: str, λ: float = nan, k: float = nan) -> float:
         raise 'No name' + str(what)
 
 
-file_path = 'table_values/Атмосфера стандартная.xlsx'
+file_path = 'libraries/Атмосфера стандартная.xlsx'
 try:
     EXCEL_atmosphere_standard = pd.read_excel(file_path, header=None)
     T_atmosphere_standard = interpolate.interp1d(EXCEL_atmosphere_standard[0].iloc[1:],
@@ -157,27 +157,27 @@ def l_stoichiometry(fuel: str) -> float:
         return nan
 
 
-EXCEL_Cp_air = pd.read_excel("table_values/Теплоёмкость воздуха.xlsx", header=None)
+EXCEL_Cp_air = pd.read_excel("libraries/Теплоёмкость воздуха.xlsx", header=None)
 Cp_air = interpolate.RectBivariateSpline(EXCEL_Cp_air.T[0].iloc[1:],  # T
                                          EXCEL_Cp_air[0].iloc[1:],  # P
                                          EXCEL_Cp_air.T.iloc[1:, 1:],  # Cp_air
                                          kx=1, ky=1)  # x: linear, y: linear
 del EXCEL_Cp_air
 
-EXCEL_Cp_clean_kerosene = pd.read_excel('table_values/Чистая теплоемкость керосина.xlsx', header=None)
+EXCEL_Cp_clean_kerosene = pd.read_excel('libraries/Чистая теплоемкость керосина.xlsx', header=None)
 Cp_clean_kerosene = interpolate.interp1d(EXCEL_Cp_clean_kerosene[0].iloc[1:],
                                          EXCEL_Cp_clean_kerosene[1].iloc[1:],
                                          kind='linear', fill_value='extrapolate')
 del EXCEL_Cp_clean_kerosene
 
-EXCEL_Cp_clean_diesel = pd.read_excel('table_values/Чистая теплоемкость дизеля.xlsx', header=None)
+EXCEL_Cp_clean_diesel = pd.read_excel('libraries/Чистая теплоемкость дизеля.xlsx', header=None)
 Cp_clean_diesel = interpolate.interp1d(EXCEL_Cp_clean_diesel[0].iloc[1:],
                                        EXCEL_Cp_clean_diesel[1].iloc[1:],
                                        kind='linear', bounds_error=False)
 del EXCEL_Cp_clean_diesel
 
 # TODO предупреждение об экстраполяции
-EXCEL_Cp_kerosene = pd.read_excel('table_values/Теплоёмкость жидкого керосина.xlsx', header=None)
+EXCEL_Cp_kerosene = pd.read_excel('libraries/Теплоёмкость жидкого керосина.xlsx', header=None)
 Cp_kerosene = interpolate.interp1d(EXCEL_Cp_kerosene[1].iloc[1:],
                                    EXCEL_Cp_kerosene[2].iloc[1:],
                                    kind='linear', fill_value='extrapolate')
