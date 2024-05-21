@@ -3,11 +3,11 @@ from numpy import nan, inf, linspace, sqrt
 from colorama import Fore
 from scipy.optimize import fsolve
 
-from thermodynamics import Substance, atmosphere_standard, R_gas
+from thermodynamics import Substance, atmosphere_standard, GDF, R_gas
 
 sys.path.append('D:/Programming/Python')
 
-from decorators import timeit
+import decorators
 
 
 def Cp(T, g):
@@ -45,10 +45,16 @@ def get_combination(combination: int, max_list: list[int]) -> list[int]:
     return n
 
 
+"""
+Порядок расчета ТД параметров:
+R -> T -> P -> ro -> Cp -> k
+"""
+
+
 class Inlet:
     """Входное устройство"""
 
-    def get_inlet_parameters(self, **kwargs) -> None:
+    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров перед"""
 
         # Невозмущенные параметры
@@ -57,29 +63,37 @@ class Inlet:
         assert hasattr(self, "P_i"), 'hasattr(self, "P_i")'
         self.ρ_i = self.P_i / (self.gas_const_i * self.T_i)
 
-        self.Cp_i = 1004  # Cp(self.substance, T=self.T1, P=self.P1) #TODO
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
-        self.Mc_i = 0
-        self.c_i = 0
-        self.F_i = inf
-
         # полные параметры
         self.TT_i = self.T_i
         self.PP_i = self.P_i
         self.ρρ_i = self.ρ_i
+        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
 
-    def get_outlet_parameters(self, **kwargs):
+        self.Mc_i = 0
+        self.c_i = 0
+        self.F_i = inf
+        return self.__dict__
+
+    def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
         G = kwargs.get('G', nan)
+        self.Mc_o = kwargs.get('M', nan)
 
         self.gas_const_o = self.substance.gas_const[0]
         self.TT_o = self.TT_i
         self.PP_o = self.PP_i * self.σ
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
+        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
+        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
 
-        self.Mc_o = kwargs.get('M', nan)
-        self.c_o = self.Mc_o * sqrt(self.gas_const_o)  # TODO
-        self.F_o = G / (self.ρρ_o * self.c_o)
+        self.lc = sqrt(((self.k_o + 1) / 2 * self.Mc_o ** 2) / (1 + (self.k_o - 1) / 2 * self.Mc_o ** 2))
+        self.T_o = self.TT_o * GDF('T', self.lc, self.k_o)
+        self.P_o = self.PP_o * GDF('P', self.lc, self.k_o)
+        self.ρ_o = self.P_o / (self.gas_const_o * self.T_o)
+        self.c_o = self.Mc_o * sqrt(self.k_o * self.gas_const_o * self.T_o)
+        self.F_o = G / (self.ρρ_o * self.c_o) if self.c_o != 0 else inf
+        return self.__dict__
 
     def calculate(self, *args, **kwargs) -> dict[str: int | float]:
         """Расчет параметров"""
@@ -92,33 +106,84 @@ class Inlet:
 class Compressor:
     """Компрессор"""
 
-    def get_inlet_parameters(self, **kwargs) -> None:
+    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров перед"""
+        scheme = kwargs.get('scheme', dict())
+
         self.gas_const_i = self.substance.gas_const[0]
         self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
         self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
+        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        return self.__dict__
 
-    def get_outlet_parameters(self, **kwargs):
+    def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
-        self.TT_o = 800
+        self.gas_const_o = self.substance.gas_const[0]
+        self.TT_o = self.TT_i * (1 + (self.ππ ** ((self.k_i - 1) / self.k_i) - 1) / self.eff)
+        self.PP_o = self.PP_i * self.ππ
+        self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
+        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+        return self.__dict__
 
     def calculate(self, *args, **kwargs) -> dict[str:int | float]:
         self.substance = kwargs.get('substance', None)
-        scheme = kwargs.get('scheme', dict())
+
         G = kwargs.get('G', nan)
 
         self.get_inlet_parameters(**kwargs)
         self.get_outlet_parameters(**kwargs)
 
         Cp = 1004
-        Lc = Cp * (self.TT_o - self.TT_i)
-        return {'N': Lc * G, 'G': G * 0.999}
+        self.L = Cp * (self.TT_i - self.TT_o)  # потребитель
+        self.N = self.L * G
+        return self.__dict__
 
 
 class CombustionChamber:
     """Камера сгорания"""
 
+    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров перед"""
+        scheme = kwargs.get('scheme', dict())
+
+        self.gas_const_i = self.substance.gas_const[0]
+        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
+        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
+        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        return self.__dict__
+
+    def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров после"""
+        self.gas_const_o = self.substance.gas_const[0]
+
+        if hasattr(self, 'TT_o'):
+            self.a_ox = 1
+        elif hasattr(self, 'G_fuel'):
+            self.TT_o = 1800
+        elif hasattr(self, 'a_ox'):
+            self.TT_o = 1800
+        elif hasattr(self, 'g_fuel'):
+            self.TT_o = 1800
+        else:
+            raise Exception('2222222222222')
+
+        self.PP_o = self.PP_i * self.σ
+        self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
+        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+        return self.__dict__
+
     def calculate(self, *args, **kwargs):
+        self.substance = kwargs.get('substance', None)
+
+        self.get_inlet_parameters(**kwargs)
+        self.get_outlet_parameters(**kwargs)
+
         a_ox3 = 1.2
         l0 = 14
         g_fuel = 1 / l0 / a_ox3
@@ -127,36 +192,92 @@ class CombustionChamber:
 class Turbine:
     """Турбина"""
 
+    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров перед"""
+        scheme = kwargs.get('scheme', dict())
+
+        self.gas_const_i = self.substance.gas_const[0]
+        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
+        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
+        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        return self.__dict__
+
+    def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров после"""
+        self.gas_const_o = self.substance.gas_const[0]
+        self.TT_o = self.TT_i * (1 - (1 - self.ππ ** ((1 - self.k_i) / self.k_i)) * self.eff)
+        self.PP_o = self.PP_i / self.ππ
+        self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
+        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+
+        return self.__dict__
+
     def calculate(self, *args, **kwargs):
         G = kwargs.get('G', nan)
-        ππ = kwargs.get('pipi_1_3', nan)
+        self.ππ = kwargs.get('pipi_1_3', nan)
 
-        k = 1.33
-        T1 = 1650
-        T2 = 1300
-        eff = 0.9
-        Lt = -k / (k - 1) * 288 * T1 * (1 - 1 / (ππ ** ((k - 1) / k))) * eff
-        return {'N': Lt * G, 'G': G}
+        self.substance = kwargs.get('substance', None)
+
+        self.get_inlet_parameters(**kwargs)
+        self.get_outlet_parameters(**kwargs)
+
+        self.L = self.Cp_i * (self.TT_i - self.TT_o)
+        self.N = self.L * G
+        return self.__dict__
 
 
-class Nozzle:
+class Outlet:
+    """Выходное устройство"""
 
-    def calculate(self, *args, **kwargs):
+    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров перед"""
+        scheme = kwargs.get('scheme', dict())
+
+        self.gas_const_i = self.substance.gas_const[0]
+        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
+        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
+        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        return self.__dict__
+
+    def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров после"""
+        self.gas_const_o = self.substance.gas_const[0]
+        self.TT_o = self.TT_i
+
+        if hasattr(self, 'ππ'):
+            self.PP_o = self.PP_i / self.ππ
+        elif hasattr(self, 'PP_o'):
+            self.ππ = self.PP_i / self.PP_o
+        else:
+            raise Exception('111111111')
+
+        self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
+        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+
+        self.c_o = self.v_ * (2 * self.Cp_o * self.TT_o * (1 - self.ππ ** ((1 - self.k_o) / self.k_o))) ** 0.5
+
+        return self.__dict__
+
+    def calculate(self, *args, **kwargs) -> dict[str:int | float]:
         G = kwargs.get('G', nan)
 
-        Cp2 = 1200
-        TT3 = 600
-        ππ = 1.4
-        k2 = 1.33
-        v_ = 0.99
-        c3 = v_ * (2 * Cp2 * TT3 * (1 - ππ ** ((1 - k2) / k2))) ** 0.5
-        self.R = c3 * G
-        return {'R': self.R}
+        self.substance = kwargs.get('substance', None)
+        self.get_inlet_parameters(**kwargs)
+        self.get_outlet_parameters(**kwargs)
+
+        self.R = self.c_o * G
+        return self.__dict__
 
 
 class Load:
-    def calculate(self, *args, **kwargs):
-        return {'N': 10_000}
+    def calculate(self, *args, **kwargs) -> dict[str:int | float]:
+        return self.__dict__
 
 
 class GTE_mode:
@@ -169,7 +290,9 @@ class GTE_mode:
 
 
 class GTE_scheme:
-    GTE_NODES = (Inlet, Compressor, CombustionChamber, Turbine, Nozzle)
+    """Схема ГТД"""
+
+    GTE_NODES = (Inlet, Compressor, CombustionChamber, Turbine, Outlet)
 
     def __init__(self, scheme: dict):
         assert type(scheme) is dict, 'type(scheme) is dict'
@@ -213,11 +336,10 @@ class GTE:
 
         # Баланс мощностей
         for contour, shaft in self.shafts.items():
-            eq.append(sum([node.calculate(**p, scheme=self.scheme, substance=self.substance)['N']
-                           for i, node in enumerate(shaft)]))
+            eq.append(sum([node.calculate(**p, scheme=self.scheme, substance=self.substance)['N'] for node in shaft]))
 
         # требования
-        eq.append(self.scheme[1][-1].calculate(**p, **kwargs)['R'] - self.R)
+        eq.append(self.scheme[1][-1].calculate(**p, scheme=self.scheme, substance=self.substance)['R'] - self.R)
 
         return eq
 
@@ -226,7 +348,7 @@ class GTE:
         """Начальные приближения"""
 
         # Массовый расход
-        vars0 = {'G': 300}
+        vars0 = {'G': 30}
 
         # Степени понижения полного давления в турбинах
         for contour in self.scheme:
@@ -238,7 +360,7 @@ class GTE:
         self.__vars = vars0
         return vars0
 
-    @timeit(6)
+    @decorators.timeit(6)
     def calculate(self, Niter: int = 10, epsilon=0.01, *args, **kwargs):
         """Решение СНЛАУ"""
 
@@ -253,9 +375,10 @@ class GTE:
             # расчет ГТД в строчку
             for contour in self.scheme:
                 for node in self.scheme[contour]:
-                    node.calculate(vars0, **kwargs)
+                    node.calculate(**vars0, **kwargs)
 
-            vars_list = fsolve(self.equations, tuple(vars0.values()))
+            vars_list = fsolve(self.equations, tuple(vars0.values()),
+                               xtol=epsilon, maxfev=100 * (len(vars0) + 1))
             vars = {key: vars_list[i] for i, key in enumerate(vars0.keys())}
 
             print(Fore.GREEN + f'points: {vars}' + Fore.RESET)
@@ -271,13 +394,17 @@ class GTE:
             for i, node in enumerate(self.scheme[contour]):
                 node.place = {'contour': contour, 'pos': i}
 
+    # TODO:
+    def solve(self):
+        pass
+
 
 if __name__ == '__main__':
     gte = GTE('Jumo 004b')
     if 1:
         print(Fore.CYAN + f'{gte}' + Fore.RESET)
-        gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Nozzle()]}
-        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3], Load()]}
+        gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
+        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
 
         gte.m = {1: 1}
 
@@ -294,32 +421,34 @@ if __name__ == '__main__':
         gte.scheme[1][0].T_i = 288
         gte.scheme[1][0].P_i = 100000
 
-        gte.scheme[1][1].ππ = list(linspace(3, 43, 40 + 1))
-        gte.scheme[1][1].ηη = [0.86]
-        gte.scheme[1][1].g_leak = [0.05]
+        gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
+        gte.scheme[1][1].eff = 0.86
+        gte.scheme[1][1].g_leak = 0.05
+
+        gte.scheme[1][2].T_fuel = 40 + 273.15
+        gte.scheme[1][2].η_burn = 0.99
+        gte.scheme[1][2].TT_o = 1000
+        gte.scheme[1][2].T_lim = 1000
+        gte.scheme[1][2].σ = 0.94
+        gte.scheme[1][2].g_leak = 0
+
+        gte.scheme[1][3].eff = 0.92
+        gte.scheme[1][3].η_mechanical = 0.99
+        gte.scheme[1][3].T_lim = 1000
+        gte.scheme[1][3].g_leak = 0.05
+
+        gte.scheme[1][4].PP_o = 101325
+        gte.scheme[1][4].eff = 0.96
+        gte.scheme[1][4].v_ = 0.98
+        gte.scheme[1][4].g_leak = 0.001
 
         '''
-        gte.scheme[1][2].T_fuel = [40 + 273.15]
-        gte.scheme[1][2].η_burn = [0.99]
-        gte.scheme[1][2].TT3 = list(linspace(800, 1200, 8 + 1))
-        gte.scheme[1][2].T_lim = [1000]
-        gte.scheme[1][2].σ = [0.94]
-        gte.scheme[1][2].g_leak = [0]
-
-        gte.scheme[1][3]._shafts = [{'-': [gte.scheme[1][1]]}]
-        gte.scheme[1][3].ηη = [0.92]
-        gte.scheme[1][3].η_mechanical = [0.99]
-        gte.scheme[1][3].T_lim = [1000]
-        gte.scheme[1][3].g_leak = [0.05]
-
-        gte.scheme[1][4].PP3 = [101325]
-        gte.scheme[1][4].ηη = [0.96]
-        gte.scheme[1][4].v_ = [0.98]
-        gte.scheme[1][4].g_leak = [0.001]
-
         gte.validate_scheme()
         gte.export_gte_main()
         gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
         '''
-    scheme = gte.scheme
+
     gte.calculate(scheme=gte.scheme, **gte.mode(), substance=gte.substance, fuel=gte.fuel)
+    for contour in gte.scheme:
+        for node in gte.scheme[contour]:
+            print(f'{node.__class__.__name__}: {node.__dict__}')

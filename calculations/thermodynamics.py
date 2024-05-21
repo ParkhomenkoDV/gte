@@ -368,11 +368,10 @@ class Substance:
         self.__gas_const = gas_const / self.mol_mass[0], 'J/kg/K'
         return self.__gas_const
 
-    @property
-    def Cp(self, T, P) -> tuple[float, str]:
+    def Cp(self, T=nan, P=nan) -> tuple[float, str]:
         """Теплоемкость при постоянном давлении"""
-        Cp = 2
-        return Cp, 'J/kg/K'
+        Cp_ = Cp('AIR', T=T, P=P)
+        return Cp_, 'J/kg/K'
 
     @property
     def excess_oxidizing(self) -> float:
