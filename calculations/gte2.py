@@ -1,4 +1,7 @@
 import sys
+from tqdm import tqdm
+
+import pandas as pd
 from numpy import nan, inf, linspace, sqrt
 from colorama import Fore
 from scipy.optimize import fsolve
@@ -8,10 +11,6 @@ from thermodynamics import Substance, atmosphere_standard, GDF, R_gas
 sys.path.append('D:/Programming/Python')
 
 import decorators
-
-
-def Cp(T, g):
-    return sum()
 
 
 def entalphy_t(T0, T1, g):
@@ -159,6 +158,8 @@ class CombustionChamber:
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
+        fuel = kwargs.pop('fuel', '')
+
         self.gas_const_o = self.substance.gas_const[0]
 
         if hasattr(self, 'TT_o'):
@@ -166,8 +167,10 @@ class CombustionChamber:
         elif hasattr(self, 'G_fuel'):
             self.TT_o = 1800
         elif hasattr(self, 'a_ox'):
+            g_fuel = 1 / (self.a_ox * l_stoichiometry(fuel))  # приведена ко входу в КС
             self.TT_o = 1800
         elif hasattr(self, 'g_fuel'):
+            self.a_ox = 1 / (self.g_fuel * l_stoichiometry(fuel))  # приведена ко входу в ГТД
             self.TT_o = 1800
         else:
             raise Exception('2222222222222')
@@ -311,6 +314,9 @@ class GTE:
     """ГТД"""
 
     def __init__(self, name='GTE') -> None:
+
+        assert type(name) is str
+
         self.name = name
         self.scheme = GTE_scheme({1: []})  # схема ГТД
         self.shafts = []  # валы ГТД
@@ -449,6 +455,8 @@ if __name__ == '__main__':
         '''
 
     gte.calculate(scheme=gte.scheme, **gte.mode(), substance=gte.substance, fuel=gte.fuel)
+
     for contour in gte.scheme:
+        print(f'contour: {contour}')
         for node in gte.scheme[contour]:
-            print(f'{node.__class__.__name__}: {node.__dict__}')
+            print('\t' + f'{node.__class__.__name__}: {node.__dict__}')

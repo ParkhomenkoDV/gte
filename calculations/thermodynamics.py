@@ -13,7 +13,7 @@ import mendeleev  # ПСХЭ Менделеева
 
 sys.path.append('D:/Programming/Python')
 
-from decorators import timeit
+import decorators
 
 from tools import isnum, av, eps
 from colorama import Fore
@@ -31,20 +31,20 @@ OXIDIZERS = ('ВОЗДУХ', 'AIR',
              'КИСЛОРОД', 'OXYGEN', 'O2')
 
 
-def GDF(what: str, λ: float = nan, k: float = nan) -> float:
+def GDF(parameter: str, λ: float = nan, k: float = nan) -> float:
     """Газодинамические функции"""
-    if what in ('T', 'τ'):
+    if parameter in ('T', 'τ'):
         return 1 - λ ** 2 * ((k - 1) / (k + 1))
-    elif what in ('P', 'π'):
+    elif parameter in ('P', 'π'):
         return GDF('T', λ=λ, k=k) ** (k / (k - 1))
-    elif what in ('ρ', 'ε'):
+    elif parameter in ('ρ', 'ε'):
         return GDF('T', λ=λ, k=k) ** (1 / (k - 1))
-    elif what in ('G', 'q'):
+    elif parameter in ('G', 'q'):
         return ((k + 1) / 2) ** (1 / (k - 1)) * λ * GDF('ρ', λ=λ, k=k)
-    elif what in ('p', 'mv'):
+    elif parameter in ('p', 'mv'):
         return λ + 1 / λ
     else:
-        raise 'No name' + str(what)
+        raise Exception('parameter in ("T", "τ", "P", "π", "ρ", "ε", "G", "q", "p", "mv")')
 
 
 file_path = 'libraries/Атмосфера стандартная.xlsx'
@@ -93,7 +93,7 @@ def η_polytropic(what='', ππ=nan, ηη=nan, k=nan) -> float:
             return ((k - 1) / k) * log(ππ) / log((ππ ** ((k - 1) / k) - 1) / ηη + 1)
         if what.upper() in ('Р', 'РАС', 'РАСШИРЕНИЕ', 'E', 'EXTENSION'):
             return -(k / (k - 1)) / log(ππ) * log(ηη * (1 / (ππ ** ((k - 1) / k)) - 1) + 1)
-        print(Fore.RED + 'No find what is', Fore.RED + what, Fore.RED + 'in η_polytropic')
+        print(Fore.RED + f'No find what is {what} in {η_polytropic}' + Fore.RESET)
         return nan
 
 
@@ -122,7 +122,7 @@ def R_gas(substance, a_ox=nan, fuel='', **kwargs) -> float:
         if fuel.upper() in ('BIOGAS',
                             'БИОГАЗ'): return 289.9681764 + 2.138861745 / a_ox
     else:
-        print(Fore.RED + 'fuel not found!' + ' in function ' + R_gas.__name__)
+        print(Fore.RED + f'fuel not found! in function {R_gas.__name__}' + Fore.RESET)
         return nan
 
 
@@ -184,8 +184,9 @@ Cp_kerosene = interpolate.interp1d(EXCEL_Cp_kerosene[1].iloc[1:],
 del EXCEL_Cp_kerosene
 
 
-def Cp(substance, T=nan, P=nan, a_ox=nan, fuel='', **kwargs) -> float:
+def Cp(substance: str, T=nan, P=nan, a_ox=nan, fuel: str = '', **kwargs) -> float:
     """Теплоемкость при постоянном давлении"""
+
     if substance.upper() in ('AIR', 'ВОЗДУХ'):
         """Теплоемкость воздуха"""
         if P is not nan and 1 == 0:  # TODO интерполяция по поверхности
@@ -198,22 +199,53 @@ def Cp(substance, T=nan, P=nan, a_ox=nan, fuel='', **kwargs) -> float:
 
     if substance.upper() in ('ЧИСТЫЙ ВЫХЛОП', 'ЧИСТЫЙ_ВЫХЛОП', 'CLEAN_EXHAUST', 'CLEAN EXHAUST') or \
             substance.upper() in ('EXHAUST', 'ВЫХЛОП') and a_ox == 1:
-        """Чистая теплоемкость"""
+        """Чистая теплоемкость выхлопа"""
         if fuel.upper() in ('KEROSENE', 'КЕРОСИН', 'ТС-1', 'PETROL', 'БЕНЗИН'):
             return Cp_clean_kerosene(T)
         elif fuel.upper() in ('ДИЗЕЛЬ', 'DIESEL'):
             return Cp_clean_diesel(T)
-        else:
-            print(Fore.RED + 'Not found substance' + ' in function ' + Cp.__name__)
-            return nan
+
     if substance.upper() in ('EXHAUST', 'ВЫХЛОП'):
-        return ((1 + l_stoichiometry(fuel)) * Cp('EXHAUST', T=T, a_ox=1, fuel=fuel) +
-                (a_ox - 1) * l_stoichiometry(fuel) * Cp('AIR', T=T)) / (1 + a_ox * l_stoichiometry(fuel))
+        """Теплоемкость выхлопа"""
+        if a_ox is not nan:
+            return ((1 + l_stoichiometry(fuel)) * Cp('EXHAUST', T=T, a_ox=1, fuel=fuel) +
+                    (a_ox - 1) * l_stoichiometry(fuel) * Cp('AIR', T=T)) / (1 + a_ox * l_stoichiometry(fuel))
+        else:
+            # PTM 1677-83
+            _T = T / 1000
+            coefs = (0.2079764, 1.211806, -1.464097, 1.291195, -0.6385396, 0.1574277, -0.01518199)
+            return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
+    if substance.upper() == 'CO2':  # TODO
+        # PTM 1677-83
+        _T = T / 1000
+        coefs = (0.2079764, 1.211806, -1.464097, 1.291195, -0.6385396, 0.1574277, -0.01518199)
+        return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
+    if substance.upper() == 'H2O':  # TODO
+        # PTM 1677-83
+        _T = T / 1000
+        coefs = (0.2079764, 1.211806, -1.464097, 1.291195, -0.6385396, 0.1574277, -0.01518199)
+        return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
+    if substance.upper() == 'O2':  # TODO
+        # PTM 1677-83
+        _T = T / 1000
+        coefs = (0.2079764, 1.211806, -1.464097, 1.291195, -0.6385396, 0.1574277, -0.01518199)
+        return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
+    if substance.upper() == 'H2':  # TODO
+        # PTM 1677-83
+        _T = T / 1000
+        coefs = (0.2079764, 1.211806, -1.464097, 1.291195, -0.6385396, 0.1574277, -0.01518199)
+        return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
     if substance.upper() in ('KEROSENE', 'TC-1',
                              'КЕРОСИН', 'ТС-1'):
+        """Теплоемкость жидкого керосина"""
         return Cp_kerosene(T)
 
-    print(Fore.RED + 'Not found substance' + ' in function ' + Cp.__name__)
+    print(Fore.RED + f'Not found substance in function {Cp.__name__}' + Fore.RESET)
     return nan
 
 
@@ -378,7 +410,7 @@ class Substance:
         """Коэффициент избытка окислителя"""
         return 0
 
-    @timeit()
+    @decorators.timeit()
     def summary(self) -> dict:
         print(f'composition: {self.composition}')
         print(f'mol_mass: {self.mol_mass}')
