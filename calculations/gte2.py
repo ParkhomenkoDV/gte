@@ -61,8 +61,8 @@ class Inlet:
         assert hasattr(mode, "T") and hasattr(mode, "P")
 
         self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = mode.T
-        self.PP_i = mode.P
+        self.TT_i = mode.T  # TODO
+        self.PP_i = mode.P  # TODO
         self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
         self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
         self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
@@ -282,6 +282,7 @@ class Load:
 
 
 class HeatExchanger:
+    """Теплообменный аппарат"""
     pass
 
 
@@ -317,7 +318,7 @@ class GTE_scheme(dict):
     def __init__(self, scheme: dict):
         assert type(scheme) is dict
 
-        scheme = dict(sorted(scheme.items(), key=lambda item: item[1]))
+        scheme = dict(sorted(scheme.items(), key=lambda item: item[0]))
         contours, contour_nodes = map(tuple, (scheme.keys(), scheme.values()))
 
         assert all(map(lambda contour: type(contour) is int, contours))
@@ -325,7 +326,8 @@ class GTE_scheme(dict):
             assert all(map(lambda node: type(node) in GTE_NODES, nodes))
 
         assert 1 in contours
-        assert all(map(lambda key: abs(contours[i] - contours[i + 1]) == 1, contours[:-1]))
+        for i in range(len(contours) - 1):
+            assert contours[i + 1] - contours[i] == 1
 
         super(GTE_scheme, self).__init__(scheme)
 
@@ -363,10 +365,10 @@ class GTE_scheme(dict):
     def show(self, **kwargs):
         fg = plt.figure(figsize=kwargs.get('figsize', (max(map(len, self.values())) * 2, len(self) * 3)))
         fg.suptitle('GTE scheme', fontsize=14, fontweight='bold')
-        gs = fg.add_gridspec(1, len(self))  # строки, столбцы
+        gs = fg.add_gridspec(len(self), 1)  # строки, столбцы
 
         for contour in self:
-            fg.add_subplot(gs[0, contour - 1])
+            fg.add_subplot(gs[len(self) - contour, 0])
             plt.grid(True)
             plt.axis('square')
             # plt.title('contour ' + to_roman(contour) + ' | ' + 'контур ' + to_roman(contour), fontsize=14)
@@ -378,9 +380,11 @@ class GTE_scheme(dict):
             x0, y0 = 0.5, 0.5
 
             for node in self[contour]:
-                plt.plot(*self.Figures(node, x0=x0, y0=y0), color='black', linewidth=3)
+                plt.plot(*self.Figures(node, x0=x0, y0=y0), color='black', linewidth=3, label=node.__class__.__name__)
                 # plt.text(x0 - 0.25, y0, node.__class__.__name__, fontsize=12)
                 x0 += 1
+
+            plt.legend()
 
         plt.show()
 
@@ -390,11 +394,11 @@ class GTE:
 
     @classmethod
     def version(cls) -> str:
-        version = 6.0
+        version = 7.0
         next_version = ('камера смешения',
                         'переход к массивам в местах постоянства диапазона значений'
                         'теплак плак-плак',
-                        'упразднение outlet -> nozzle and outlet = переходный канал',
+                        'переходный канал',
                         'type(node) is class -> isinstance(node, class)'
                         'ТД параметры через PTM 1677 as {"O2": 98, "H2": 2}',
                         'соотношение соответствующих относительных расходов к своим контурам',
@@ -420,14 +424,6 @@ class GTE:
         self.mode = GTE_mode()  # режим работы
 
         self.v = nan  # скорость полета [м/с]
-
-    """
-    def __getitem__(self, item):
-        if item == 'scheme':
-            return self.scheme.scheme
-        else:
-            return self.item
-    """
 
     def __setattr__(self, key, value):
         if key == 'name':
@@ -534,8 +530,9 @@ class GTE:
 
 
 if __name__ == '__main__':
-    gte = GTE('Jumo 004b')
-    if 1:
+
+    if 0:
+        gte = GTE('Jumo 004b')
         print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
         gte.scheme.show()
@@ -582,6 +579,50 @@ if __name__ == '__main__':
         gte.export_gte_main()
         gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
         '''
+
+    if 1:
+        gte = GTE('CFM-56')
+        print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
+        gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()],
+                      2: [Inlet(), Compressor(), Outlet()]}
+        gte.scheme.show()
+        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
+
+        gte.m = {1: 1}
+
+        gte.mode.T = 288
+        gte.mode.P = 101325
+        gte.mode.H = 0
+        gte.mode.M = 0
+
+        gte.R = 10_000
+
+        gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
+        gte.fuel = Substance({'KEROSENE': 1.0})
+
+        gte.scheme[1][0].σ = 0.98
+        gte.scheme[1][0].g_leak = 0.005
+
+        gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
+        gte.scheme[1][1].eff = 0.86
+        gte.scheme[1][1].g_leak = 0.05
+
+        gte.scheme[1][2].T_fuel = 40 + 273.15
+        gte.scheme[1][2].η_burn = 0.99
+        gte.scheme[1][2].TT_o = 1000
+        gte.scheme[1][2].T_lim = 1000
+        gte.scheme[1][2].σ = 0.94
+        gte.scheme[1][2].g_leak = 0
+
+        gte.scheme[1][3].eff = 0.92
+        gte.scheme[1][3].η_mechanical = 0.99
+        gte.scheme[1][3].T_lim = 1000
+        gte.scheme[1][3].g_leak = 0.05
+
+        gte.scheme[1][4].PP_o = 101325
+        gte.scheme[1][4].eff = 0.96
+        gte.scheme[1][4].v_ = 0.98
+        gte.scheme[1][4].g_leak = 0.001
 
     gte.calculate(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
 
