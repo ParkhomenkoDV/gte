@@ -363,9 +363,9 @@ class GTE_scheme(dict):
         return x, y
 
     def show(self, **kwargs):
-        fg = plt.figure(figsize=kwargs.get('figsize', (max(map(len, self.values())) * 2, len(self) * 3)))
+        fg = plt.figure(figsize=kwargs.get('figsize', (max(map(len, self.values())) * 2, (len(self) + 1 + 2) * 2)))
         fg.suptitle('GTE scheme', fontsize=14, fontweight='bold')
-        gs = fg.add_gridspec(len(self), 1)  # строки, столбцы
+        gs = fg.add_gridspec(len(self) + 1, 1)  # строки, столбцы
 
         for contour in self:
             fg.add_subplot(gs[len(self) - contour, 0])
@@ -377,14 +377,25 @@ class GTE_scheme(dict):
             plt.xticks(linspace(0, len(self[contour]), len(self[contour]) + 1))
             plt.yticks(linspace(0, 1, 1 + 1))
 
-            x0, y0 = 0.5, 0.5
+            x0 = y0 = 0.5
 
-            for node in self[contour]:
-                plt.plot(*self.Figures(node, x0=x0, y0=y0), color='black', linewidth=3, label=node.__class__.__name__)
-                # plt.text(x0 - 0.25, y0, node.__class__.__name__, fontsize=12)
+            for i, node in enumerate(self[contour]):
+                plt.plot(*self.Figures(node, x0=x0, y0=y0), color='black', linewidth=3,
+                         label=f'{contour}.{i + 1}: {node.__class__.__name__}')
+                plt.text(x0 - 0.05, y0 - 0.025, f'{contour}.{i + 1}', fontsize=12, fontweight='bold')
                 x0 += 1
 
-            plt.legend()
+        fg.add_subplot(gs[len(self), 0])
+        plt.axis('off')
+        plt.grid(False)
+        plt.xlim(0, max(map(len, self.values())))
+        plt.ylim(0, 1)
+        plt.plot([0, max(map(len, self.values()))], [0.5, 0.5], color='black', linewidth=1.5, linestyle='dashdot')
+
+        fg.legend(title='Specification', title_fontsize=14, alignment='center',
+                  loc='lower center', fontsize=12, ncols=len(self),
+                  frameon=True, framealpha=1.0, facecolor='white', edgecolor='black',
+                  draggable=True)
 
         plt.show()
 
@@ -455,7 +466,8 @@ class GTE:
             eq.append(sum([node.calculate(**p, scheme=self.scheme, substance=self.substance)['N'] for node in shaft]))
 
         # требования
-        eq.append(self.scheme[1][-1].calculate(**p, scheme=self.scheme, substance=self.substance)['R'] - self.R)
+        eq.append(sum([self.scheme[contour][-1].calculate(**p, scheme=self.scheme, substance=self.substance)['R']
+                       for contour in self.scheme]) - self.R)
 
         return eq
 
@@ -623,6 +635,18 @@ if __name__ == '__main__':
         gte.scheme[1][4].eff = 0.96
         gte.scheme[1][4].v_ = 0.98
         gte.scheme[1][4].g_leak = 0.001
+
+        gte.scheme[2][0].σ = 0.98
+        gte.scheme[2][0].g_leak = 0.005
+
+        gte.scheme[2][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
+        gte.scheme[2][1].eff = 0.86
+        gte.scheme[2][1].g_leak = 0.05
+
+        gte.scheme[2][2].PP_o = 101325
+        gte.scheme[2][2].eff = 0.96
+        gte.scheme[2][2].v_ = 0.98
+        gte.scheme[2][2].g_leak = 0.001
 
     gte.calculate(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
 
