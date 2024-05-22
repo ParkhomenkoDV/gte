@@ -450,6 +450,23 @@ class GTE:
         else:
             object.__setattr__(self, key, value)
 
+    def describe(self) -> dict:
+        """Описание ГТД"""
+        print(f'name: {self.name}')
+        print()
+        print('scheme:')
+        for contour in self.scheme:
+            print('\t' + f'contour: {contour}')
+            for node in self.scheme[contour]:
+                print('\t\t' + f'node: {node}')
+                print('\t\t\t' + f'parameters: {node.__dict__}')
+        print()
+
+        return self.__dict__
+
+    def summary(self):
+        pass
+
     def equations(self, points: tuple | list, *args, **kwargs) -> list:
         """СНЛАУ"""
 
@@ -650,7 +667,4 @@ if __name__ == '__main__':
 
     gte.calculate(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
 
-    for contour in gte.scheme:
-        print(f'contour: {contour}')
-        for node in gte.scheme[contour]:
-            print('\t' + f'{node.__class__.__name__}: {node.__dict__}')
+    gte.describe()
