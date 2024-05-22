@@ -217,29 +217,39 @@ def Cp(substance: str, T=nan, P=nan, a_ox=nan, fuel: str = '', **kwargs) -> floa
             coefs = (0.2079764, 1.211806, -1.464097, 1.291195, -0.6385396, 0.1574277, -0.01518199)
             return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
 
-    if substance.upper() == 'CO2':
+    if substance == 'CO2':
         # PTM 1677-83
         _T = T / 1000
         coefs = (0.1047056, 0.4234367, -0.3953561, 0.2249471, -0.07729786, 0.01462170, -0.001166819)
         return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
 
-    if substance.upper() == 'H2O':
+    if substance == 'H2O':
         # PTM 1677-83
         _T = T / 1000
         coefs = (0.4489375, -0.1088401, 0.4027652, -0.2638393, 0.07993751, -0.0115716, 0.0006241951)
         return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
 
-    if substance.upper() == 'O2':
+    if substance == 'O2':
         # PTM 1677-83
         _T = T / 1000
         coefs = (0.2083632, -0.0112279, 0.2235868, -0.2732668, 0.1461334, -0.03687021, 0.003584204)
         return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
 
-    if substance.upper() == 'H2':
+    if substance == 'H2':
         # PTM 1677-83
         _T = T / 1000
         coefs = (3.070881, 2.230734, -4.909, 5.321652, -2.756533, 0.6851526, -0.06596988)
         return 4187 * sum([coef * _T ** i for i, coef in enumerate(coefs)])
+
+    if substance == 'N2':
+        # https://www.highexpert.ru/content/gases/nitrogen.html
+        return 1041 - 0.021 * T + 0.0003814 * T ** 2
+
+    if substance == 'Ar':  # TODO
+        return 523
+
+    if substance == 'Ne':  # TODO
+        return 1038
 
     if substance.upper() in ('KEROSENE', 'TC-1',
                              'КЕРОСИН', 'ТС-1'):
