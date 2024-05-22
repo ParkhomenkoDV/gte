@@ -400,6 +400,15 @@ class GTE_scheme(dict):
         plt.show()
 
 
+class GTE_shaft(list):
+    """Вал ГТД"""
+
+    def __init__(self, shaft: tuple | list):
+        assert type(shaft) in (list, tuple)
+        assert all(map(lambda node: type(node) in GTE_NODES))
+        super(GTE_shaft, self).__init__(shaft)
+
+
 class GTE:
     """ГТД"""
 
@@ -450,7 +459,7 @@ class GTE:
         else:
             object.__setattr__(self, key, value)
 
-    def describe(self) -> dict:
+    def describe(self) -> None:
         """Описание ГТД"""
         print(f'name: {self.name}')
         print()
@@ -461,8 +470,6 @@ class GTE:
                 print('\t\t' + f'node: {node}')
                 print('\t\t\t' + f'parameters: {node.__dict__}')
         print()
-
-        return self.__dict__
 
     def summary(self):
         pass
@@ -615,7 +622,7 @@ if __name__ == '__main__':
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()],
                       2: [Inlet(), Compressor(), Outlet()]}
         gte.scheme.show()
-        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
+        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[2][1], gte.scheme[1][3]]}
 
         gte.m = {1: 1}
 
