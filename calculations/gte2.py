@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 from tqdm import tqdm
 from colorama import Fore
 
@@ -468,7 +469,7 @@ class GTE:
             print('\t' + f'contour: {contour}')
             for node in self.scheme[contour]:
                 print('\t\t' + f'node: {node}')
-                print('\t\t\t' + f'parameters: {node.__dict__}')
+                print('\t\t\t' + f'parameters: {dict(sorted(node.__dict__.items(), key=lambda item: item[0]))}')
         print()
 
     def summary(self):
@@ -542,9 +543,18 @@ class GTE:
         return vars
 
     def placement(self):
+        """Расстановка мест положений в ГТД"""
         for contour in self.scheme:
             for i, node in enumerate(self.scheme[contour]):
                 node.place = {'contour': contour, 'pos': i}
+
+    def get_variability(self) -> int:
+        """Максимальное количество комбинаций варьируемых параметров"""
+        variability = prod([len(value) for key, value in self.mode.items()
+                            if type(value) in (tuple, list)])
+        return variability
+        return prod([len(value) for key, value in self.__dict__.items()
+                     if type(value) is list and len(value) and not key.startswith('_')])
 
     def gte_generator(self):
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
@@ -562,7 +572,7 @@ class GTE:
     # TODO:
     def solve(self):
         for gte_var in self.gte_generator():
-            gte_var.__calculate(how=how, error=error, Niter=Niter)
+            gte_var.calculate(scheme=self.scheme, mode=self.mode, substance=self.substance, fuel=self.fuel)
 
 
 if __name__ == '__main__':
@@ -583,7 +593,7 @@ if __name__ == '__main__':
 
         gte.R = 10_000
 
-        gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
+        gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H2': 0.000008})
         gte.fuel = Substance({'KEROSENE': 1.0})
 
         gte.scheme[1][0].σ = 0.98
@@ -633,7 +643,7 @@ if __name__ == '__main__':
 
         gte.R = 10_000
 
-        gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
+        gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H2': 0.000008})
         gte.fuel = Substance({'KEROSENE': 1.0})
 
         gte.scheme[1][0].σ = 0.98
