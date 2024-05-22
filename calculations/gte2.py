@@ -1,31 +1,32 @@
 import sys
 from tqdm import tqdm
+from colorama import Fore
 
 import pandas as pd
-from numpy import nan, inf, linspace, sqrt
-from colorama import Fore
+from numpy import nan, inf, linspace, sqrt, cos, sin, radians, prod
+import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
-from thermodynamics import Substance, atmosphere_standard, GDF, R_gas
+from thermodynamics import Substance, atmosphere_standard, GDF, R_gas, l_stoichiometry
 
 sys.path.append('D:/Programming/Python')
 
 import decorators
 
 
-def entalphy_t(T0, T1, g):
+def It(T0, T1, g):
     return
 
 
-def temperature_i(i, T0, g):
+def Ti(i, T0, g):
     return
 
 
-def pressure_t(T0, T1, q):
+def Pt(T0, T1, q):
     return
 
 
-def temperature_p(p, T0, g):
+def Tp(p, T0, g):
     return
 
 
@@ -56,16 +57,13 @@ class Inlet:
     def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров перед"""
 
-        # Невозмущенные параметры
-        self.gas_const_i = self.substance.gas_const[0]
-        assert hasattr(self, "T_i"), 'hasattr(self, "T_i")'
-        assert hasattr(self, "P_i"), 'hasattr(self, "P_i")'
-        self.ρ_i = self.P_i / (self.gas_const_i * self.T_i)
+        mode = kwargs.pop('mode', None)
+        assert hasattr(mode, "T") and hasattr(mode, "P")
 
-        # полные параметры
-        self.TT_i = self.T_i
-        self.PP_i = self.P_i
-        self.ρρ_i = self.ρ_i
+        self.gas_const_i = self.substance.gas_const[0]
+        self.TT_i = mode.T
+        self.PP_i = mode.P
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
         self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
         self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
 
@@ -283,56 +281,40 @@ class Load:
         return self.__dict__
 
 
-class GTE_mode:
-    def __init__(self):
-        self.H = nan  # высота полета [м]
-        self.M = nan  # Мах полета []
+class HeatExchanger:
+    pass
 
-    def __call__(self):
-        return {'H': self.H, 'M': self.M}
+
+class GTE_mode:
+
+    def __setattr__(self, key, value):
+        # атмосферные условия
+        if key == 'T':  # статическая окружающая температура [К]
+            assert type(value) in (int, float)
+            assert 0 < value
+        elif key == 'P':  # статическое окружающее давление [Па]
+            assert type(value) in (int, float)
+            assert 0 <= value
+
+        # высотно-скоростные характеристики
+        elif key == 'H':  # высота полета [м]
+            assert type(value) in (int, float)
+        elif key == 'M':  # Мах полета []
+            assert type(value) in (int, float)
+            assert 0 <= value
+        else:
+            raise AttributeError('"T", "P", "H", "M"')
+
+        object.__setattr__(self, key, value)
 
 
 GTE_NODES = (Inlet, Compressor, CombustionChamber, Turbine, Outlet, Load)
-
-
-def Figures(type_fig, *args, **kwargs) -> tuple[list[float]]:
-    x0 = kwargs.get('x0', 0)
-    y0 = kwargs.get('y0', 0)
-    x, y = [], []
-
-    if type_fig.strip().lower() in ('inlet'):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    elif type_fig.strip().lower() in ('compressor'):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-    elif type_fig.strip().lower() in ('combustionchamber'):
-        x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
-        y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
-    elif type_fig.strip().lower() in ('turbine'):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
-    elif type_fig.strip().lower() in ('nozzle',):
-        x = [x0 - 0.4, x0, x0 + 0.4, x0 + 0.4, x0, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-    elif type_fig.strip().lower() in ('outlet',):
-        x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    elif type_fig.strip().lower() in ('heatexchanger',):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
-    elif type_fig.strip().lower() in ('load',):
-        x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
-        y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    return x, y
 
 
 class GTE_scheme(dict):
     """Схема ГТД"""
 
     def __init__(self, scheme: dict):
-        super(GTE_scheme, self).__init__(*args, **kwargs)
-
         assert type(scheme) is dict
 
         scheme = dict(sorted(scheme.items(), key=lambda item: item[1]))
@@ -345,30 +327,59 @@ class GTE_scheme(dict):
         assert 1 in contours
         assert all(map(lambda key: abs(contours[i] - contours[i + 1]) == 1, contours[:-1]))
 
-        self.__scheme = scheme
+        super(GTE_scheme, self).__init__(scheme)
 
     # никаких append/pop/insert! Только перезапись
 
-    def show(self, **kwargs):
-        fg = plt.figure(figsize=kwargs.get('figsize', (12, 6)))  # размер в дюймах
-        fg.suptitle('GTE scheme', fontsize=14, fontweight='bold')
-        gs = fg.add_gridspec(1, len(scheme))  # строки, столбцы
+    @staticmethod
+    def Figures(node, **kwargs) -> tuple:
+        x0 = kwargs.get('x0', 0)
+        y0 = kwargs.get('y0', 0)
+        x, y = [], []
 
-        for contour in self.__scheme:
+        if type(node) is Inlet:
+            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
+            y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+        elif type(node) == Compressor:
+            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+            y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
+        elif type(node) == CombustionChamber:
+            x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
+            y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
+        elif type(node) == Turbine:
+            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+            y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
+        elif type(node) == Outlet:
+            x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
+            y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+        elif type(node) == HeatExchanger:
+            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+            y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
+        elif type(node) == Load:
+            x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
+            y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+        return x, y
+
+    def show(self, **kwargs):
+        fg = plt.figure(figsize=kwargs.get('figsize', (max(map(len, self.values())) * 2, len(self) * 3)))
+        fg.suptitle('GTE scheme', fontsize=14, fontweight='bold')
+        gs = fg.add_gridspec(1, len(self))  # строки, столбцы
+
+        for contour in self:
             fg.add_subplot(gs[0, contour - 1])
             plt.grid(True)
             plt.axis('square')
-            plt.title('contour ' + to_roman(contour) + ' | ' + 'контур ' + to_roman(contour), fontsize=14)
-            plt.xlim(0, len(scheme[contour]))
+            # plt.title('contour ' + to_roman(contour) + ' | ' + 'контур ' + to_roman(contour), fontsize=14)
+            plt.xlim(0, len(self[contour]))
             plt.ylim(0, 1)
-            plt.xticks(linspace(0, len(scheme[contour]), len(scheme[contour]) + 1))
+            plt.xticks(linspace(0, len(self[contour]), len(self[contour]) + 1))
             plt.yticks(linspace(0, 1, 1 + 1))
 
             x0, y0 = 0.5, 0.5
 
-            for node in scheme[contour]:
-                # print(node, *Figures(node, x0=x0, y0=y0))
-                plt.plot(*Figures(node, x0=x0, y0=y0), color='black', linewidth=3)
+            for node in self[contour]:
+                plt.plot(*self.Figures(node, x0=x0, y0=y0), color='black', linewidth=3)
+                # plt.text(x0 - 0.25, y0, node.__class__.__name__, fontsize=12)
                 x0 += 1
 
         plt.show()
@@ -416,6 +427,7 @@ class GTE:
             return self.scheme.scheme
         else:
             return self.item
+    """
 
     def __setattr__(self, key, value):
         if key == 'name':
@@ -429,7 +441,7 @@ class GTE:
             else:
                 raise AttributeError('type(scheme) is dict')
         else:
-            object.__setattr__(self, key, value)"""
+            object.__setattr__(self, key, value)
 
     def equations(self, points: tuple | list, *args, **kwargs) -> list:
         """СНЛАУ"""
@@ -502,9 +514,23 @@ class GTE:
             for i, node in enumerate(self.scheme[contour]):
                 node.place = {'contour': contour, 'pos': i}
 
+    def gte_generator(self):
+        """Генератор объектов ГТД с заданными варьируемыми параметрами"""
+        max_combinations = [self.get_variability()]  # для ГТД
+        for node in self.__path: max_combinations.append(node.get_variability())  # для узлов ГТД
+        combinations = [1] * (1 + len(self.__path))
+
+        for comb in tqdm(range(prod(max_combinations)), desc='Calculation', ncols=70):
+            gte_var = deepcopy(self)
+            gte_var.__set_combination(combinations[0], self)
+            for i, node in enumerate(gte_var.__path): node.set_combination(combinations[i + 1], self.__path[i])
+            gte_var.__update_combination(self, combinations, max_combinations)
+            yield gte_var
+
     # TODO:
     def solve(self):
-        pass
+        for gte_var in self.gte_generator():
+            gte_var.__calculate(how=how, error=error, Niter=Niter)
 
 
 if __name__ == '__main__':
@@ -512,10 +538,13 @@ if __name__ == '__main__':
     if 1:
         print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
+        gte.scheme.show()
         gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
 
         gte.m = {1: 1}
 
+        gte.mode.T = 288
+        gte.mode.P = 101325
         gte.mode.H = 0
         gte.mode.M = 0
 
@@ -526,8 +555,6 @@ if __name__ == '__main__':
 
         gte.scheme[1][0].σ = 0.98
         gte.scheme[1][0].g_leak = 0.005
-        gte.scheme[1][0].T_i = 288
-        gte.scheme[1][0].P_i = 100000
 
         gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
         gte.scheme[1][1].eff = 0.86
@@ -556,7 +583,7 @@ if __name__ == '__main__':
         gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
         '''
 
-    gte.calculate(scheme=gte.scheme, **gte.mode(), substance=gte.substance, fuel=gte.fuel)
+    gte.calculate(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
 
     for contour in gte.scheme:
         print(f'contour: {contour}')
