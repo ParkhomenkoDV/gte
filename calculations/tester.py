@@ -38,54 +38,6 @@ def Figures(type_fig, *args, **kwargs) -> tuple[list[float]]:
     return x, y
 
 
-def correlation(data, *args, method='pearson', only_nums=False, **kwargs):
-    if method.strip().lower() in ('pearson', 'kendall', 'spearman'):
-        cor = data[1:].corr(method=method)
-    else:
-        print('method must be in "pearson" or "kendall" or "spearman"!')
-        return
-    if only_nums:  # удаление всех строк и столбцов, содержащие только nan
-        cor.dropna(how='all', axis=0, inplace=True)  # удаление всех строк содержащих только nan
-        cor.dropna(how='all', axis=1, inplace=True)  # удаление всех столбцов содержащих только nan
-    return cor
-
-
-def show_correlation(df, show_num=True, cmap='bwr', units='', rnd=4, savefig=False, **kwargs):
-    cor = correlation(df, **kwargs)
-    if cor is None: return
-    if not isnum(rnd, type_num='int') or rnd < 0: rnd = 4
-    if units == '%': cor = cor * 100
-    cor = cor.round(rnd)
-
-    fig, ax = plt.subplots(figsize=(len(df.columns) / 2.54, len(df.columns) / 2.54))
-    ax.set_title('Correlation matrix | Матрица корреляции', fontsize=16, fontweight='bold')
-    ax.set_aspect('equal')
-    im = ax.imshow(cor, interpolation='nearest',
-                   cmap=cmap)  # RGB: 'jet', 'turbo', # blue vs red: 'bwr', # 2side: 'twilight','twilight_shifted'
-
-    cbar = fig.colorbar(im, orientation='vertical')
-    if units == '':
-        cbar.set_label('Color Intensity []', fontsize=14)
-        cbar.set_ticks(linspace(-1, 1, 21))
-    else:
-        cbar.set_label('Color Intensity [%]', fontsize=14)
-        cbar.set_ticks(linspace(-100, 100, 21))
-
-    ax.set_xticks(range(len(cor.columns)), cor.columns, fontsize=14, rotation=90)
-    ax.set_yticks(range(len(cor.columns)), cor.columns, fontsize=14, rotation=0)
-    ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
-
-    if show_num:
-        for row in range(len(cor.columns)):
-            for col in range(len(cor.columns)):
-                ax.text(row, col, cor.to_numpy()[row, col],
-                        ha="center", va="center", color='black', fontsize=12, rotation=45)
-
-    if savefig: export2file(plt, file_name='correlation', show_time=True, file_type='png', **kwargs)
-
-    plt.show()
-
-
 def input_keys(df) -> dict:
     while True:
         z = input('z = ').strip()
@@ -190,78 +142,7 @@ def analyse(df):
 
 
 if __name__ == '__main__':
-    file = 'exports/GTE АИ-222-25.pkl'
+    pass
 
-    if os.path.isfile(file):
-        file_name, file_extension = os.path.splitext(file)
-        if file_extension not in ('.pkl', '.csv', '.xlsx'):
-            print('Неизвестное расширение!')
-    else:
-        print('Такого файла не существет!')
-        exit()
 
-    if file_extension == '.pkl':
-        raw_df = pd.read_pickle(file)
-    elif file_extension == '.csv':
-        raw_df = pd.read_csv(file)
-    elif file_extension == '.xlsx':
-        raw_df = pd.read_excel(file)
 
-    print(raw_df)
-    print(raw_df.info(memory_usage='deep'))
-
-    df = raw_df
-    data = raw_df.to_dict('list')
-    print(data)
-
-    scheme = dict()
-    c = 0
-    for k in data:
-        if 'contour' in k:
-            c += 1
-            scheme[c] = data[k][0].split('+')
-    del c
-
-    fg = plt.figure(figsize=(13, 6))  # размер в дюймах
-    fg.suptitle('GTE scheme', fontsize=14, fontweight='bold')
-    gs = fg.add_gridspec(1, len(scheme))  # строки, столбцы
-
-    for contour in scheme:
-        fg.add_subplot(gs[0, contour - 1])
-        plt.grid(True)
-        plt.axis('square')
-        plt.title('contour ' + to_roman(contour) + ' | ' + 'контур ' + to_roman(contour), fontsize=14)
-        plt.xlim(0, len(scheme[contour]))
-        plt.ylim(0, 1)
-        plt.xticks(linspace(0, len(scheme[contour]), len(scheme[contour]) + 1))
-        plt.yticks(linspace(0, 1, 1 + 1))
-
-        x0, y0 = 0.5, 0.5
-
-        for node in scheme[contour]:
-            # print(node, *Figures(node, x0=x0, y0=y0))
-            plt.plot(*Figures(node, x0=x0, y0=y0), color='black', linewidth=3)
-            x0 += 1
-
-    plt.show()
-
-    list2del = []
-    for k in data:
-        for v in data[k]:
-            if not isnum(v):
-                list2del.append(k)
-                break
-    for i, k in enumerate(list2del): del data[k]
-    del list2del
-    print(data)
-
-    clean_df = pd.DataFrame(data)
-    print(clean_df)
-
-    cor = correlation(clean_df, method='pearson', only_nums=True)
-    print(cor)
-
-    show_correlation(clean_df, only_nums=False, show_num=False, units='%', savefig=False)
-    show_correlation(clean_df, only_nums=True, show_num=True, units='', rnd=2, savefig=True, dpi=300)
-
-    analyse(df)

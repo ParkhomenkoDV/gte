@@ -1,10 +1,13 @@
 .idea
 .ipynb_checkpoints
 __pycache__
+venv/
+
 
 /documentation/
 /drawing/
 /useful/
 
+calculations/tests/
 calculations/exports/
 calculations/links/

@@ -292,33 +292,117 @@ class GTE_mode:
         return {'H': self.H, 'M': self.M}
 
 
-class GTE_scheme:
+GTE_NODES = (Inlet, Compressor, CombustionChamber, Turbine, Outlet, Load)
+
+
+def Figures(type_fig, *args, **kwargs) -> tuple[list[float]]:
+    x0 = kwargs.get('x0', 0)
+    y0 = kwargs.get('y0', 0)
+    x, y = [], []
+
+    if type_fig.strip().lower() in ('inlet'):
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+    elif type_fig.strip().lower() in ('compressor'):
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
+    elif type_fig.strip().lower() in ('combustionchamber'):
+        x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
+        y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
+    elif type_fig.strip().lower() in ('turbine'):
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
+    elif type_fig.strip().lower() in ('nozzle',):
+        x = [x0 - 0.4, x0, x0 + 0.4, x0 + 0.4, x0, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 - 0.4, y0 + 0.4]
+    elif type_fig.strip().lower() in ('outlet',):
+        x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
+        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+    elif type_fig.strip().lower() in ('heatexchanger',):
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
+    elif type_fig.strip().lower() in ('load',):
+        x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
+        y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+    return x, y
+
+
+class GTE_scheme(dict):
     """Схема ГТД"""
 
-    GTE_NODES = (Inlet, Compressor, CombustionChamber, Turbine, Outlet)
-
     def __init__(self, scheme: dict):
-        assert type(scheme) is dict, 'type(scheme) is dict'
+        super(GTE_scheme, self).__init__(*args, **kwargs)
+
+        assert type(scheme) is dict
+
         scheme = dict(sorted(scheme.items(), key=lambda item: item[1]))
-        keys, values = map(list, (scheme.keys(), scheme.values()))
-        assert all(map(lambda key: type(key) is int, keys)), 'all(map(lambda key: type(key) is int, keys))'
-        """assert all(map(lambda value: type(value) in self.GTE_NODES, values)), \
-            'all(map(lambda value: type(value) in self.GTE_NODES, values))'"""
-        assert 1 in keys, '1 in keys'
-        assert all(map(lambda key: abs(keys[i] - keys[i + 1]) == 1, keys[:-1]))
+        contours, contour_nodes = map(tuple, (scheme.keys(), scheme.values()))
+
+        assert all(map(lambda contour: type(contour) is int, contours))
+        for nodes in contour_nodes:
+            assert all(map(lambda node: type(node) in GTE_NODES, nodes))
+
+        assert 1 in contours
+        assert all(map(lambda key: abs(contours[i] - contours[i + 1]) == 1, contours[:-1]))
 
         self.__scheme = scheme
+
+    # никаких append/pop/insert! Только перезапись
+
+    def show(self, **kwargs):
+        fg = plt.figure(figsize=kwargs.get('figsize', (12, 6)))  # размер в дюймах
+        fg.suptitle('GTE scheme', fontsize=14, fontweight='bold')
+        gs = fg.add_gridspec(1, len(scheme))  # строки, столбцы
+
+        for contour in self.__scheme:
+            fg.add_subplot(gs[0, contour - 1])
+            plt.grid(True)
+            plt.axis('square')
+            plt.title('contour ' + to_roman(contour) + ' | ' + 'контур ' + to_roman(contour), fontsize=14)
+            plt.xlim(0, len(scheme[contour]))
+            plt.ylim(0, 1)
+            plt.xticks(linspace(0, len(scheme[contour]), len(scheme[contour]) + 1))
+            plt.yticks(linspace(0, 1, 1 + 1))
+
+            x0, y0 = 0.5, 0.5
+
+            for node in scheme[contour]:
+                # print(node, *Figures(node, x0=x0, y0=y0))
+                plt.plot(*Figures(node, x0=x0, y0=y0), color='black', linewidth=3)
+                x0 += 1
+
+        plt.show()
 
 
 class GTE:
     """ГТД"""
 
-    def __init__(self, name='GTE') -> None:
+    @classmethod
+    def version(cls) -> str:
+        version = 6.0
+        next_version = ('камера смешения',
+                        'переход к массивам в местах постоянства диапазона значений'
+                        'теплак плак-плак',
+                        'упразднение outlet -> nozzle and outlet = переходный канал',
+                        'type(node) is class -> isinstance(node, class)'
+                        'ТД параметры через PTM 1677 as {"O2": 98, "H2": 2}',
+                        'соотношение соответствующих относительных расходов к своим контурам',
+                        'охлаждение турбины',
+                        'get_inlet_parameters() for all nodes',
+                        'get_outlet_parameters() for all nodes',
+                        'продолжение расчета',
+                        'multiprocessing',
+                        'ускорение расчета до 6000 [ГТД/с]')
+        print(f'{cls.__name__} version: {Fore.GREEN}{version}')
+        for i, v in enumerate(next_version): print(cls.__name__ + ' version:', int(version) + i + 1, v)
+        return str(version)
+
+    def __init__(self, name='GTE', scheme=None) -> None:
 
         assert type(name) is str
 
-        self.name = name
-        self.scheme = GTE_scheme({1: []})  # схема ГТД
+        self.name = name  # название ГТД
+        self.scheme = scheme  # GTE_scheme(scheme) if scheme is not None else GTE_scheme({1: tuple()})  # схема ГТД
         self.shafts = []  # валы ГТД
         self.contouring = {1: 1}  # степень контурности []
 
@@ -326,8 +410,26 @@ class GTE:
 
         self.v = nan  # скорость полета [м/с]
 
-    def __str__(self) -> str:
-        return self.name
+    """
+    def __getitem__(self, item):
+        if item == 'scheme':
+            return self.scheme.scheme
+        else:
+            return self.item
+
+    def __setattr__(self, key, value):
+        if key == 'name':
+            assert type(value) is str
+            object.__setattr__(self, key, value)
+        elif key == 'scheme':
+            if type(value) is dict:
+                object.__setattr__(self, key, GTE_scheme(value))
+            elif value is None:
+                object.__setattr__(self, key, GTE_scheme({1: tuple()}))
+            else:
+                raise AttributeError('type(scheme) is dict')
+        else:
+            object.__setattr__(self, key, value)"""
 
     def equations(self, points: tuple | list, *args, **kwargs) -> list:
         """СНЛАУ"""
@@ -408,7 +510,7 @@ class GTE:
 if __name__ == '__main__':
     gte = GTE('Jumo 004b')
     if 1:
-        print(Fore.CYAN + f'{gte}' + Fore.RESET)
+        print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
         gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
 
