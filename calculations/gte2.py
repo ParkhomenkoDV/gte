@@ -383,7 +383,8 @@ class GTE_scheme(dict):
             for i, node in enumerate(self[contour]):
                 plt.plot(*self.Figures(node, x0=x0, y0=y0), color='black', linewidth=3,
                          label=f'{contour}.{i + 1}: {node.__class__.__name__}')
-                plt.text(x0 - 0.05, y0 - 0.025, f'{contour}.{i + 1}', fontsize=12, fontweight='bold')
+                plt.text(x0, y0, f'{contour}.{i + 1}', fontsize=12, fontweight='bold',
+                         ha='center', va='center')
                 x0 += 1
 
         fg.add_subplot(gs[len(self), 0])
@@ -577,7 +578,7 @@ class GTE:
 
 if __name__ == '__main__':
 
-    if 0:
+    if 1:
         gte = GTE('Jumo 004b')
         print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
@@ -626,7 +627,7 @@ if __name__ == '__main__':
         gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
         '''
 
-    if 1:
+    if 0:
         gte = GTE('CFM-56')
         print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()],
