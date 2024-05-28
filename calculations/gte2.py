@@ -52,21 +52,58 @@ R -> T -> P -> ro -> Cp -> k
 """
 
 
+class Variability:
+    """Варьируемость"""
+
+    @staticmethod
+    def varible_parameters(obj) -> dict[str: tuple | list]:
+        return {key: value for key, value in obj.__dict__.items()
+                if type(value) in (tuple, list) and len(value) and not key.startswith('_')}
+
+    def variability(self) -> int:
+        """Максимальное количество комбинаций варьируемых параметров"""
+        return int(prod([len(value) for value in self.varible_parameters(self).values()]))
+
+    def _set_combination(self, combination: int, main_obj: object) -> None:
+        """Установка комбинации"""
+        varible_params = list(self.varible_parameters(main_obj).keys())
+        positions = [0] * len(varible_params)
+
+        for _ in range(combination):
+            for j, param in enumerate(varible_params):
+                if positions[j] == len(getattr(main_obj, varible_params[j])) - 1:
+                    positions[j] = 0
+                else:
+                    positions[j] += 1
+                    continue
+        for j, param in enumerate(varible_params):
+            setattr(self, varible_params[j], getattr(main_obj, varible_params[j])[positions[j]])
+
+    def _update_combination(self, main_obj: object, combination: int, max_combination: int) -> None:
+        if max_combination > 1:  # если есть варьируемые параметры
+            if combination < max_combination:  # если не конец варьирования параметров
+                self._set_combination(combination, main_obj)  # установка текущего параметра варьирования
+            else:
+                self._set_combination(0, main_obj)
+
+
 class GTE_node:
     def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров перед"""
-        scheme = kwargs.get('scheme', dict())
+        scheme = kwargs.pop('scheme', dict())
 
         self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o  # TODO: or hasattr
-        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o  # TODO: or hasattr
+        if not hasattr(self, 'TT_i'):
+            self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
+        if not hasattr(self, 'PP_i'):
+            self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
         self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
         self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
         self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
         return self.__dict__
 
 
-class Inlet:
+class Inlet(Variability):
     """Входное устройство"""
 
     def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
@@ -115,7 +152,7 @@ class Inlet:
         self.get_outlet_parameters(**kwargs)
 
 
-class Compressor(GTE_node):
+class Compressor(Variability, GTE_node):
     """Компрессор"""
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
@@ -142,7 +179,7 @@ class Compressor(GTE_node):
         return self.__dict__
 
 
-class CombustionChamber(GTE_node):
+class CombustionChamber(Variability, GTE_node):
     """Камера сгорания"""
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
@@ -181,7 +218,7 @@ class CombustionChamber(GTE_node):
         g_fuel = 1 / l0 / a_ox3
 
 
-class Turbine(GTE_node):
+class Turbine(Variability, GTE_node):
     """Турбина"""
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
@@ -209,7 +246,7 @@ class Turbine(GTE_node):
         return self.__dict__
 
 
-class Outlet(GTE_node):
+class Outlet(Variability, GTE_node):
     """Выходное устройство"""
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
@@ -243,17 +280,22 @@ class Outlet(GTE_node):
         return self.__dict__
 
 
-class Load:
-    def calculate(self, *args, **kwargs) -> dict[str:int | float]:
-        return self.__dict__
-
-
-class HeatExchanger:
+class HeatExchanger(Variability, GTE_node):
     """Теплообменный аппарат"""
     pass
 
 
-class GTE_mode:
+class TransitionChannel(Variability, GTE_node):
+    """Переходный канал"""
+    pass
+
+
+class Load(Variability):
+    def calculate(self, *args, **kwargs) -> dict[str:int | float]:
+        return self.__dict__
+
+
+class GTE_mode(Variability):
 
     def __setattr__(self, key, value):
         # атмосферные условия
@@ -270,6 +312,10 @@ class GTE_mode:
         elif key == 'M':  # Мах полета []
             assert type(value) in (int, float)
             assert 0 <= value
+
+        elif key == 'R':
+            assert type(value) in (int, float)
+
         else:
             raise AttributeError('"T", "P", "H", "M"')
 
@@ -377,21 +423,19 @@ class GTE_shaft(list):
         super(GTE_shaft, self).__init__(shaft)
 
 
-class GTE:
+class GTE(Variability):
     """ГТД"""
 
     @classmethod
     def version(cls) -> str:
-        version = 7.0
+        version = 8.0
         next_version = ('камера смешения',
                         'переход к массивам в местах постоянства диапазона значений'
                         'теплак плак-плак',
                         'переходный канал',
                         'type(node) is class -> isinstance(node, class)'
-                        'ТД параметры через PTM 1677 as {"O2": 98, "H2": 2}',
                         'соотношение соответствующих относительных расходов к своим контурам',
                         'охлаждение турбины',
-                        'get_inlet_parameters() for all nodes',
                         'get_outlet_parameters() for all nodes',
                         'продолжение расчета',
                         'multiprocessing',
@@ -459,7 +503,7 @@ class GTE:
 
         # требования
         eq.append(sum([self.scheme[contour][-1].calculate(**p, scheme=self.scheme, substance=self.substance)['R']
-                       for contour in self.scheme]) - self.R)
+                       for contour in self.scheme]) - self.mode.R)
 
         return eq
 
@@ -480,14 +524,9 @@ class GTE:
         self.__vars = vars0
         return vars0
 
-    @decorators.timeit(6)
-    def calculate(self, Niter: int = 10, epsilon=0.01, *args, **kwargs):
+    @decorators.timeit(4)
+    def __calculate(self, Niter: int = 10, xtol: float = 0.01, **kwargs):
         """Решение СНЛАУ"""
-
-        assert type(Niter) is int, 'type(Niter) is int'
-        assert 1 <= Niter, '1 <= Niter'
-
-        self.placement()
 
         vars0 = self.get_varibles()
         for i in range(Niter):
@@ -498,12 +537,12 @@ class GTE:
                     node.calculate(**vars0, **kwargs)
 
             vars_list = fsolve(self.equations, tuple(vars0.values()),
-                               xtol=epsilon, maxfev=100 * (len(vars0) + 1))
+                               xtol=xtol, maxfev=100 * (len(vars0) + 1))
             vars = {key: vars_list[i] for i, key in enumerate(vars0.keys())}
 
             print(Fore.GREEN + f'points: {vars}' + Fore.RESET)
-            print(Fore.CYAN + f'eq: {gte.equations(list(vars.values()))}' + Fore.RESET)
-            if all(map(lambda x0, x: abs(x - x0) / x0 <= epsilon, vars0.values(), vars.values())): break
+            print(Fore.CYAN + f'eq: {self.equations(list(vars.values()))}' + Fore.RESET)
+            if all(map(lambda x0, x: abs(x - x0) / x0 <= xtol, vars0.values(), vars.values())): break
             vars0 = vars  # обновление параметров
         else:
             print(Fore.RED + 'Решение не найдено!' + Fore.RESET)
@@ -515,40 +554,63 @@ class GTE:
             for i, node in enumerate(self.scheme[contour]):
                 node.place = {'contour': contour, 'pos': i}
 
-    def get_variability(self) -> int:
-        """Максимальное количество комбинаций варьируемых параметров"""
-        variability = prod([len(value) for key, value in self.mode.items()
-                            if type(value) in (tuple, list)])
-        return variability
-        return prod([len(value) for key, value in self.__dict__.items()
-                     if type(value) is list and len(value) and not key.startswith('_')])
-
     def gte_generator(self):
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
-        max_combinations = [self.get_variability()]  # для ГТД
-        for node in self.__path: max_combinations.append(node.get_variability())  # для узлов ГТД
-        combinations = [1] * (1 + len(self.__path))
+        # список из количеств комбинаций, текущая комбинация
+        list_count_combinations, combinations = list(), list()
 
-        for comb in tqdm(range(prod(max_combinations)), desc='Calculation', ncols=70):
+        list_count_combinations.append(self.mode.variability())  # для режима работы ГТД
+        combinations.append(1)  # текущая комбинация для режима работы ГТД
+
+        for contour in self.scheme:
+            for node in self.scheme[contour]:
+                list_count_combinations.append(node.variability())  # для узлов ГТД
+                combinations.append(1)  # текущая комбинация для узла ГТД
+
+        for comb in tqdm(range(prod(list_count_combinations)), desc='Calculation', ncols=70):
             gte_var = deepcopy(self)
-            gte_var.__set_combination(combinations[0], self)
-            for i, node in enumerate(gte_var.__path): node.set_combination(combinations[i + 1], self.__path[i])
-            gte_var.__update_combination(self, combinations, max_combinations)
+
+            # установка параметров
+            gte_var._set_combination(combinations[0], self)  # для режима работы ГТД
+            for contour in gte_var.scheme:
+                for i, node in enumerate(gte_var.scheme[contour]):
+                    node._set_combination(combinations[i + 1], self.scheme[contour][i])
+
             yield gte_var
 
+            # обновление параметров
+            gte_var._update_combination(self.mode, combinations[0], list_count_combinations[0])
+            k = 1
+            for contour in self.scheme:
+                for i, node in enumerate(self.scheme[contour]):
+                    node._update_combination(self, combinations[k], list_count_combinations[k])
+                    k += 1
+
     # TODO:
-    def solve(self):
+    def solve(self, Niter: int = 10, xtol: float = 0.01, **kwargs):
+        """Расчет ГТД"""
+
+        assert type(Niter) is int
+        assert 1 <= Niter
+
+        assert type(xtol) is float
+        assert 0 < xtol < 1
+
+        self.placement()  # расстановка мест положений в ГТД
+
+        '''self.__calculate(Niter=Niter, xtol=xtol,
+                         scheme=self.scheme, mode=self.mode, substance=self.substance, fuel=self.fuel)'''
+
         for gte_var in self.gte_generator():
-            gte_var.calculate(scheme=self.scheme, mode=self.mode, substance=self.substance, fuel=self.fuel)
+            gte_var.__calculate(scheme=gte_var.scheme, mode=gte_var.mode,
+                                substance=gte_var.substance, fuel=gte_var.fuel)
 
 
 if __name__ == '__main__':
 
     if 1:
         gte = GTE('Jumo 004b')
-        print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
-        gte.scheme.show()
         gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
 
         gte.m = {1: 1}
@@ -558,12 +620,12 @@ if __name__ == '__main__':
         gte.mode.H = 0
         gte.mode.M = 0
 
-        gte.R = 10_000
+        gte.mode.R = 10_000
 
         gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H2': 0.000008})
         gte.fuel = Substance({'KEROSENE': 1.0})
 
-        gte.scheme[1][0].σ = 0.98
+        gte.scheme[1][0].σ = [0.98, 1]
         gte.scheme[1][0].g_leak = 0.005
 
         gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
@@ -595,7 +657,6 @@ if __name__ == '__main__':
 
     if 0:
         gte = GTE('CFM-56')
-        print(Fore.CYAN + f'{gte.name}' + Fore.RESET)
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()],
                       2: [Inlet(), Compressor(), Outlet()]}
         gte.scheme.show()
@@ -649,6 +710,9 @@ if __name__ == '__main__':
         gte.scheme[2][2].v_ = 0.98
         gte.scheme[2][2].g_leak = 0.001
 
-    gte.calculate(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
+    gte.describe()
+    # gte.scheme.show()
+
+    gte.solve(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
 
     gte.describe()
