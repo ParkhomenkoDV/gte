@@ -48,7 +48,7 @@ def get_combination(combination: int, max_list: list[int]) -> list[int]:
 
 """
 Порядок расчета ТД параметров:
-R -> T -> P -> ro -> Cp -> k
+R -> T -> P -> ro -> Cp -> k ->
 """
 
 
@@ -108,20 +108,28 @@ class Inlet(Variability):
 
     def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров перед"""
-
+        G = kwargs.get('G', nan)
         mode = kwargs.pop('mode', None)
-        assert hasattr(mode, "T") and hasattr(mode, "P")
+        assert hasattr(mode, "T") and hasattr(mode, "P") and hasattr(mode, 'M')
 
         self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = mode.T  # TODO
-        self.PP_i = mode.P  # TODO
-        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
-        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
 
-        self.Mc_i = 0
-        self.c_i = 0
-        self.F_i = inf
+        self.T_i = mode.T
+        self.P_i = mode.P
+        self.ρ_i = self.P_i / (self.gas_const_i * self.T_i)
+        self.Cp_i = self.substance.Cp(T=self.T_i, P=self.P_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        self.M_c_i = mode.M
+        self.a = sqrt(self.k_i * self.gas_const_i * self.T_i)
+        self.c_i = self.M_c_i * self.a
+        self.F_i = G / (self.ρ_i * self.c_i) if self.c_i != 0 else inf
+
+        self.TT_i = self.T_i * (1 - (self.k_i - 1) / 2 * self.M_c_i ** 2)
+        self.PP_i = self.P_i * (1 - (self.k_i - 1) / 2 * self.M_c_i ** 2) ** (self.k_i / (self.k_i - 1))
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
+        self.CpCp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.kk_i = self.CpCp_i / (self.CpCp_i - self.gas_const_i)
+
         return self.__dict__
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
@@ -298,9 +306,9 @@ class Load(Variability):
 class GTE_mode(Variability):
 
     def __setattr__(self, key, value):
-        # атмосферные условия
+        '''# атмосферные условия
         if key == 'T':  # статическая окружающая температура [К]
-            assert type(value) in (int, float)
+            assert type(value) in (int, float, tuple, list)
             assert 0 < value
         elif key == 'P':  # статическое окружающее давление [Па]
             assert type(value) in (int, float)
@@ -317,7 +325,7 @@ class GTE_mode(Variability):
             assert type(value) in (int, float)
 
         else:
-            raise AttributeError('"T", "P", "H", "M"')
+            raise AttributeError('"T", "P", "H", "M"')'''
 
         object.__setattr__(self, key, value)
 
@@ -617,7 +625,7 @@ if __name__ == '__main__':
 
         gte.mode.T = 288
         gte.mode.P = 101325
-        gte.mode.H = 0
+        gte.mode.H = [0, 11_000]
         gte.mode.M = 0
 
         gte.mode.R = 10_000
