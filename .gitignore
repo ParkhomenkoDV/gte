@@ -11,3 +11,5 @@ venv/
 calculations/tests/
 calculations/exports/
 calculations/links/
+
+tester.py

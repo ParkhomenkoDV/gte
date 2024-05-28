@@ -52,6 +52,20 @@ R -> T -> P -> ro -> Cp -> k
 """
 
 
+class GTE_node:
+    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
+        """Расчет параметров перед"""
+        scheme = kwargs.get('scheme', dict())
+
+        self.gas_const_i = self.substance.gas_const[0]
+        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o  # TODO: or hasattr
+        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o  # TODO: or hasattr
+        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
+        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        return self.__dict__
+
+
 class Inlet:
     """Входное устройство"""
 
@@ -101,20 +115,8 @@ class Inlet:
         self.get_outlet_parameters(**kwargs)
 
 
-class Compressor:
+class Compressor(GTE_node):
     """Компрессор"""
-
-    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
-        """Расчет параметров перед"""
-        scheme = kwargs.get('scheme', dict())
-
-        self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
-        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
-        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
-        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
-        return self.__dict__
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
@@ -140,20 +142,8 @@ class Compressor:
         return self.__dict__
 
 
-class CombustionChamber:
+class CombustionChamber(GTE_node):
     """Камера сгорания"""
-
-    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
-        """Расчет параметров перед"""
-        scheme = kwargs.get('scheme', dict())
-
-        self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
-        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
-        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
-        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
-        return self.__dict__
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
@@ -191,20 +181,8 @@ class CombustionChamber:
         g_fuel = 1 / l0 / a_ox3
 
 
-class Turbine:
+class Turbine(GTE_node):
     """Турбина"""
-
-    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
-        """Расчет параметров перед"""
-        scheme = kwargs.get('scheme', dict())
-
-        self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
-        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
-        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
-        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
-        return self.__dict__
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
@@ -231,20 +209,8 @@ class Turbine:
         return self.__dict__
 
 
-class Outlet:
+class Outlet(GTE_node):
     """Выходное устройство"""
-
-    def get_inlet_parameters(self, **kwargs) -> dict[str:int | float]:
-        """Расчет параметров перед"""
-        scheme = kwargs.get('scheme', dict())
-
-        self.gas_const_i = self.substance.gas_const[0]
-        self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
-        self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
-        self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
-        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
-        return self.__dict__
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
