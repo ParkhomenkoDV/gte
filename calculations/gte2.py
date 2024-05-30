@@ -38,14 +38,6 @@ def find_node_in_scheme(scheme, node2find) -> tuple:
             if scheme[contour][i] is node2find: return contour, i
 
 
-def get_combination(combination: int, max_list: list[int]) -> list[int]:
-    n = max_list.copy()
-    for i, max_element in enumerate(max_list):
-        n[i] = combination % max_element
-        combination //= max_element
-    return n
-
-
 """
 Порядок расчета ТД параметров:
 R -> T -> P -> ro -> Cp -> k ->
@@ -57,12 +49,21 @@ class Variability:
 
     @staticmethod
     def varible_parameters(obj) -> dict[str: tuple | list]:
+        """Словарь с варьируемыми параметрами и их итераторами значений"""
         return {key: value for key, value in obj.__dict__.items()
                 if type(value) in (tuple, list) and len(value) and not key.startswith('_')}
 
     def variability(self) -> int:
         """Максимальное количество комбинаций варьируемых параметров"""
         return int(prod([len(value) for value in self.varible_parameters(self).values()]))
+
+    @staticmethod
+    def get_combination(combination: int, max_list: list[int]) -> list[int]:
+        n = max_list.copy()
+        for i, max_element in enumerate(max_list):
+            n[i] = combination % max_element
+            combination //= max_element
+        return n
 
     def _set_combination(self, combination: int, main_obj: object) -> None:
         """Установка комбинации"""
@@ -77,7 +78,7 @@ class Variability:
                     positions[j] += 1
                     continue
         for j, param in enumerate(varible_params):
-            setattr(self, varible_params[j], getattr(main_obj, varible_params[j])[positions[j]])
+            setattr(self, param, getattr(main_obj, param)[positions[j]])
 
     def _update_combination(self, main_obj: object, combination: int, max_combination: int) -> None:
         if max_combination > 1:  # если есть варьируемые параметры
@@ -98,8 +99,8 @@ class GTE_node:
         if not hasattr(self, 'PP_i'):
             self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
         self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
-        self.Cp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
-        self.k_i = self.Cp_i / (self.Cp_i - self.gas_const_i)
+        self.CpCp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
+        self.kk_i = self.CpCp_i / (self.CpCp_i - self.gas_const_i)
         return self.__dict__
 
 
@@ -134,22 +135,12 @@ class Inlet(Variability):
 
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
-        G = kwargs.get('G', nan)
-        self.Mc_o = kwargs.get('M', nan)
-
         self.gas_const_o = self.substance.gas_const[0]
         self.TT_o = self.TT_i
         self.PP_o = self.PP_i * self.σ
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
-        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
-        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
-
-        self.lc = sqrt(((self.k_o + 1) / 2 * self.Mc_o ** 2) / (1 + (self.k_o - 1) / 2 * self.Mc_o ** 2))
-        self.T_o = self.TT_o * GDF('T', self.lc, self.k_o)
-        self.P_o = self.PP_o * GDF('P', self.lc, self.k_o)
-        self.ρ_o = self.P_o / (self.gas_const_o * self.T_o)
-        self.c_o = self.Mc_o * sqrt(self.k_o * self.gas_const_o * self.T_o)
-        self.F_o = G / (self.ρρ_o * self.c_o) if self.c_o != 0 else inf
+        self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
+        self.kk_o = self.CpCp_o / (self.CpCp_o - self.gas_const_o)
         return self.__dict__
 
     def calculate(self, *args, **kwargs) -> dict[str: int | float]:
@@ -166,11 +157,11 @@ class Compressor(Variability, GTE_node):
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
         self.gas_const_o = self.substance.gas_const[0]
-        self.TT_o = self.TT_i * (1 + (self.ππ ** ((self.k_i - 1) / self.k_i) - 1) / self.eff)
+        self.TT_o = self.TT_i * (1 + (self.ππ ** ((self.kk_i - 1) / self.kk_i) - 1) / self.effeff)
         self.PP_o = self.PP_i * self.ππ
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
-        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
-        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+        self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
+        self.kk_o = self.CpCp_o / (self.CpCp_o - self.gas_const_o)
         return self.__dict__
 
     def calculate(self, *args, **kwargs) -> dict[str:int | float]:
@@ -211,8 +202,8 @@ class CombustionChamber(Variability, GTE_node):
 
         self.PP_o = self.PP_i * self.σ
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
-        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
-        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+        self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.kk_o = self.CpCp_o / (self.CpCp_o - self.gas_const_o)
         return self.__dict__
 
     def calculate(self, *args, **kwargs):
@@ -232,11 +223,11 @@ class Turbine(Variability, GTE_node):
     def get_outlet_parameters(self, **kwargs) -> dict[str:int | float]:
         """Расчет параметров после"""
         self.gas_const_o = self.substance.gas_const[0]
-        self.TT_o = self.TT_i * (1 - (1 - self.ππ ** ((1 - self.k_i) / self.k_i)) * self.eff)
+        self.TT_o = self.TT_i * (1 - (1 - self.ππ ** ((1 - self.kk_i) / self.kk_i)) * self.effeff)
         self.PP_o = self.PP_i / self.ππ
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
-        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
-        self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+        self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.kk_o = self.CpCp_o / (self.CpCp_o - self.gas_const_o)
 
         return self.__dict__
 
@@ -249,7 +240,7 @@ class Turbine(Variability, GTE_node):
         self.get_inlet_parameters(**kwargs)
         self.get_outlet_parameters(**kwargs)
 
-        self.L = self.Cp_i * (self.TT_i - self.TT_o)
+        self.L = self.CpCp_i * (self.TT_i - self.TT_o)
         self.N = self.L * G
         return self.__dict__
 
@@ -293,7 +284,7 @@ class HeatExchanger(Variability, GTE_node):
     pass
 
 
-class TransitionChannel(Variability, GTE_node):
+class TransitChannel(Variability, GTE_node):
     """Переходный канал"""
     pass
 
@@ -516,7 +507,7 @@ class GTE(Variability):
         return eq
 
     # TODO: обучить модель
-    def get_varibles(self) -> dict[str:int | float]:
+    def get_varibles(self, log=True) -> dict[str:int | float]:
         """Начальные приближения"""
 
         # Массовый расход
@@ -528,15 +519,17 @@ class GTE(Variability):
                 if isinstance(node, Turbine):
                     vars0[f'pipi_{contour}_{i}'] = 3
 
-        print(f'points0: {vars0}')
+        if log: print(f'points0: {vars0}')
         self.__vars = vars0
         return vars0
 
-    @decorators.timeit(4)
+    @decorators.warns('ignore')  # при отсутствии решения
     def __calculate(self, Niter: int = 10, xtol: float = 0.01, **kwargs):
         """Решение СНЛАУ"""
 
-        vars0 = self.get_varibles()
+        log = kwargs.pop('log', False)
+
+        vars0 = self.get_varibles(log=log)
         for i in range(Niter):
 
             # расчет ГТД в строчку
@@ -548,8 +541,10 @@ class GTE(Variability):
                                xtol=xtol, maxfev=100 * (len(vars0) + 1))
             vars = {key: vars_list[i] for i, key in enumerate(vars0.keys())}
 
-            print(Fore.GREEN + f'points: {vars}' + Fore.RESET)
-            print(Fore.CYAN + f'eq: {self.equations(list(vars.values()))}' + Fore.RESET)
+            if log:
+                print(Fore.GREEN + f'variables: {vars}' + Fore.RESET)
+                print(Fore.CYAN + f'zeros: {self.equations(list(vars.values()))}' + Fore.RESET)
+
             if all(map(lambda x0, x: abs(x - x0) / x0 <= xtol, vars0.values(), vars.values())): break
             vars0 = vars  # обновление параметров
         else:
@@ -564,38 +559,27 @@ class GTE(Variability):
 
     def gte_generator(self):
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
-        # список из количеств комбинаций, текущая комбинация
-        list_count_combinations, combinations = list(), list()
-
+        list_count_combinations = list()  # список из количеств комбинаций
         list_count_combinations.append(self.mode.variability())  # для режима работы ГТД
-        combinations.append(1)  # текущая комбинация для режима работы ГТД
-
         for contour in self.scheme:
             for node in self.scheme[contour]:
                 list_count_combinations.append(node.variability())  # для узлов ГТД
-                combinations.append(1)  # текущая комбинация для узла ГТД
 
         for comb in tqdm(range(prod(list_count_combinations)), desc='Calculation', ncols=70):
-            gte_var = deepcopy(self)
+            gte_var = deepcopy(self)  # обнуление параметров
+            combinations = self.get_combination(comb, list_count_combinations)
 
             # установка параметров
-            gte_var._set_combination(combinations[0], self)  # для режима работы ГТД
+            gte_var.mode._set_combination(combinations[0], self.mode)  # для режима работы ГТД
+            k = 1
             for contour in gte_var.scheme:
-                for i, node in enumerate(gte_var.scheme[contour]):
-                    node._set_combination(combinations[i + 1], self.scheme[contour][i])
+                for node, main_node in zip(gte_var.scheme[contour], self.scheme[contour]):
+                    node._set_combination(combinations[k], main_node)  # для узлов ГТД
+                    k += 1
 
             yield gte_var
 
-            # обновление параметров
-            gte_var._update_combination(self.mode, combinations[0], list_count_combinations[0])
-            k = 1
-            for contour in self.scheme:
-                for i, node in enumerate(self.scheme[contour]):
-                    node._update_combination(self, combinations[k], list_count_combinations[k])
-                    k += 1
-
-    # TODO:
-    def solve(self, Niter: int = 10, xtol: float = 0.01, **kwargs):
+    def solve(self, Niter: int = 10, xtol: float = 0.01, log=False):
         """Расчет ГТД"""
 
         assert type(Niter) is int
@@ -606,12 +590,15 @@ class GTE(Variability):
 
         self.placement()  # расстановка мест положений в ГТД
 
-        '''self.__calculate(Niter=Niter, xtol=xtol,
-                         scheme=self.scheme, mode=self.mode, substance=self.substance, fuel=self.fuel)'''
-
+        gte_vars = list()  # TODO: multiprocessing
         for gte_var in self.gte_generator():
             gte_var.__calculate(scheme=gte_var.scheme, mode=gte_var.mode,
                                 substance=gte_var.substance, fuel=gte_var.fuel)
+            gte_vars.append(deepcopy(gte_var))
+            if log: gte_var.describe()
+
+        # print(pd.DataFrame([obj.__dict__ for obj in gte_vars]))
+        for gte in gte_vars: gte.describe()
 
 
 if __name__ == '__main__':
@@ -623,9 +610,9 @@ if __name__ == '__main__':
 
         gte.m = {1: 1}
 
-        gte.mode.T = 288
+        gte.mode.T = [288]
         gte.mode.P = 101325
-        gte.mode.H = [0, 11_000]
+        gte.mode.H = 0
         gte.mode.M = 0
 
         gte.mode.R = 10_000
@@ -633,21 +620,21 @@ if __name__ == '__main__':
         gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H2': 0.000008})
         gte.fuel = Substance({'KEROSENE': 1.0})
 
-        gte.scheme[1][0].σ = [0.98, 1]
+        gte.scheme[1][0].σ = [0.98]
         gte.scheme[1][0].g_leak = 0.005
 
-        gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
-        gte.scheme[1][1].eff = 0.86
+        gte.scheme[1][1].ππ = list(linspace(3, 9, 6 + 1))
+        gte.scheme[1][1].effeff = 0.86
         gte.scheme[1][1].g_leak = 0.05
 
         gte.scheme[1][2].T_fuel = 40 + 273.15
         gte.scheme[1][2].η_burn = 0.99
-        gte.scheme[1][2].TT_o = 1000
+        gte.scheme[1][2].TT_o = 1800  # list(linspace(800, 1200, 4 + 1))
         gte.scheme[1][2].T_lim = 1000
         gte.scheme[1][2].σ = 0.94
         gte.scheme[1][2].g_leak = 0
 
-        gte.scheme[1][3].eff = 0.92
+        gte.scheme[1][3].effeff = 0.92
         gte.scheme[1][3].η_mechanical = 0.99
         gte.scheme[1][3].T_lim = 1000
         gte.scheme[1][3].g_leak = 0.05
@@ -660,7 +647,6 @@ if __name__ == '__main__':
         '''
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
         '''
 
     if 0:
@@ -721,6 +707,4 @@ if __name__ == '__main__':
     gte.describe()
     # gte.scheme.show()
 
-    gte.solve(scheme=gte.scheme, mode=gte.mode, substance=gte.substance, fuel=gte.fuel)
-
-    gte.describe()
+    gte.solve()

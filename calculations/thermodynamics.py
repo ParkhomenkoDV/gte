@@ -321,7 +321,7 @@ def mixing_param(params: list, mass_flows: list, contourings: list, error=0.01, 
         return nan
 
 
-class Substance:
+class Substance(dict):
     """Вещество"""
 
     def __init__(self, composition: dict) -> None:
