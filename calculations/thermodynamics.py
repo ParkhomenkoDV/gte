@@ -67,7 +67,7 @@ except IOError as exception:
 
 
 @lru_cache(maxsize=None)
-def atmosphere_standard(H: int | float) -> dict[str:float]:
+def atmosphere_standard(H: int | float) -> dict[str:tuple[float, str]]:
     """Атмосфера стандартная ГОСТ 4401-81"""
     return {'T': (float(T_atmosphere_standard(H)), 'K'), 'P': (float(P_atmosphere_standard(H)), 'Pa')}
 
@@ -333,7 +333,7 @@ class Substance(dict):
 
         assert type(composition) is dict
         elements, fractions = map(tuple, (composition.keys(), composition.values()))
-        assert all(map(lambda element: type(element) is str, elements))  # TODO: проверка элемента по ПСХЭ
+        assert all(map(lambda element: type(element) is str, elements))
         assert all(map(lambda fraction: type(fraction) in (float, int), fractions))
         assert all(map(lambda fraction: 0 <= fraction, fractions))
         # сортировка по убыванию массовой доли элемента
@@ -341,7 +341,7 @@ class Substance(dict):
         super(Substance, self).__init__(composition)
 
     def __add__(self, other):
-        assert isinstance(other, Substance), 'isinstance(other, Substance)'
+        assert isinstance(other, Substance)
         m = sum(self.composition.values()) + sum(other.composition.values())
         composition = dict()
         # TODO а если элемент повторяется
@@ -427,26 +427,22 @@ class Substance(dict):
 
     @decorators.timeit()
     def summary(self) -> dict:
-        print(f'composition: {self.composition}')
-        print(f'mol_mass: {self.mol_mass}')
-        print(f'gas_const: {self.gas_const}')
+        result = {'composition': self.composition,
+                  'mol_mass': self.mol_mass,
+                  'gas_const': self.gas_const}
 
-        return {'composition': self.composition,
-                'mol_mass': self.mol_mass,
-                'gas_const': self.gas_const}
+        for key, value in result.items(): print(f'{key}: {value}')
+
+        return result
 
 
 if __name__ == '__main__':
     if 0:
         print(Fore.YELLOW + f'testing {atmosphere_standard.__name__}' + Fore.RESET)
-        for H in (-2000, 0, 4_000, 11_000, 16_000):
+        for H in (-8_000, -2_000, 0, 4_000, 11_000, 16_000, 32_000):
             print(f'H = {H}: {atmosphere_standard(H)}')
 
     if 1:
-        from mendeleev.fetch import fetch_table
-
-        df = fetch_table('elements')
-        print(df['annotation'])
         print(Fore.YELLOW + f'testing {Substance.__name__}' + Fore.RESET)
         s1 = Substance({'N2': 75.5})
         s1.summary()
