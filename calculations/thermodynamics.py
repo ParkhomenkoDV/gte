@@ -2,6 +2,7 @@ import sys
 import os
 from tqdm import tqdm
 from functools import lru_cache
+from typing import Final  # const
 
 import pandas as pd
 import numpy as np
@@ -23,7 +24,7 @@ np.seterr(invalid='ignore')  # игнорирование ошибок с nan
 
 T0 = 273.15  # Абсолютный ноль температуры
 gas_const = 8.314_462_618_153_24  # Универсальная газовая постоянная
-FUELS = ('КЕРОСИН', 'KEROSENE', 'ТС-1',
+FUELS = ('C2H8N2', 'КЕРОСИН', 'KEROSENE', 'ТС-1',
          'БЕНЗИН', 'PETROL', 'GASOLINE',
          'ДИЗЕЛЬ', 'DIESEL',
          'ПРИРОДНЫЙ ГАЗ', 'ПРИРОДНЫЙ_ГАЗ', 'ПГ',
@@ -68,7 +69,7 @@ except IOError as exception:
 @lru_cache(maxsize=None)
 def atmosphere_standard(H: int | float) -> dict[str:float]:
     """Атмосфера стандартная ГОСТ 4401-81"""
-    return {'T': float(T_atmosphere_standard(H)), 'P': float(P_atmosphere_standard(H))}
+    return {'T': (float(T_atmosphere_standard(H)), 'K'), 'P': (float(P_atmosphere_standard(H)), 'Pa')}
 
 
 '''
@@ -105,7 +106,8 @@ def R_gas(substance, a_ox=nan, fuel='', **kwargs) -> float:
         return 287.14
     elif substance.upper() in ('EXHAUST', 'ВЫХЛОП') and a_ox is not nan and fuel != '':
         """Газовая постоянная продуктов сгорания"""
-        if fuel.upper() in ('KEROSENE',
+        if fuel.upper() in ('C2H8N2',
+                            'KEROSENE',
                             'КЕРОСИН'): return 288.1954313 + 0.691695880 / a_ox
         if fuel.upper() in ('T1',
                             'Т1', 'РЕАКТИВНОЕ ТОПЛИВО'): return 288.1856907 - 0.213996376 / a_ox
@@ -129,7 +131,8 @@ def R_gas(substance, a_ox=nan, fuel='', **kwargs) -> float:
 
 def l_stoichiometry(fuel: str) -> float:
     """Стехиометрический коэффициент []"""
-    if fuel.upper() in ('KEROSENE', 'T-1', 'T-2', 'TC-1', 'ТС1',
+    if fuel.upper() in ('C2H8N2',
+                        'KEROSENE', 'T-1', 'T-2', 'TC-1', 'ТС1',
                         'КЕРОСИН', 'Т-1', 'Т-2', 'ТС-1', 'TC1'):
         return 14.61
     elif fuel.upper() in ('PETROL', 'GASOLINE', 'БЕНЗИН'):
@@ -201,7 +204,7 @@ def Cp(substance: str, T=nan, P=nan, a_ox=nan, fuel: str = '', **kwargs) -> floa
     if substance.upper() in ('ЧИСТЫЙ ВЫХЛОП', 'ЧИСТЫЙ_ВЫХЛОП', 'CLEAN_EXHAUST', 'CLEAN EXHAUST') or \
             substance.upper() in ('EXHAUST', 'ВЫХЛОП') and a_ox == 1:
         """Чистая теплоемкость выхлопа"""
-        if fuel.upper() in ('KEROSENE', 'КЕРОСИН', 'ТС-1', 'PETROL', 'БЕНЗИН'):
+        if fuel.upper() in ('C2H8N2', 'KEROSENE', 'КЕРОСИН', 'ТС-1', 'PETROL', 'БЕНЗИН'):
             return Cp_clean_kerosene(T)
         elif fuel.upper() in ('ДИЗЕЛЬ', 'DIESEL'):
             return Cp_clean_diesel(T)
@@ -251,7 +254,8 @@ def Cp(substance: str, T=nan, P=nan, a_ox=nan, fuel: str = '', **kwargs) -> floa
     if substance == 'Ne':  # TODO
         return 1038
 
-    if substance.upper() in ('KEROSENE', 'TC-1',
+    if substance.upper() in ('C2H8N2',
+                             'KEROSENE', 'TC-1',
                              'КЕРОСИН', 'ТС-1'):
         """Теплоемкость жидкого керосина"""
         return Cp_kerosene(T)
@@ -265,7 +269,8 @@ def Cp(substance: str, T=nan, P=nan, a_ox=nan, fuel: str = '', **kwargs) -> floa
 
 def Qa1(fuel) -> float:
     """Низшая теплота сгорания горючего при коэффициенте избытка окислителя = 1"""
-    if fuel.upper() in ('KEROSENE', 'TC1', 'TC-1', 'PETROL',
+    if fuel.upper() in ('C2H8N2',
+                        'KEROSENE', 'TC1', 'TC-1', 'PETROL',
                         'КЕРОСИН', 'ТС1', 'ТС-1', 'БЕНЗИН'):
         return 0.5 * (43_600 + 42_700) * 1000
     elif fuel.upper() in ('T-6', 'T-8',
@@ -322,21 +327,18 @@ def mixing_param(params: list, mass_flows: list, contourings: list, error=0.01, 
 
 
 class Substance(dict):
-    """Вещество"""
+    """Химическое вещество"""
 
-    def __init__(self, composition: dict) -> None:
-        self.__composition = dict()
-        if self.validate_composition(composition):
-            self.__composition = composition
+    def __init__(self, composition: dict[str:float]) -> None:
 
-    def validate_composition(self, composition: dict) -> bool:
-        assert isinstance(composition, dict), 'type(composition) is dict!'
-        assert all(isinstance(key, str) for key in composition.keys()), \
-            'type(composition.keys()) is str!'
-        assert all(isinstance(value, (int, float)) for value in composition.values()), \
-            'type(composition.values()) is int or float!'
-        assert all(value >= 0 for value in composition.values()), 'composition.values() >= 0!'
-        return True
+        assert type(composition) is dict
+        elements, fractions = map(tuple, (composition.keys(), composition.values()))
+        assert all(map(lambda element: type(element) is str, elements))  # TODO: проверка элемента по ПСХЭ
+        assert all(map(lambda fraction: type(fraction) in (float, int), fractions))
+        assert all(map(lambda fraction: 0 <= fraction, fractions))
+        # сортировка по убыванию массовой доли элемента
+        composition = dict(sorted(composition.items(), key=lambda item: item[1], reverse=True))
+        super(Substance, self).__init__(composition)
 
     def __add__(self, other):
         assert isinstance(other, Substance), 'isinstance(other, Substance)'
@@ -351,8 +353,9 @@ class Substance(dict):
         return Substance(composition)
 
     @staticmethod
-    def formula_to_dict(formula) -> dict[str: int]:
-        result = {}
+    def formula_to_dict(formula: str) -> dict[str: int]:
+        result = dict()
+
         i = 0
         while i < len(formula):
             if i + 1 < len(formula) and formula[i + 1].islower():
@@ -379,7 +382,7 @@ class Substance(dict):
 
     @property
     def composition(self) -> dict[str:int]:
-        return self.__composition
+        return self
 
     @property
     def mol_mass(self) -> tuple[float, str]:
@@ -439,7 +442,11 @@ if __name__ == '__main__':
         for H in (-2000, 0, 4_000, 11_000, 16_000):
             print(f'H = {H}: {atmosphere_standard(H)}')
 
-    if 0:
+    if 1:
+        from mendeleev.fetch import fetch_table
+
+        df = fetch_table('elements')
+        print(df['annotation'])
         print(Fore.YELLOW + f'testing {Substance.__name__}' + Fore.RESET)
         s1 = Substance({'N2': 75.5})
         s1.summary()
