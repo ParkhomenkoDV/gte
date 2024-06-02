@@ -295,6 +295,7 @@ class Load(Variability):
 
 
 class GTE_mode(Variability):
+    # __slots__ = ['T', 'P', 'H', 'M', 'R']
 
     def __setattr__(self, key, value):
         '''# атмосферные условия
@@ -330,7 +331,7 @@ class GTE_scheme(dict):
     def __init__(self, scheme: dict):
         assert type(scheme) is dict
 
-        scheme = dict(sorted(scheme.items(), key=lambda item: item[0]))
+        scheme = dict(sorted(scheme.items(), key=lambda item: item[0]))  # сортировка по контурам по возрастанию
         contours, contour_nodes = map(tuple, (scheme.keys(), scheme.values()))
 
         assert all(map(lambda contour: type(contour) is int, contours))
@@ -471,6 +472,10 @@ class GTE(Variability):
             object.__setattr__(self, key, value)
 
     def describe(self) -> None:
+        """Выявление неизвестных данных и необходимых уравнений"""
+        pass
+
+    def summary(self) -> None:
         """Описание ГТД"""
         print(f'name: {self.name}')
         print()
@@ -478,12 +483,13 @@ class GTE(Variability):
         for contour in self.scheme:
             print('\t' + f'contour: {contour}')
             for node in self.scheme[contour]:
-                print('\t\t' + f'node: {node}')
-                print('\t\t\t' + f'parameters: {dict(sorted(node.__dict__.items(), key=lambda item: item[0]))}')
+                print('\t\t' + f'node: {node.__class__.__name__}')
+                for key, value in dict(sorted(node.__dict__.items(), key=lambda item: item[0])).items():
+                    if not key.startswith('_'):
+                        print('\t\t\t' + f'{key}: {value}')
         print()
-
-    def summary(self):
-        pass
+        print(f'substance: {self.substance}')
+        print(f'fuel: {self.fuel}')
 
     def equations(self, points: tuple | list, *args, **kwargs) -> list:
         """СНЛАУ"""
@@ -608,7 +614,7 @@ if __name__ == '__main__':
         gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
         gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
 
-        gte.m = {1: 1}
+        gte.contouring = {1: 1}
 
         gte.mode.T = [288]
         gte.mode.P = 101325
@@ -618,7 +624,7 @@ if __name__ == '__main__':
         gte.mode.R = 10_000
 
         gte.substance = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H2': 0.000008})
-        gte.fuel = Substance({'KEROSENE': 1.0})
+        gte.fuel = Substance({'C2H8N2': 1.0})
 
         gte.scheme[1][0].σ = [0.98]
         gte.scheme[1][0].g_leak = 0.005
