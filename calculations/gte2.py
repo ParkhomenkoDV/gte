@@ -1,5 +1,7 @@
 import sys
 from copy import deepcopy
+
+import numpy as np
 from tqdm import tqdm
 from colorama import Fore
 
@@ -95,9 +97,9 @@ class GTE_node:
 
         self.gas_const_i = self.substance.gas_const[0]
         if not hasattr(self, 'TT_i'):
-            self.TT_i = scheme[self.place['contour']][self.place['pos'] - 1].TT_o
+            self.TT_i = scheme[self._place['contour']][self._place['pos'] - 1].TT_o
         if not hasattr(self, 'PP_i'):
-            self.PP_i = scheme[self.place['contour']][self.place['pos'] - 1].PP_o
+            self.PP_i = scheme[self._place['contour']][self._place['pos'] - 1].PP_o
         self.ρρ_i = self.PP_i / (self.gas_const_i * self.TT_i)
         self.CpCp_i = self.substance.Cp(T=self.TT_i, P=self.PP_i)[0]
         self.kk_i = self.CpCp_i / (self.CpCp_i - self.gas_const_i)
@@ -162,19 +164,18 @@ class Compressor(Variability, GTE_node):
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
         self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
         self.kk_o = self.CpCp_o / (self.CpCp_o - self.gas_const_o)
+        self.G_o = self.G_i * (1 - self.g_leak)
         return self.__dict__
 
     def calculate(self, *args, **kwargs) -> dict[str:int | float]:
-        self.substance = kwargs.get('substance', None)
-
-        G = kwargs.get('G', nan)
+        self.substance = kwargs.pop('substance', None)
+        self.G_i = kwargs.pop('G', nan)
 
         self.get_inlet_parameters(**kwargs)
         self.get_outlet_parameters(**kwargs)
 
-        Cp = 1004
-        self.L = Cp * (self.TT_i - self.TT_o)  # потребитель
-        self.N = self.L * G
+        self.L = self.substance.Cp(T=[self.TT_i, self.TT_o])[0] * (self.TT_i - self.TT_o)
+        self.N = self.L * self.G_i
         return self.__dict__
 
 
@@ -226,22 +227,22 @@ class Turbine(Variability, GTE_node):
         self.TT_o = self.TT_i * (1 - (1 - self.ππ ** ((1 - self.kk_i) / self.kk_i)) * self.effeff)
         self.PP_o = self.PP_i / self.ππ
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
-        self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.CpCp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
         self.kk_o = self.CpCp_o / (self.CpCp_o - self.gas_const_o)
-
+        self.G_o = self.G_i * (1 - self.g_leak)
         return self.__dict__
 
     def calculate(self, *args, **kwargs):
-        G = kwargs.get('G', nan)
-        self.ππ = kwargs.get('pipi_1_3', nan)
+        self.G_i = kwargs.pop('G', nan)
+        self.ππ = kwargs.pop('pipi_1_3', nan)
 
         self.substance = kwargs.get('substance', None)
 
         self.get_inlet_parameters(**kwargs)
         self.get_outlet_parameters(**kwargs)
 
-        self.L = self.CpCp_i * (self.TT_i - self.TT_o)
-        self.N = self.L * G
+        self.L = self.substance.Cp(T=[self.TT_i, self.TT_o])[0] * (self.TT_i - self.TT_o)
+        self.N = self.L * self.G_i
         return self.__dict__
 
 
@@ -261,21 +262,22 @@ class Outlet(Variability, GTE_node):
             raise Exception('111111111')
 
         self.ρρ_o = self.PP_o / (self.gas_const_o * self.TT_o)
-        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]  # TODO
+        self.Cp_o = self.substance.Cp(T=self.TT_o, P=self.PP_o)[0]
         self.k_o = self.Cp_o / (self.Cp_o - self.gas_const_o)
+        self.G_o = self.G_i * (1 - self.g_leak)
 
         self.c_o = self.v_ * (2 * self.Cp_o * self.TT_o * (1 - self.ππ ** ((1 - self.k_o) / self.k_o))) ** 0.5
 
         return self.__dict__
 
     def calculate(self, *args, **kwargs) -> dict[str:int | float]:
-        G = kwargs.get('G', nan)
+        self.G_i = kwargs.get('G', nan)
 
         self.substance = kwargs.get('substance', None)
         self.get_inlet_parameters(**kwargs)
         self.get_outlet_parameters(**kwargs)
 
-        self.R = self.c_o * G
+        self.R = self.c_o * self.G_o
         return self.__dict__
 
 
@@ -427,6 +429,7 @@ class GTE(Variability):
     """ГТД"""
 
     @classmethod
+    @property
     def version(cls) -> str:
         version = 8.0
         next_version = ('камера смешения',
@@ -436,13 +439,17 @@ class GTE(Variability):
                         'type(node) is class -> isinstance(node, class)'
                         'соотношение соответствующих относительных расходов к своим контурам',
                         'охлаждение турбины',
-                        'get_outlet_parameters() for all nodes',
                         'продолжение расчета',
                         'multiprocessing',
                         'ускорение расчета до 6000 [ГТД/с]')
         print(f'{cls.__name__} version: {Fore.GREEN}{version}')
         for i, v in enumerate(next_version): print(cls.__name__ + ' version:', int(version) + i + 1, v)
         return str(version)
+
+    @classmethod
+    @property
+    def author(cls) -> str:
+        return 'Daniil Vitalievich Andryushin'
 
     def __init__(self, name='GTE', scheme=None) -> None:
 
@@ -454,8 +461,6 @@ class GTE(Variability):
         self.contouring = {1: 1}  # степень контурности []
 
         self.mode = GTE_mode()  # режим работы
-
-        self.v = nan  # скорость полета [м/с]
 
     def __setattr__(self, key, value):
         if key == 'name':
@@ -481,12 +486,12 @@ class GTE(Variability):
         print()
         print('scheme:')
         for contour in self.scheme:
-            print('\t' + f'contour: {contour}')
+            print(2 * ' ' + f'contour: {contour}')
             for node in self.scheme[contour]:
-                print('\t\t' + f'node: {node.__class__.__name__}')
+                print(4 * ' ' + f'node: {node.__class__.__name__}')
                 for key, value in dict(sorted(node.__dict__.items(), key=lambda item: item[0])).items():
                     if not key.startswith('_'):
-                        print('\t\t\t' + f'{key}: {value}')
+                        print(6 * ' ' + f'{key}: {value}')
         print()
         print(f'substance: {self.substance}')
         print(f'fuel: {self.fuel}')
@@ -561,7 +566,7 @@ class GTE(Variability):
         """Расстановка мест положений в ГТД"""
         for contour in self.scheme:
             for i, node in enumerate(self.scheme[contour]):
-                node.place = {'contour': contour, 'pos': i}
+                node._place = {'contour': contour, 'pos': i}
 
     def gte_generator(self):
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
@@ -585,7 +590,7 @@ class GTE(Variability):
 
             yield gte_var
 
-    def solve(self, Niter: int = 10, xtol: float = 0.01, log=False):
+    def solve(self, Niter: int = 10, xtol: float = 0.01, log=False) -> list[object]:
         """Расчет ГТД"""
 
         assert type(Niter) is int
@@ -596,15 +601,28 @@ class GTE(Variability):
 
         self.placement()  # расстановка мест положений в ГТД
 
-        gte_vars = list()  # TODO: multiprocessing
+        result = list()  # TODO: multiprocessing
         for gte_var in self.gte_generator():
             gte_var.__calculate(scheme=gte_var.scheme, mode=gte_var.mode,
                                 substance=gte_var.substance, fuel=gte_var.fuel)
-            gte_vars.append(deepcopy(gte_var))
+            result.append(deepcopy(gte_var))
             if log: gte_var.describe()
 
-        # print(pd.DataFrame([obj.__dict__ for obj in gte_vars]))
-        for gte in gte_vars: gte.describe()
+        return result
+
+    def dataframe(self) -> pd.DataFrame:
+        result = dict()
+        for key, value in self.__dict__.items():
+            if type(value) in (int, float, str):
+                result[key] = value
+            elif type(value) is object:
+                for k, v in value.__dict__.items():
+                    if type(v) in (int, float, np.float64, str):
+                        result[k] = v
+            else:
+                pass
+
+        return pd.DataFrame([result])
 
 
 if __name__ == '__main__':
@@ -635,7 +653,7 @@ if __name__ == '__main__':
 
         gte.scheme[1][2].T_fuel = 40 + 273.15
         gte.scheme[1][2].η_burn = 0.99
-        gte.scheme[1][2].TT_o = 1800  # list(linspace(800, 1200, 4 + 1))
+        gte.scheme[1][2].TT_o = 1200  # list(linspace(800, 1200, 4 + 1))
         gte.scheme[1][2].T_lim = 1000
         gte.scheme[1][2].σ = 0.94
         gte.scheme[1][2].g_leak = 0
@@ -713,4 +731,8 @@ if __name__ == '__main__':
     gte.describe()
     # gte.scheme.show()
 
-    gte.solve()
+    for e in gte.solve():
+        e.summary()
+        print(e.dataframe())
+
+    GTE.version
