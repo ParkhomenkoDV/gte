@@ -40,6 +40,22 @@ def find_node_in_scheme(scheme, node2find) -> tuple:
             if scheme[contour][i] is node2find: return contour, i
 
 
+def find_repeated_substring(s: str):
+    """Поиск индекса строки начала повторения для полных параметров"""
+    for i in range(1, len(s) // 2 + 1):
+        if s[:i] == s[i:2 * i]:
+            return i
+    return -1
+
+
+# Пример использования
+string = "abcabc"
+index = find_repeated_substring(string)
+if index != -1:
+    print("Индекс начала повторения:", index)
+else:
+    print("Повторяющаяся подстрока не найдена.")
+
 """
 Порядок расчета ТД параметров:
 R -> T -> P -> ro -> Cp -> k ->

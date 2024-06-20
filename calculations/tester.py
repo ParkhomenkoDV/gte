@@ -1,41 +1,11 @@
 import os.path
+
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from numpy import linspace, radians, sin, cos, mean
-from tools import to_roman, isnum, export2file, rounding
+
 from colorama import Fore
-
-
-def Figures(type_fig, *args, **kwargs) -> tuple[list[float]]:
-    x0 = kwargs.get('x0', 0)
-    y0 = kwargs.get('y0', 0)
-    x, y = [], []
-
-    if type_fig.strip().lower() in ('inlet'):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    elif type_fig.strip().lower() in ('compressor'):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-    elif type_fig.strip().lower() in ('combustionchamber'):
-        x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
-        y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
-    elif type_fig.strip().lower() in ('turbine'):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
-    elif type_fig.strip().lower() in ('nozzle',):
-        x = [x0 - 0.4, x0, x0 + 0.4, x0 + 0.4, x0, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-    elif type_fig.strip().lower() in ('outlet',):
-        x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    elif type_fig.strip().lower() in ('heatexchanger',):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
-    elif type_fig.strip().lower() in ('load',):
-        x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
-        y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    return x, y
 
 
 def input_keys(df) -> dict:
@@ -132,7 +102,7 @@ def show(df, keys, savefig=False):
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
     plt.legend(fontsize=12)
-    if savefig: export2file(plt, file_name=suptitle, file_type='png', show_time=True)
+    if savefig: export2(plt, file_name=suptitle, file_type='png', show_time=True)
     plt.show()
 
 
@@ -143,6 +113,3 @@ def analyse(df):
 
 if __name__ == '__main__':
     pass
-
-
-

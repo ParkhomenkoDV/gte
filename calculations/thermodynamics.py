@@ -260,11 +260,8 @@ def Cp(substance: str, T=nan, P=nan, a_ox=nan, fuel: str = '', **kwargs) -> floa
         """Теплоемкость жидкого керосина"""
         return Cp_kerosene(T)
 
-    print(Fore.RED + f'Not found substance in function {Cp.__name__}' + Fore.RESET)
+    print(Fore.RED + f'Not found substance {substance} in function {Cp.__name__}' + Fore.RESET)
     return nan
-
-
-# print(Cp('AIR', T=75, P=10000000))
 
 
 def Qa1(fuel) -> float:
@@ -342,13 +339,12 @@ class Substance(dict):
 
     def __add__(self, other):
         assert isinstance(other, Substance)
-        m = sum(self.composition.values()) + sum(other.composition.values())
-        composition = dict()
-        # TODO а если элемент повторяется
-        for el in self.composition.keys():
-            composition[el] = self.composition[el]
+        composition = self.composition.copy()
         for el in other.composition.keys():
-            composition[el] = other.composition[el]
+            if el not in composition:
+                composition[el] = other.composition[el]
+            else:
+                composition[el] += other.composition[el]
 
         return Substance(composition)
 
@@ -382,7 +378,7 @@ class Substance(dict):
 
     @property
     def composition(self) -> dict[str:int]:
-        return self
+        return dict(self)
 
     @property
     def mol_mass(self) -> tuple[float, str]:
@@ -414,11 +410,38 @@ class Substance(dict):
         self.__gas_const = gas_const / self.mol_mass[0], 'J/kg/K'
         return self.__gas_const
 
-    def Cp(self, T=nan, P=nan) -> tuple[float, str]:
+    def Cp(self, T: float | int | list = nan, P: float | int = nan, epsrel=0.01) -> tuple[float, str]:
         """Теплоемкость при постоянном давлении"""
-        Cp_ = sum([Cp(key, T=T, P=P) * value for key, value in self.composition.items()])
-        Cp_ /= sum(self.composition.values())
-        return Cp_, 'J/kg/K'
+        if type(T) in (float, np.float64, int) and type(P) in (float, np.float64, int):
+
+            return sum([Cp(key, T=T, P=P) * value for key, value in self.items()]) / sum(self.values()), 'J/kg/K'
+        elif type(T) is list and type(P) in (float, int):
+            assert len(T) == 2
+            assert all(map(lambda t: type(t) in (float, np.float64, int), T))
+            assert T[0] != T[1]
+            return integrate.quad(lambda t: sum([Cp(key, T=t, P=P) * value / sum(self.values())
+                                                 for key, value in self.items()]),
+                                  T[0], T[1],
+                                  epsrel=epsrel)[0] / (T[1] - T[0]), 'J/kg/K'
+
+        elif type(T) in (float, int) and type(P) is list:
+            assert len(P) == 2
+            assert all(map(lambda p: type(p) in (float, int), P))
+            assert P[0] != P[1]
+            return integrate.quad(lambda p: sum([Cp(key, T=T, P=p) * value / sum(self.values())
+                                                 for key, value in self.items()]),
+                                  P[0], P[1],
+                                  epsrel=epsrel)[0] / (P[1] - P[0]), 'J/kg/K'
+        elif type(T) is list and type(P) is list:
+            assert len(T) == 2 and len(P) == 2
+            assert all(map(lambda t: type(t) in (float, int), T)) and all(map(lambda p: type(p) in (float, int), P))
+            assert T[0] != T[1] and P[0] != P[1]
+            return integrate.dblquad(lambda t, p: 1,
+                                     0, 1,
+                                     lambda xu: Ydown(xu), lambda xd: Yup(xd),
+                                     epsrel=epsrel)[0], 'J/kg/K'
+        else:
+            raise ValueError
 
     @property
     def excess_oxidizing(self) -> float:
@@ -426,12 +449,13 @@ class Substance(dict):
         return 0
 
     @decorators.timeit()
-    def summary(self) -> dict:
+    def summary(self, show=True) -> dict:
         result = {'composition': self.composition,
                   'mol_mass': self.mol_mass,
                   'gas_const': self.gas_const}
-
-        for key, value in result.items(): print(f'{key}: {value}')
+        if show:
+            for key, value in result.items():
+                print(f'{key}: {value}')
 
         return result
 
@@ -444,31 +468,54 @@ if __name__ == '__main__':
 
     if 1:
         print(Fore.YELLOW + f'testing {Substance.__name__}' + Fore.RESET)
-        s1 = Substance({'N2': 75.5})
-        s1.summary()
-        s2 = Substance({'O2': 23.15})
-        s2.summary()
-        s3 = Substance({'Ar': 1.292})
-        s3.summary()
-        s4 = Substance({'Ne': 0.0014})
-        s4.summary()
-        s5 = Substance({'H': 0.0008})
+        if 0:
+            s1 = Substance({'N2': 75.5})
+            s1.summary()
+            s2 = Substance({'O2': 23.15})
+            s2.summary()
+            s3 = Substance({'Ar': 1.292})
+            s3.summary()
+            s4 = Substance({'Ne': 0.0014})
+            s4.summary()
+            s5 = Substance({'H2': 0.0008})
 
-        s = s1 + s2 + s3 + s4 + s5
-        s.summary()
+            s = s1 + s2 + s3 + s4 + s5
+            s.summary()
 
-        s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H': 0.000008})
-        s.summary()
+            T = np.linspace(300, 600, 300 + 1)
+            plt.plot(T, [Cp('AIR', T=t) for t in T], color='red')
+            plt.plot(T, [s.Cp(T=float(t))[0] for t in T], color='blue')
+            plt.grid(True)
+            plt.xlabel('T [K]')
+            plt.ylabel('Cp [J/kg/K]')
+            plt.xlim(T[0], T[-1])
+            plt.ylim(1000, 1200)
+            plt.show()
 
-        s = Substance({'H2O': 11.25})
-        s.summary()
+        if 1:
+            s = Substance({'N2': 0.755, 'O2': 0.2315, 'Ar': 0.01292, 'Ne': 0.000014, 'H2': 0.000008})
+            s.summary()
 
-        s = Substance({'CO2': 12})
-        s.summary()
+            T = np.arange(300, 800, 1)
+            plt.plot(T, [Cp('AIR', T=t) for t in T], color='red')
+            plt.plot(T, [s.Cp(T=float(t))[0] for t in T], color='blue')
+            plt.grid(True)
+            plt.xlabel('T [K]')
+            plt.ylabel('Cp [J/kg/K]')
+            plt.xlim(T[0], T[-1])
+            plt.ylim(1000, 1200)
+            plt.show()
 
-        print(dir(s))
+        if 0:
+            s = Substance({'H2O': 11.25})
+            s.summary()
 
-    exit()
-    print(av(Cp, [400, 500], [10 ** 5, 2 * 10 ** 5]))
-    print(Cp('air', T=458))
-    print(Cp('air', T=458, P=2 * 10 ** 5))
+            s = Substance({'CO2': 12})
+            s.summary()
+
+            print(dir(s))
+
+        if 0:
+            print(av(Cp, [400, 500], [10 ** 5, 2 * 10 ** 5]))
+            print(Cp('air', T=458))
+            print(Cp('air', T=458, P=2 * 10 ** 5))

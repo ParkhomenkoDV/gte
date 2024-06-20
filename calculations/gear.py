@@ -1,6 +1,6 @@
 from numpy import nan
-from thermodynamics import T0, Cp, R_gas, η_polytropic
-from tools import isnum, eps
+#from thermodynamics import T0, Cp, R_gas, η_polytropic
+#from tools import isnum, eps
 
 
 class Gear:
