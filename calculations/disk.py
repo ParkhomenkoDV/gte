@@ -65,19 +65,18 @@ class Dick:
                   (1 + av_mu[i]) / 2 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
                   av_E[i] * tetta[i]) / 2
             c2 = (st[i][0] - sr[i][0] -
-                  ((1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 -
-                   av_E[i] * tetta[i])) / 2 * radius[i] ** 2
-            temp = ((tetta[i] - (tetta[i + 1] - tetta[i]) / (radius[i + 1] - radius[i]) * radius[i]) *
-                    (radius[i + 1] ** 2 - radius[i] ** 2) / 2 +
-                    (tetta[i + 1] - tetta[i]) / (radius[i + 1] - radius[i]) *
-                    (radius[i + 1] ** 3 - radius[i] ** 3) / 3)
+                  (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
+                  av_E[i] * tetta[i]) / 2 * radius[i] ** 2
+            tettas = ((tetta[i] - (tetta[i + 1] - tetta[i]) / (radius[i + 1] - radius[i]) * radius[i]) *
+                      (radius[i + 1] ** 2 - radius[i] ** 2) / 2 +
+                      (tetta[i + 1] - tetta[i]) / (radius[i + 1] - radius[i]) *
+                      (radius[i + 1] ** 3 - radius[i] ** 3) / 3)
             st[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
                          (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
-                         (av_E[i] / radius[i + 1] ** 2) * temp) -
-                        av_E[i] * tetta[i + 1])
+                         (av_E[i] / radius[i + 1] ** 2) * tettas) - av_E[i] * tetta[i + 1])
             sr[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
-                        (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
-                        (av_E[i] / radius[i + 1] ** 2) * temp)
+                        (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
+                        (av_E[i] / radius[i + 1] ** 2) * tettas)
 
         return {'st': st, 'sr': sr}
 
