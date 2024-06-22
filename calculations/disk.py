@@ -51,45 +51,55 @@ class Dick:
     # TODO: numpy vectorizaoin
     def __calculation1(self, rotation_frequency: int | float, pressure0: int | float,
                        radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
-                       av_density, av_E, av_mu) -> dict[str: tuple | list | np.ndarray]:
+                       av_density, av_E, av_mu) -> dict[str: np.ndarray]:
         """1‑й расчет метода двух расчетов"""
-        st, sr = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
+        sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
         for i in range(len(radius) - 1):
             if i == 0:
-                st[0][0], sr[0][0] = 400 * 10 ** 6, pressure0  # -p (посадка)
+                sigma_t[i][0] = 400 * 10 ** 6
+                sigma_r[i][0] = pressure0  # -p (посадка)
             else:
-                st[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sr[i - 1][1] +
-                            (av_E[i] / av_E[i - 1]) * (st[i - 1][1] - av_mu[i - 1] * sr[i - 1][1]))
-                sr[i][0] = ((thickness[i - 1] / thickness[i]) * sr[i - 1][1])
-            c1 = (st[i][0] + sr[i][0] +
+                sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
+                                 (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
+                sigma_r[i][0] = ((thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1])
+            c1 = (sigma_t[i][0] + sigma_r[i][0] +
                   (1 + av_mu[i]) / 2 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
                   av_E[i] * tetta[i]) / 2
-            c2 = (st[i][0] - sr[i][0] -
+            c2 = (sigma_t[i][0] - sigma_r[i][0] -
                   (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
                   av_E[i] * tetta[i]) / 2 * radius[i] ** 2
             tettas = ((tetta[i] - (tetta[i + 1] - tetta[i]) / (radius[i + 1] - radius[i]) * radius[i]) *
                       (radius[i + 1] ** 2 - radius[i] ** 2) / 2 +
                       (tetta[i + 1] - tetta[i]) / (radius[i + 1] - radius[i]) *
                       (radius[i + 1] ** 3 - radius[i] ** 3) / 3)
-            st[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
-                         (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
-                         (av_E[i] / radius[i + 1] ** 2) * tettas) - av_E[i] * tetta[i + 1])
-            sr[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
-                        (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
-                        (av_E[i] / radius[i + 1] ** 2) * tettas)
+            sigma_t[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
+                              (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
+                              (av_E[i] / radius[i + 1] ** 2) * tettas) - av_E[i] * tetta[i + 1])
+            sigma_r[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
+                             (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
+                             (av_E[i] / radius[i + 1] ** 2) * tettas)
 
-        return {'st': st, 'sr': sr}
+        return {'tension_t': sigma_t, 'tension_r': sigma_r}
 
-    def __calculation2(self, rotation_frequency, pressure,
-                       av_radius, av_thickness,
-                       av_E, av_mu, av_tetta) -> dict[str: tuple | list | np.ndarray]:
+    def __calculation2(self, radius: np.ndarray, thickness: np.ndarray, av_E, av_mu) -> dict[str: np.ndarray]:
         """2-й расчет метода двух расчетов"""
-        st, sr = [1], [1]
-        for i, (r, t) in enumerate(zip(av_radius, av_thickness)):
-            pass
-        return {'σ_t': st, 'σ_r': sr}
+        sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
+        for i in range(len(radius) - 1):
+            if i == 0:
+                sigma_t[i][0] = 400 * 10 ** 6
+                sigma_r[i][0] = sigma_t[i][0] if radius[0] == 0 else 0
+            else:
+                sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
+                                 (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
+                sigma_r[i][0] = (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1]
+            c1 = (sigma_t[i][0] + sigma_r[i][0]) / 2
+            c2 = (sigma_t[i][0] - sigma_r[i][0]) / 2 * radius[i] ** 2
+            sigma_t[i][1] = c1 + c2 / radius[i + 1] ** 2
+            sigma_r[i][1] = c1 - c2 / radius[i + 1] ** 2
 
-    @decorators.timeit(6)
+        return {'tension_t': sigma_t, 'tension_r': sigma_r}
+
+    @decorators.timeit(4)
     def tension(self, rotation_frequency: float, temperature0: int | float,
                 pressure: tuple | list, temperature: tuple | list) -> dict[str: tuple | list | np.ndarray]:
         """Метод двух расчетов"""
@@ -118,16 +128,69 @@ class Dick:
         calc1 = self.__calculation1(rotation_frequency, pressure[0],
                                     self.radius, self.thickness, self.tetta,
                                     avarege_density, avarege_E, avarege_mu)
-        print(calc1['st'].round(6) / 10 ** 6)
-        print(calc1['sr'] / 10 ** 6)
-        return
-        calc2 = self.__calculation2(rotation_frequency, pressure,
-                                    average_radius,
-                                    avarege_E, avarege_mu, avarege_tetta)
-        k = (pressure[-1] - calc1['σ_r'][-1]) / calc2['σ_r'][-1]  # коэффициент Мора
+        calc2 = self.__calculation2(self.radius, self.thickness, avarege_E, avarege_mu)
+        k = (pressure[-1] - calc1['tension_r'][-1][-1]) / calc2['tension_r'][-1][-1]  # коэффициент Мора
+        sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
+        for i in range(len(self.radius) - 1):
+            for j in range(2):  # сечения
+                sigma_t[i][j] = calc1['tension_t'][i][j] + k * calc2['tension_t'][i][j]
+                sigma_r[i][j] = calc1['tension_r'][i][j] + k * calc2['tension_r'][i][j]
 
-        st, sr = [], []
-        return {'σ_t': st, 'σ_r': sr}
+        av_sigma_t = np.array([sigma_t[0][0]] +
+                              [(sigma_t[i][1] + sigma_t[i + 1][0]) / 2 for i in range(0, len(self.radius) - 2)] +
+                              [sigma_t[-1][-1]])
+        av_sigma_r = np.array([sigma_r[0][0]] +
+                              [(sigma_r[i][1] + sigma_r[i + 1][0]) / 2 for i in range(0, len(self.radius) - 2)] +
+                              [sigma_r[-1][-1]])
+        sigma = np.array([np.sqrt(av_sigma_t[i] ** 2 - av_sigma_t[i] * av_sigma_r[i] + av_sigma_r[i] ** 2)
+                          for i in range(len(radius))])
+
+        tensions = {'tension': sigma, 'tension_t': av_sigma_t, 'tension_r': av_sigma_r}
+
+        self.show_tension(tensions)
+
+        return tensions
+
+    def show_tension(self, tensions, **kwargs) -> None:
+        fg = plt.figure(figsize=kwargs.pop('figsize', (16, 8)))
+        gs = fg.add_gridspec(1, 2)  # строки, столбцы
+
+        fg.add_subplot(gs[0, 0])
+        plt.title("Disk", fontsize=14, fontweight='bold')
+
+        plt.plot([-self.thickness[0] / 1.5, self.thickness[0] / 1.5], [0, 0],
+                 color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
+        plt.plot(self.thickness / 2, self.radius, -self.thickness / 2, self.radius,
+                 color='black', linestyle='solid', linewidth=3)
+        plt.plot([-self.thickness[-1] / 2, self.thickness[-1] / 2], [self.radius[-1], self.radius[-1]],
+                 color='black', linestyle='solid', linewidth=3)  # периферия
+        if self.radius[0] > 0:
+            plt.plot([-self.thickness[0] / 2, self.thickness[0] / 2], [self.radius[0], self.radius[0]],
+                     color='black', linestyle='solid', linewidth=3)  # втулка
+        # TODO: добавить прямоугольники сечений
+        plt.grid(True)
+        plt.axis('equal')
+        plt.xlabel("Thickness", fontsize=12)
+        plt.ylabel("Radius", fontsize=12)
+
+        fg.add_subplot(gs[0, 1])
+        plt.title('Tension', fontsize=14, fontweight='bold')
+
+        plt.plot(tensions['tension'] / 10 ** 6, self.radius * 1000, label='экв',
+                 color='black', linestyle='solid', linewidth=3)
+        plt.plot(tensions['tension_t'] / 10 ** 6, self.radius * 1000, label='t',
+                 color='red', linestyle='solid', linewidth=2)
+        plt.plot(tensions['tension_r'] / 10 ** 6, self.radius * 1000, label='r',
+                 color='blue', linestyle='solid', linewidth=2)
+
+        plt.plot(tensions['tension'] / 10 ** 6, self.radius * 1000, )
+
+        plt.legend()
+        plt.grid(True)
+        plt.xlabel("Tension [MPa]", fontsize=12)
+        plt.ylabel("Radius [mm]", fontsize=12)
+
+        plt.show()
 
     def show(self, **kwargs) -> None:
         plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
@@ -144,35 +207,6 @@ class Dick:
         plt.grid(True)
         plt.axis('equal')
         plt.xlabel("Thickness", fontsize=12)
-        plt.ylabel("Radius", fontsize=12)
-
-        plt.show()
-
-    def show_tension(self, **kwargs) -> None:
-        fg = plt.figure(figsize=kwargs.pop('figsize', (16, 8)))
-        gs = fg.add_gridspec(1, 2)  # строки, столбцы
-
-        fg.add_subplot(gs[0, 0])
-        plt.title("Disk", fontsize=14, fontweight='bold')
-        plt.plot([-self.thickness[0] / 1.5, self.thickness[0] / 1.5], [0, 0],
-                 color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
-        plt.plot(self.thickness / 2, self.radius, -self.thickness / 2, self.radius,
-                 color='black', linestyle='solid', linewidth=3)
-        plt.plot([-self.thickness[-1] / 2, self.thickness[-1] / 2], [self.radius[-1], self.radius[-1]],
-                 color='black', linestyle='solid', linewidth=3)  # периферия
-        if self.radius[0] > 0:
-            plt.plot([-self.thickness[0] / 2, self.thickness[0] / 2], [self.radius[0], self.radius[0]],
-                     color='black', linestyle='solid', linewidth=3)  # втулка
-        plt.grid(True)
-        plt.axis('equal')
-        plt.xlabel("Thickness", fontsize=12)
-        plt.ylabel("Radius", fontsize=12)
-
-        fg.add_subplot(gs[0, 1])
-        plt.title('Tension', fontsize=14, fontweight='bold')
-        plt.grid(True)
-        plt.axis('equal')
-        plt.xlabel("Tension", fontsize=12)
         plt.ylabel("Radius", fontsize=12)
 
         plt.show()
@@ -200,6 +234,5 @@ if __name__ == "__main__":
                 material=material)
 
     # disk.show()
-    disk.tension(rotation_frequency=2806.2, temperature0=293.15,
-                 pressure=(0, 120.6 * 10 ** 6), temperature=(350, 650))
-    disk.show_tension()
+    print(disk.tension(rotation_frequency=2806.2, temperature0=293.15,
+                       pressure=(0, 120.6 * 10 ** 6), temperature=(350, 650)))
