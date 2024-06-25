@@ -17,8 +17,7 @@ class Dick:
 
     def __init__(self, material: Material,
                  radius: tuple | list | np.ndarray, thickness: tuple | list | np.ndarray,
-                 nholes=tuple(), rholes=tuple(), dholes=tuple(),
-                 ndis: int = 10):
+                 nholes=tuple(), rholes=tuple(), dholes=tuple()):
 
         assert type(radius) in (tuple, list, np.ndarray)
         assert type(thickness) in (tuple, list, np.ndarray)
@@ -28,8 +27,6 @@ class Dick:
         assert type(nholes) in (tuple, list, np.ndarray)
         assert type(rholes) in (tuple, list, np.ndarray)
         assert type(dholes) in (tuple, list, np.ndarray)
-
-        assert type(ndis) is int
 
         assert len(radius) == len(thickness)
         assert len(nholes) == len(rholes) == len(dholes)
@@ -47,8 +44,6 @@ class Dick:
         assert all(map(lambda i: i >= 0, nholes))
         assert all(map(lambda i: i >= 0, rholes))
         assert all(map(lambda i: i >= 0, dholes))
-
-        assert ndis >= 1
 
         # сортировка пузырьком радиусов по возрастанию вместе с соответствующими толщинами
         swapped = False
@@ -73,13 +68,17 @@ class Dick:
         self.material = material
         self.nholes, self.rholes, self.dholes = np.array(nholes), np.array(rholes), np.array(dholes)
 
-    def slicing(self, ndis: int):
+    @staticmethod
+    def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple:
         """Дробление сечений ndis раз"""
-        radius, thickness = list(), list()
-        for i in range(self.radius - 1):
-            for j in range(ndis):
-                pass
-        return np.array(radius), np.array(thickness)
+        x, y = list(), list()
+        k = (point1[1] - point0[1]) / (point1[0] - point0[0]) if (point1[0] - point0[0]) != 0 else np.inf
+        b = point0[1] - k * point0[0]
+        delta = (point1[0] - point0[0]) / ndis
+        for i in range(ndis):
+            x.append(point0[0] + delta * i)
+            y.append(k * x[-1] + b)
+        return np.array(x), np.array(y)
 
     @staticmethod
     def equivalent_energy_tension(sigma_t: float | int, sigma_r: float | int) -> float:
@@ -87,84 +86,105 @@ class Dick:
         sigma1, sigma3 = max(sigma_t, sigma_r), min(sigma_t, sigma_r)
         return np.sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
 
-    def tension(self, rotation_frequency: float, temperature0: int | float,
-                pressure: tuple | list | np.ndarray, temperature: tuple | list | np.ndarray) -> dict[str:  np.ndarray]:
+    @staticmethod
+    def calculation2(rotation_frequency: int | float, pressure: tuple | list | np.ndarray,
+                     radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
+                     av_density: np.ndarray, av_E: np.ndarray, av_mu: np.ndarray) -> dict[str: np.ndarray]:
+        """Метод двух расчетов"""
+        f_tetta = lambda r: (tetta[0] +
+                             (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
+        sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
+        sigma_r = sigma_t.copy() if radius[0] == 0 else np.full((len(radius) - 1, 2), pressure[0])
+        for i in range(len(radius) - 1):
+            if i != 0:
+                sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
+                                 (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
+                sigma_r[i][0] = (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1]
+            c1 = (sigma_t[i][0] + sigma_r[i][0] +
+                  (1 + av_mu[i]) / 2 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
+                  av_E[i] * tetta[i]) / 2
+            c2 = (sigma_t[i][0] - sigma_r[i][0] -
+                  (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
+                  av_E[i] * tetta[i]) / 2 * radius[i] ** 2
+            I = integrate.quad(lambda r: f_tetta(r) * r, radius[i], radius[i + 1])[0]
+            sigma_t[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
+                              (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
+                              (av_E[i] / radius[i + 1] ** 2) * I) - av_E[i] * tetta[i + 1])
+            sigma_r[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
+                             (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
+                             (av_E[i] / radius[i + 1] ** 2) * I)
 
-        average_radius = np.array([(self.radius[i] + self.radius[i + 1]) / 2 for i in range(len(self.radius) - 1)])
+        return {'tension_t': sigma_t, 'tension_r': sigma_r}
+
+    def tension(self, rotation_frequency: float, temperature0: int | float,
+                pressure: tuple | list | np.ndarray, temperature: tuple | list | np.ndarray,
+                ndis: int = 10) -> dict[str:  np.ndarray]:
+        """Расчет напряжений в диске"""
+
+        assert type(rotation_frequency) in (float, int)
+        assert type(temperature0) in (float, int) and temperature0 > 0
+        assert type(pressure) in (tuple, list, np.ndarray)
+        assert type(temperature) in (tuple, list, np.ndarray)
+        assert all(map(lambda i: type(i) in (int, float, np.float64), pressure))
+        assert all(map(lambda i: type(i) in (int, float, np.float64), temperature))
+        assert len(pressure) == 2
+        assert len(temperature) == 2 or len(temperature) == len(self.radius)
 
         tetta = [self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
                  self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0)]
-        # TODO: параболический закон распределения деформаций
+        # параболический закон распределения деформаций
         f_tetta = lambda r: \
             (tetta[0] + (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
         self.tetta = np.array([f_tetta(r) for r in self.radius])
 
-        # TODO: параболический закон распределения температур
-        f_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
-                                   ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
-        avarege_temperature = [f_temperature(av_r) for av_r in average_radius]
+        if len(temperature) == len(self.radius):
+            f_temperature = interpolate.interp1d(self.radius, temperature, kind='cubic', fill_value='extrapolate')
+        else:
+            f_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
+                                       ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
 
+        # TODO: сюда дискритезацию
+        radius, thickness = list(), list()
+        for i in range(len(self.radius) - 1):
+            r, th = self.slicing((self.radius[i], self.thickness[i]),
+                                 (self.radius[i + 1], self.thickness[i + 1]),
+                                 ndis)
+            radius.extend(r)
+            thickness.extend(th)
+        radius, thickness = np.array(radius), np.array(thickness)
+
+        average_radius = np.array([(radius[i] + radius[i + 1]) / 2 for i in range(len(radius) - 1)])
+        avarege_temperature = [f_temperature(av_r) for av_r in average_radius]
         avarege_density = np.array([self.material.density(av_t) for av_t in avarege_temperature])
         avarege_E = np.array([self.material.E(av_t) for av_t in avarege_temperature])
         avarege_mu = np.array([self.material.mu(av_t) for av_t in avarege_temperature])
+        tetta = np.array([f_tetta(r) for r in radius])
 
-        # TODO: numpy vectorizaoin
-        def calc2(rotation_frequency: int | float, pressure: tuple | list | np.ndarray,
-                  radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
-                  av_density: np.ndarray, av_E: np.ndarray, av_mu: np.ndarray) -> dict[str: np.ndarray]:
-            """Метод двух расчетов"""
-            f_tetta = lambda r: (tetta[0] +
-                                 (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
-            sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
-            for i in range(len(radius) - 1):
-                if i == 0:
-                    sigma_t[i][0] = 400 * 10 ** 6
-                    sigma_r[i][0] = sigma_t[i][0] if radius[0] == 0 else pressure[0]  # -p (посадка)
-                else:
-                    sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
-                                     (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
-                    sigma_r[i][0] = (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1]
-                c1 = (sigma_t[i][0] + sigma_r[i][0] +
-                      (1 + av_mu[i]) / 2 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
-                      av_E[i] * tetta[i]) / 2
-                c2 = (sigma_t[i][0] - sigma_r[i][0] -
-                      (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
-                      av_E[i] * tetta[i]) / 2 * radius[i] ** 2
-                I = integrate.quad(lambda r: f_tetta(r) * r, radius[i], radius[i + 1])[0]
-                sigma_t[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
-                                  (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
-                                  (av_E[i] / radius[i + 1] ** 2) * I) - av_E[i] * tetta[i + 1])
-                sigma_r[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
-                                 (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
-                                 (av_E[i] / radius[i + 1] ** 2) * I)
-
-            return {'tension_t': sigma_t, 'tension_r': sigma_r}
-
-        calc1 = calc2(rotation_frequency, pressure,
-                      self.radius, self.thickness, self.tetta,
-                      avarege_density, avarege_E, avarege_mu)
-        calc2 = calc2(0, pressure,
-                      self.radius, self.thickness, np.zeros(len(radius)),
-                      avarege_density, avarege_E, avarege_mu)
+        calc1 = self.calculation2(rotation_frequency, pressure,
+                                  radius, thickness, tetta,
+                                  avarege_density, avarege_E, avarege_mu)
+        calc2 = self.calculation2(0, pressure,
+                                  radius, thickness, np.zeros(len(radius)),
+                                  avarege_density, avarege_E, avarege_mu)
 
         k = (pressure[-1] - calc1['tension_r'][-1][-1]) / calc2['tension_r'][-1][-1]  # коэффициент Мора
 
         sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
-        for i in range(len(self.radius) - 1):  # участки
+        for i in range(len(radius) - 1):  # участки
             for j in range(2):  # сечения
                 sigma_t[i][j] = calc1['tension_t'][i][j] + k * calc2['tension_t'][i][j]
                 sigma_r[i][j] = calc1['tension_r'][i][j] + k * calc2['tension_r'][i][j]
 
         sigma_t = np.array([sigma_t[0][0]] +
-                           [(sigma_t[i][1] + sigma_t[i + 1][0]) / 2 for i in range(0, len(self.radius) - 2)] +
+                           [(sigma_t[i][1] + sigma_t[i + 1][0]) / 2 for i in range(0, len(radius) - 2)] +
                            [sigma_t[-1][-1]])
         sigma_r = np.array([sigma_r[0][0]] +
-                           [(sigma_r[i][1] + sigma_r[i + 1][0]) / 2 for i in range(0, len(self.radius) - 2)] +
+                           [(sigma_r[i][1] + sigma_r[i + 1][0]) / 2 for i in range(0, len(radius) - 2)] +
                            [sigma_r[-1][-1]])
 
         sigma = np.array([self.equivalent_energy_tension(sigma_t[i], sigma_r[i]) for i in range(len(radius))])
 
-        result = {'radius': self.radius, 'thickness': self.thickness,
+        result = {'radius': radius, 'thickness': thickness,
                   'tension': sigma, 'tension_t': sigma_t, 'tension_r': sigma_r}
 
         df = pd.DataFrame({'radius [mm]': result['radius'] * 1000,
@@ -186,21 +206,19 @@ class Dick:
             tension_t [MPa] in {(sigma_t_hole * 1.1, sigma_t_hole * 1.15)}
             ''')
 
-        # self.show_tension(result)
+        self.show_tension(result)
 
         return result
 
     def show_tension(self, tensions, **kwargs) -> None:
 
-        radius, thickness = self.radius * 1_000, self.thickness * 1_000  # приведение к [мм]
+        radius, thickness = tensions['radius'] * 1_000, tensions['thickness'] * 1_000  # приведение к [мм]
         for key in tensions:
             if key.startswith('tension'):
                 tensions[key] = tensions[key] / 10 ** 6  # приведение к [МПа]
 
-        k = 1.2
-        l = max(radius)
-        h = l * k
-        ylim = 0 - (h - l) / 2, max(radius) + (h - l) / 2
+        l, k = max(radius), 1.2
+        ylim = 0 - l * (k - 1) / 2, l + l * (k - 1) / 2
 
         fg = plt.figure(figsize=kwargs.pop('figsize', (16, 8)))
         gs = fg.add_gridspec(1, 2)  # строки, столбцы
@@ -279,7 +297,7 @@ class Dick:
 
 if __name__ == "__main__":
     print(Dick.version())
-    if 0:
+    if 1:
         material = Material('10Х11Н20ТЗР',
                             {
                                 "density": 8400,
@@ -289,7 +307,8 @@ if __name__ == "__main__":
                                                           kind='cubic', bounds_error=False, fill_value='extrapolate'),
                                 "mu": interpolate.interp1d(list(range(400, 800 + 1, 100)),
                                                            [0.384, 0.379, 0.371, 0.361, 0.347],
-                                                           kind='cubic', bounds_error=False, fill_value='extrapolate')
+                                                           kind='cubic', bounds_error=False, fill_value='extrapolate'),
+                                "sigma_temp": 900 * 10 ** 6
                             })
         radius = np.array([20, 26, 30.62, 37.26, 56.94, 60.67, 72.95, 75.95, 102.41, 106.52, 109.82]) / 1000
         thickness = np.array([36, 36, 15.43, 11.27, 10, 12, 12, 8, 6, 11, 11]) / 1000
@@ -326,7 +345,7 @@ if __name__ == "__main__":
         pressure = (0, 150 * 10 ** 6)
         temperature = (620, 800)
 
-    if 1:
+    if 0:
         material = Material('10Х11Н20ТЗР',
                             {
                                 "density": 8200,
@@ -355,5 +374,5 @@ if __name__ == "__main__":
 
     disk.show()
     disk.tension(rotation_frequency=rotation_frequency, temperature0=temperature0,
-                 pressure=pressure, temperature=temperature)
+                 pressure=pressure, temperature=temperature, ndis=10)
     print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency)}')
