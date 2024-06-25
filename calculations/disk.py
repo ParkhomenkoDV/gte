@@ -10,8 +10,7 @@ class Dick:
 
     @classmethod
     def version(cls):
-        version = '2.2'
-        print('Сравнить с другими расчетами')
+        version = '2.3'
         print('Увеличить дискритизацию')
         print('Подбор толщин и радиусов для напряжения')
         return version
@@ -82,76 +81,23 @@ class Dick:
                 pass
         return np.array(radius), np.array(thickness)
 
-    # TODO: numpy vectorizaoin
-    def __calculation1(self, rotation_frequency: int | float, pressure0: int | float,
-                       radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
-                       av_density, av_E, av_mu) -> dict[str: np.ndarray]:
-        """1‑й расчет метода двух расчетов (Осипов 235с)"""
-        f_tetta = lambda r: (tetta[0] +
-                             (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
-        sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
-        for i in range(len(radius) - 1):
-            if i == 0:
-                sigma_t[i][0] = 400 * 10 ** 6
-                sigma_r[i][0] = sigma_t[i][0] if radius[0] == 0 else pressure0  # -p (посадка)
-            else:
-                sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
-                                 (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
-                sigma_r[i][0] = ((thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1])
-            c1 = (sigma_t[i][0] + sigma_r[i][0] +
-                  (1 + av_mu[i]) / 2 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
-                  av_E[i] * tetta[i]) / 2
-            c2 = (sigma_t[i][0] - sigma_r[i][0] -
-                  (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
-                  av_E[i] * tetta[i]) / 2 * radius[i] ** 2
-            I = integrate.quad(lambda r: f_tetta(r) * r, radius[i], radius[i + 1])[0]
-            sigma_t[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
-                              (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
-                              (av_E[i] / radius[i + 1] ** 2) * I) - av_E[i] * tetta[i + 1])
-            sigma_r[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
-                             (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
-                             (av_E[i] / radius[i + 1] ** 2) * I)
-
-        return {'tension_t': sigma_t, 'tension_r': sigma_r}
-
-    def __calculation2(self, pressure0: int | float,
-                       radius: np.ndarray, thickness: np.ndarray, av_E, av_mu) -> dict[str: np.ndarray]:
-        """2-й расчет метода двух расчетов"""
-        sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
-        for i in range(len(radius) - 1):
-            if i == 0:
-                sigma_t[i][0] = 400 * 10 ** 6
-                sigma_r[i][0] = sigma_t[i][0] if radius[0] == 0 else pressure0  # -p  (посадка)
-            else:
-                sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
-                                 (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
-                sigma_r[i][0] = (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1]
-            c1 = (sigma_t[i][0] + sigma_r[i][0]) / 2
-            c2 = (sigma_t[i][0] - sigma_r[i][0]) / 2 * radius[i] ** 2
-            sigma_t[i][1] = c1 + c2 / radius[i + 1] ** 2
-            sigma_r[i][1] = c1 - c2 / radius[i + 1] ** 2
-
-        return {'tension_t': sigma_t, 'tension_r': sigma_r}
-
     @staticmethod
-    def equivalent_tension(sigma_t: float | int, sigma_r: float | int) -> float:
+    def equivalent_energy_tension(sigma_t: float | int, sigma_r: float | int) -> float:
         """Эквивалентное напряжение по энергетической теории"""
         sigma1, sigma3 = max(sigma_t, sigma_r), min(sigma_t, sigma_r)
         return np.sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
 
     def tension(self, rotation_frequency: float, temperature0: int | float,
-                pressure: tuple | list, temperature: tuple | list) -> dict[str:  np.ndarray]:
-        """Метод двух расчетов"""
+                pressure: tuple | list | np.ndarray, temperature: tuple | list | np.ndarray) -> dict[str:  np.ndarray]:
 
         average_radius = np.array([(self.radius[i] + self.radius[i + 1]) / 2 for i in range(len(self.radius) - 1)])
 
         tetta = [self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
                  self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0)]
-        # TODO: параболический закон распределения температур
-        f_tetta = lambda r: (tetta[0] +
-                             (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
+        # TODO: параболический закон распределения деформаций
+        f_tetta = lambda r: \
+            (tetta[0] + (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
         self.tetta = np.array([f_tetta(r) for r in self.radius])
-        avarege_tetta = [(self.tetta[i] + self.tetta[i + 1]) / 2 for i in range(len(self.radius) - 1)]
 
         # TODO: параболический закон распределения температур
         f_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
@@ -162,13 +108,49 @@ class Dick:
         avarege_E = np.array([self.material.E(av_t) for av_t in avarege_temperature])
         avarege_mu = np.array([self.material.mu(av_t) for av_t in avarege_temperature])
 
-        calc1 = self.__calculation1(rotation_frequency, pressure[0],
-                                    self.radius, self.thickness, self.tetta,
-                                    avarege_density, avarege_E, avarege_mu)
-        calc2 = self.__calculation2(pressure[0], self.radius, self.thickness, avarege_E, avarege_mu)
+        # TODO: numpy vectorizaoin
+        def calc2(rotation_frequency: int | float, pressure: tuple | list | np.ndarray,
+                  radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
+                  av_density: np.ndarray, av_E: np.ndarray, av_mu: np.ndarray) -> dict[str: np.ndarray]:
+            """Метод двух расчетов"""
+            f_tetta = lambda r: (tetta[0] +
+                                 (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
+            sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
+            for i in range(len(radius) - 1):
+                if i == 0:
+                    sigma_t[i][0] = 400 * 10 ** 6
+                    sigma_r[i][0] = sigma_t[i][0] if radius[0] == 0 else pressure[0]  # -p (посадка)
+                else:
+                    sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
+                                     (av_E[i] / av_E[i - 1]) * (sigma_t[i - 1][1] - av_mu[i - 1] * sigma_r[i - 1][1]))
+                    sigma_r[i][0] = (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1]
+                c1 = (sigma_t[i][0] + sigma_r[i][0] +
+                      (1 + av_mu[i]) / 2 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
+                      av_E[i] * tetta[i]) / 2
+                c2 = (sigma_t[i][0] - sigma_r[i][0] -
+                      (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
+                      av_E[i] * tetta[i]) / 2 * radius[i] ** 2
+                I = integrate.quad(lambda r: f_tetta(r) * r, radius[i], radius[i + 1])[0]
+                sigma_t[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
+                                  (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
+                                  (av_E[i] / radius[i + 1] ** 2) * I) - av_E[i] * tetta[i + 1])
+                sigma_r[i][1] = ((c1 - c2 / radius[i + 1] ** 2) -
+                                 (3 + 1 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 -
+                                 (av_E[i] / radius[i + 1] ** 2) * I)
+
+            return {'tension_t': sigma_t, 'tension_r': sigma_r}
+
+        calc1 = calc2(rotation_frequency, pressure,
+                      self.radius, self.thickness, self.tetta,
+                      avarege_density, avarege_E, avarege_mu)
+        calc2 = calc2(0, pressure,
+                      self.radius, self.thickness, np.zeros(len(radius)),
+                      avarege_density, avarege_E, avarege_mu)
+
         k = (pressure[-1] - calc1['tension_r'][-1][-1]) / calc2['tension_r'][-1][-1]  # коэффициент Мора
+
         sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
-        for i in range(len(self.radius) - 1):
+        for i in range(len(self.radius) - 1):  # участки
             for j in range(2):  # сечения
                 sigma_t[i][j] = calc1['tension_t'][i][j] + k * calc2['tension_t'][i][j]
                 sigma_r[i][j] = calc1['tension_r'][i][j] + k * calc2['tension_r'][i][j]
@@ -180,7 +162,7 @@ class Dick:
                            [(sigma_r[i][1] + sigma_r[i + 1][0]) / 2 for i in range(0, len(self.radius) - 2)] +
                            [sigma_r[-1][-1]])
 
-        sigma = np.array([self.equivalent_tension(sigma_t[i], sigma_r[i]) for i in range(len(radius))])
+        sigma = np.array([self.equivalent_energy_tension(sigma_t[i], sigma_r[i]) for i in range(len(radius))])
 
         result = {'radius': self.radius, 'thickness': self.thickness,
                   'tension': sigma, 'tension_t': sigma_t, 'tension_r': sigma_r}
@@ -204,7 +186,7 @@ class Dick:
             tension_t [MPa] in {(sigma_t_hole * 1.1, sigma_t_hole * 1.15)}
             ''')
 
-        self.show_tension(result)
+        # self.show_tension(result)
 
         return result
 
@@ -320,7 +302,7 @@ if __name__ == "__main__":
         pressure = (0, 120.6 * 10 ** 6)
         temperature = (350, 650)
 
-    if 1:
+    if 0:
         material = Material('10Х11Н20ТЗР',
                             {
                                 "density": 8000,
@@ -344,7 +326,7 @@ if __name__ == "__main__":
         pressure = (0, 150 * 10 ** 6)
         temperature = (620, 800)
 
-    if 0:
+    if 1:
         material = Material('10Х11Н20ТЗР',
                             {
                                 "density": 8200,
