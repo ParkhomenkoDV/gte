@@ -11,7 +11,6 @@ class Dick:
     @classmethod
     def version(cls):
         version = '2.3'
-        print('Увеличить дискритизацию')
         print('Подбор толщин и радиусов для напряжения')
         return version
 
@@ -71,14 +70,12 @@ class Dick:
     @staticmethod
     def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple:
         """Дробление сечений ndis раз"""
-        x, y = list(), list()
         k = (point1[1] - point0[1]) / (point1[0] - point0[0]) if (point1[0] - point0[0]) != 0 else np.inf
         b = point0[1] - k * point0[0]
         delta = (point1[0] - point0[0]) / ndis
-        for i in range(ndis):
-            x.append(point0[0] + delta * i)
-            y.append(k * x[-1] + b)
-        return np.array(x), np.array(y)
+        x = point0[0] + delta * np.arange(ndis)
+        y = k * x + b
+        return x, y
 
     @staticmethod
     def equivalent_energy_tension(sigma_t: float | int, sigma_r: float | int) -> float:
@@ -129,6 +126,7 @@ class Dick:
         assert all(map(lambda i: type(i) in (int, float, np.float64), temperature))
         assert len(pressure) == 2
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
+        assert type(ndis) is int and ndis >= 1
 
         tetta = [self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
                  self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0)]
