@@ -18,33 +18,32 @@ class Dick:
     def __init__(self, material: Material,
                  radius: tuple | list | np.ndarray, thickness: tuple | list | np.ndarray,
                  nholes=tuple(), rholes=tuple(), dholes=tuple()):
-
+        # проверка на тип данных radius и thickness
         assert type(radius) in (tuple, list, np.ndarray)
         assert type(thickness) in (tuple, list, np.ndarray)
-
+        # проверка на тип данных material
         assert type(material) is Material
-
+        # проверка на тип данных nholes, rholes, dholes
         assert type(nholes) in (tuple, list, np.ndarray)
         assert type(rholes) in (tuple, list, np.ndarray)
         assert type(dholes) in (tuple, list, np.ndarray)
-
+        # проверка на равенство массивов radius, thickness и nholes, rholes, dholes
         assert len(radius) == len(thickness)
         assert len(nholes) == len(rholes) == len(dholes)
-
+        # проверка на тип данных внутри массивов radius, thickness
         assert all(map(lambda i: type(i) in (int, float, np.float64), radius))
         assert all(map(lambda i: type(i) in (int, float, np.float64), thickness))
-
+        # проверка на тип данных внутри массивов nholes, rholes, dholes
         assert all(map(lambda i: type(i) in (int, float, np.float64), nholes))
         assert all(map(lambda i: type(i) in (int, float, np.float64), rholes))
         assert all(map(lambda i: type(i) in (int, float, np.float64), dholes))
-
+        # проверка на адекватность данных radius, thickness
         assert all(map(lambda i: i >= 0, radius))
         assert all(map(lambda i: i >= 0, thickness))
-
+        # проверка на адекватность данных nholes, rholes, dholes
         assert all(map(lambda i: i >= 0, nholes))
         assert all(map(lambda i: i >= 0, rholes))
         assert all(map(lambda i: i >= 0, dholes))
-
         # сортировка пузырьком радиусов по возрастанию вместе с соответствующими толщинами
         swapped = False
         for i in range(len(radius) - 1, 0, -1):
@@ -57,10 +56,11 @@ class Dick:
                 swapped = False
             else:
                 break
-
+        # проверка на отсортированность radius по возрастанию
         assert all(radius[i] < radius[i + 1] for i in range(len(radius) - 1))
-
-        # расстояние между краями отв по окружности
+        # проверка на адекватность rholes по отношению к radius
+        assert all(map(lambda i: radius[0] <= i <= radius[-1], rholes))
+        # расчет и проверка расстояния между краями отверстий по окружности
         self.b = np.array([2 * np.pi * rholes[i] / nholes[i] - dholes[i] for i in range(len(nholes))])
         assert all(map(lambda i: i > 0, self.b))
 
@@ -226,8 +226,6 @@ class Dick:
         fg.add_subplot(gs[0, 0])
         plt.title("Disk", fontsize=14, fontweight='bold')
 
-        plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [0, 0],
-                 color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
         plt.plot(thickness / 2, radius, -thickness / 2, radius,
                  color='black', linestyle='solid', linewidth=3)
         plt.plot([-thickness[-1] / 2, thickness[-1] / 2], [radius[-1], radius[-1]],
@@ -240,8 +238,18 @@ class Dick:
             plt.gca().add_patch(mpl.patches.Rectangle((-av_th / 2, radius[i]),
                                                       av_th, radius[i + 1] - radius[i],
                                                       angle=0, rotation_point='xy', alpha=0.5))
+        plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [0] * 2,
+                 color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
+        for i in range(len(self.nholes)):
+            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [self.rholes[i] * 1000] * 2,
+                     color='orange', linestyle='dashdot', linewidth=1.5)
+            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] + self.dholes[i] / 2) * 1_000] * 2,
+                     [-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] - self.dholes[i] / 2) * 1_000] * 2,
+                     color='black', linestyle='dashed', linewidth=1.5)
 
         # TODO: добавить оси направлений r и t и прорисовку НУ на 1ой картинке
+        # plt.arrow (x= 4 , y= 18 , dx= 0 , dy= 5 , width= .08 )
+        # plt.annotate('General direction', xy = (3.4, 17)) #add annotation
         plt.grid(True)
         plt.axis('equal')
         plt.ylim(ylim)
@@ -265,10 +273,10 @@ class Dick:
 
     def show(self, **kwargs) -> None:
         radius, thickness = self.radius * 1_000, self.thickness * 1_000  # приведение к [мм]
+
         plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
         plt.title("Disk", fontsize=14, fontweight='bold')
-        plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [0, 0],
-                 color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
+
         plt.plot(thickness / 2, radius, -thickness / 2, radius,
                  color='black', linestyle='solid', linewidth=3)
         plt.plot([-thickness[-1] / 2, thickness[-1] / 2], [radius[-1], radius[-1]],
@@ -276,6 +284,15 @@ class Dick:
         if radius[0] > 0:
             plt.plot([-thickness[0] / 2, thickness[0] / 2], [radius[0], radius[0]],
                      color='black', linestyle='solid', linewidth=3)  # втулка
+        plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [0, 0],
+                 color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
+        for i in range(len(self.nholes)):
+            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [self.rholes[i] * 1_000] * 2,
+                     color='orange', linestyle='dashdot', linewidth=1.5)
+            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] + self.dholes[i] / 2) * 1_000] * 2,
+                     [-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] - self.dholes[i] / 2) * 1_000] * 2,
+                     color='black', linestyle='dashed', linewidth=1.5)
+
         plt.grid(True)
         plt.axis('equal')
         plt.xlabel("Thickness [mm]", fontsize=12)
