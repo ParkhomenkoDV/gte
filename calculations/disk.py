@@ -88,6 +88,31 @@ class Dick:
                      radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
                      av_density: np.ndarray, av_E: np.ndarray, av_mu: np.ndarray) -> dict[str: np.ndarray]:
         """Метод двух расчетов"""
+        # проверка НУ
+        assert type(rotation_frequency) in (float, int)
+        assert type(pressure) in (tuple, list, np.ndarray) and len(pressure) == 2
+        assert all(map(lambda i: type(i) in (float, int), pressure))
+        # проверка на тип данных сечений
+        assert type(radius) in (tuple, list, np.ndarray)
+        assert type(thickness) in (tuple, list, np.ndarray)
+        assert type(tetta) in (tuple, list, np.ndarray)
+        # проверка на длину массивов сечений
+        assert len(radius) == len(thickness) == len(tetta)
+        # проверка на тип данных внутри массивов сечений
+        assert all(map(lambda i: type(i) in (float, int), radius))
+        assert all(map(lambda i: type(i) in (float, int), thickness))
+        assert all(map(lambda i: type(i) in (float, int), tetta))
+        # проверка на тип данных средних характеристик участков
+        assert type(av_density) in (tuple, list, np.ndarray)
+        assert type(av_E) in (tuple, list, np.ndarray)
+        assert type(av_mu) in (tuple, list, np.ndarray)
+        # проверка на длину массивов средних характеристик участков
+        assert len(av_density) == len(av_E) == len(av_mu)
+        # проверка на тип данных внутри массивов средних характеристик участков
+        assert all(map(lambda i: type(i) in (float, int), av_density))
+        assert all(map(lambda i: type(i) in (float, int), av_E))
+        assert all(map(lambda i: type(i) in (float, int), av_mu))
+
         f_tetta = lambda r: (tetta[0] +
                              (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
         sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
@@ -245,20 +270,33 @@ class Dick:
                      [-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] - self.dholes[i] / 2) * 1_000] * 2,
                      color='black', linestyle='dashed', linewidth=1.5)
 
-        # TODO: добавить оси направлений r и t и прорисовку НУ на 1ой картинке
-        # plt.arrow (x= 4 , y= 18 , dx= 0 , dy= 5 , width= .08 )
-        # plt.annotate('General direction', xy = (3.4, 17)) #add annotation
+        # TODO: добавить оси направлений r и t
+        # НУ
+        plt.arrow(x=0, y=radius[-1], dx=0, dy=l * (k - 1) / 4 * np.sign(tensions['tension_r'][-1]),
+                  color='red', width=1)
+        plt.annotate(f'Pressure [MPa]: {tensions["tension_r"][-1]:.1f}',
+                     xy=(3, radius[-1] + l * (k - 1) / 4 * np.sign(tensions['tension_r'][-1])),
+                     fontsize=12, va='center')
+        if tensions["tension_r"][0] != 0:
+            plt.arrow(x=0, y=radius[0], dx=0, dy=l * (k - 1) / 4 * np.sign(tensions['tension_r'][0]),
+                      color='red', width=1)
+            plt.annotate(f'Pressure [MPa]: {tensions["tension_r"][0]:.1f}',
+                         xy=(3, radius[0] + l * (k - 1) / 4 * np.sign(tensions['tension_r'][0])),
+                         fontsize=12, va='center')
+
         plt.grid(True)
         plt.axis('equal')
         plt.ylim(ylim)
         plt.xlabel("Thickness [mm]", fontsize=12)
         plt.ylabel("Radius [mm]", fontsize=12)
+        plt.legend([f'rotation frequency [Hz]: {rotation_frequency:.1f}',
+                    f'temperature [K]: {temperature0:.1f}'], fontsize=12)
 
         fg.add_subplot(gs[0, 1])
         plt.title('Tension', fontsize=14, fontweight='bold')
 
         plt.plot(tensions['tension'], radius, label='equivalent', color='black', linestyle='solid', linewidth=3)
-        plt.plot(tensions['tension_t'], radius, label='tangential', color='red', linestyle='solid', linewidth=2)
+        plt.plot(tensions['tension_t'], radius, label='tangential', color='green', linestyle='solid', linewidth=2)
         plt.plot(tensions['tension_r'], radius, label='radial', color='blue', linestyle='solid', linewidth=2)
 
         plt.legend(fontsize=12)
@@ -312,6 +350,9 @@ class Dick:
 
 if __name__ == "__main__":
     print(Dick.version())
+
+    disks, conditions = list(), list()
+
     if 1:
         material = Material('10Х11Н20ТЗР',
                             {
@@ -336,7 +377,13 @@ if __name__ == "__main__":
         pressure = (0, 120.6 * 10 ** 6)
         temperature = (350, 650)
 
-    if 0:
+        disks.append(Dick(material=material,
+                          radius=radius, thickness=thickness,
+                          nholes=nholes, rholes=rholes, dholes=dholes))
+        conditions.append(dict(rotation_frequency=rotation_frequency, temperature0=temperature0,
+                               pressure=pressure, temperature=temperature))
+
+    if 1:
         material = Material('10Х11Н20ТЗР',
                             {
                                 "density": 8000,
@@ -360,7 +407,13 @@ if __name__ == "__main__":
         pressure = (0, 150 * 10 ** 6)
         temperature = (620, 800)
 
-    if 0:
+        disks.append(Dick(material=material,
+                          radius=radius, thickness=thickness,
+                          nholes=nholes, rholes=rholes, dholes=dholes))
+        conditions.append(dict(rotation_frequency=rotation_frequency, temperature0=temperature0,
+                               pressure=pressure, temperature=temperature))
+
+    if 1:
         material = Material('10Х11Н20ТЗР',
                             {
                                 "density": 8200,
@@ -383,11 +436,13 @@ if __name__ == "__main__":
         pressure = (0, 110 * 10 ** 6)
         temperature = (800, 1050)
 
-    disk = Dick(material=material,
-                radius=radius, thickness=thickness,
-                nholes=nholes, rholes=rholes, dholes=dholes)
+        disks.append(Dick(material=material,
+                          radius=radius, thickness=thickness,
+                          nholes=nholes, rholes=rholes, dholes=dholes))
+        conditions.append(dict(rotation_frequency=rotation_frequency, temperature0=temperature0,
+                               pressure=pressure, temperature=temperature))
 
-    disk.show()
-    disk.tension(rotation_frequency=rotation_frequency, temperature0=temperature0,
-                 pressure=pressure, temperature=temperature, ndis=10)
-    print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency)}')
+    for disk, condition in zip(disks, conditions):
+        disk.show()
+        disk.tension(**condition, ndis=10)
+        print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency)}')
