@@ -10,7 +10,7 @@ class Dick:
 
     @classmethod
     def version(cls):
-        version = '2.3'
+        version = '2.4'
         print('Подбор толщин и радиусов для напряжения')
         return version
 
@@ -78,7 +78,8 @@ class Dick:
         return x, y
 
     @staticmethod
-    def equivalent_energy_tension(sigma_t: float | int, sigma_r: float | int) -> float:
+    def equivalent_energy_tension(sigma_t: float | int | np.float_ | np.int_,
+                                  sigma_r: float | int | np.float_ | np.int_) -> float:
         """Эквивалентное напряжение по энергетической теории"""
         sigma1, sigma3 = max(sigma_t, sigma_r), min(sigma_t, sigma_r)
         return np.sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
@@ -99,9 +100,9 @@ class Dick:
         # проверка на длину массивов сечений
         assert len(radius) == len(thickness) == len(tetta)
         # проверка на тип данных внутри массивов сечений
-        assert all(map(lambda i: type(i) in (float, int), radius))
-        assert all(map(lambda i: type(i) in (float, int), thickness))
-        assert all(map(lambda i: type(i) in (float, int), tetta))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), radius))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), thickness))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), tetta))
         # проверка на тип данных средних характеристик участков
         assert type(av_density) in (tuple, list, np.ndarray)
         assert type(av_E) in (tuple, list, np.ndarray)
@@ -109,9 +110,9 @@ class Dick:
         # проверка на длину массивов средних характеристик участков
         assert len(av_density) == len(av_E) == len(av_mu)
         # проверка на тип данных внутри массивов средних характеристик участков
-        assert all(map(lambda i: type(i) in (float, int), av_density))
-        assert all(map(lambda i: type(i) in (float, int), av_E))
-        assert all(map(lambda i: type(i) in (float, int), av_mu))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_density))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_E))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_mu))
 
         f_tetta = lambda r: (tetta[0] +
                              (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
@@ -143,12 +144,11 @@ class Dick:
                 ndis: int = 10) -> dict[str:  np.ndarray]:
         """Расчет напряжений в диске"""
 
-        assert type(rotation_frequency) in (float, int)
         assert type(temperature0) in (float, int) and temperature0 > 0
         assert type(pressure) in (tuple, list, np.ndarray)
         assert type(temperature) in (tuple, list, np.ndarray)
-        assert all(map(lambda i: type(i) in (int, float, np.float64), pressure))
-        assert all(map(lambda i: type(i) in (int, float, np.float64), temperature))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), pressure))
+        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), temperature))
         assert len(pressure) == 2
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
         assert type(ndis) is int and ndis >= 1
@@ -166,15 +166,11 @@ class Dick:
             f_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
                                        ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
 
-        # TODO: сюда дискритезацию
-        radius, thickness = list(), list()
+        radius, thickness = np.empty(0), np.empty(0)
         for i in range(len(self.radius) - 1):
-            r, th = self.slicing((self.radius[i], self.thickness[i]),
-                                 (self.radius[i + 1], self.thickness[i + 1]),
-                                 ndis)
-            radius.extend(r)
-            thickness.extend(th)
-        radius, thickness = np.array(radius), np.array(thickness)
+            r, th = self.slicing((self.radius[i], self.thickness[i]), (self.radius[i + 1], self.thickness[i + 1]), ndis)
+            radius = np.concatenate((radius, r))
+            thickness = np.concatenate((thickness, th))
 
         average_radius = np.array([(radius[i] + radius[i + 1]) / 2 for i in range(len(radius) - 1)])
         avarege_temperature = [f_temperature(av_r) for av_r in average_radius]
@@ -192,11 +188,8 @@ class Dick:
 
         k = (pressure[-1] - calc1['tension_r'][-1][-1]) / calc2['tension_r'][-1][-1]  # коэффициент Мора
 
-        sigma_t, sigma_r = np.zeros((len(radius) - 1, 2)), np.zeros((len(radius) - 1, 2))
-        for i in range(len(radius) - 1):  # участки
-            for j in range(2):  # сечения
-                sigma_t[i][j] = calc1['tension_t'][i][j] + k * calc2['tension_t'][i][j]
-                sigma_r[i][j] = calc1['tension_r'][i][j] + k * calc2['tension_r'][i][j]
+        sigma_t = calc1['tension_t'] + k * calc2['tension_t']
+        sigma_r = calc1['tension_r'] + k * calc2['tension_r']
 
         sigma_t = np.array([sigma_t[0][0]] +
                            [(sigma_t[i][1] + sigma_t[i + 1][0]) / 2 for i in range(0, len(radius) - 2)] +
@@ -235,7 +228,7 @@ class Dick:
 
     def show_tension(self, tensions, **kwargs) -> None:
 
-        radius, thickness = tensions['radius'] * 1_000, tensions['thickness'] * 1_000  # приведение к [мм]
+        radius, thickness = tensions.pop('radius') * 1_000, tensions.pop('thickness') * 1_000  # приведение к [мм]
         for key in tensions:
             if key.startswith('tension'):
                 tensions[key] = tensions[key] / 10 ** 6  # приведение к [МПа]
@@ -336,14 +329,21 @@ class Dick:
 
         plt.show()
 
-    def frequency_safety_factor(self, rotation_frequency: int | float) -> tuple[float]:
+    def frequency_safety_factor(self, rotation_frequency: int | float | np.int_ | np.float_,
+                                temperature: int | float | np.int_ | np.float_) -> tuple[float | np.float_]:
         """Запас по разрушающей частоте"""
-        f_thickness = interpolate.interp1d(self.radius, self.thickness, kind='cubic')  # TODO: linear!
-        n = self.material.sigma_temp(0) * integrate.quad(f_thickness, self.radius[0], self.radius[-1])[0]
+        assert type(rotation_frequency) in (int, float, np.int_, np.float_)
+        assert type(temperature) in (int, float, np.int_, np.float_) and temperature > 0
+
+        func_temperature = lambda r: temperature
+        func_thickness = interpolate.interp1d(self.radius, self.thickness, kind='linear')
+
+        n = integrate.quad(lambda r: self.material.sigma_temp(func_temperature(r)) * func_thickness(r),
+                           self.radius[0], self.radius[-1], points=self.radius)[0]
         n /= (pressure[-1] * self.radius[-1] * self.thickness[-1] +
-              (rotation_frequency ** 2 * self.material.density(0) *
-               integrate.quad(lambda r: f_thickness(r) * r ** 2, self.radius[0], self.radius[-1])[0]))
-        # TODO: плотность и предел временной прочности зависит от температуры
+              (rotation_frequency ** 2 *
+               integrate.quad(lambda r: self.material.density(func_temperature(r)) * func_thickness(r) * r ** 2,
+                              self.radius[0], self.radius[-1], points=self.radius)[0]))
         n = np.sqrt(n)
         return n * 0.9, n * 0.95  # действительный интервал запаса разрушающей частоты
 
@@ -445,4 +445,4 @@ if __name__ == "__main__":
     for disk, condition in zip(disks, conditions):
         disk.show()
         disk.tension(**condition, ndis=10)
-        print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency)}')
+        print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, 600)}')
