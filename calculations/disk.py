@@ -114,8 +114,7 @@ class Dick:
         assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_E))
         assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_mu))
 
-        f_tetta = lambda r: (tetta[0] +
-                             (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
+        func_tetta = lambda r: (tetta[0] + (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
         sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
         sigma_r = sigma_t.copy() if radius[0] == 0 else np.full((len(radius) - 1, 2), pressure[0])
         for i in range(len(radius) - 1):
@@ -129,7 +128,7 @@ class Dick:
             c2 = (sigma_t[i][0] - sigma_r[i][0] -
                   (1 - av_mu[i]) / 4 * av_density[i] * (rotation_frequency * radius[i]) ** 2 +
                   av_E[i] * tetta[i]) / 2 * radius[i] ** 2
-            I = integrate.quad(lambda r: f_tetta(r) * r, radius[i], radius[i + 1])[0]
+            I = integrate.quad(lambda r: func_tetta(r) * r, radius[i], radius[i + 1])[0]
             sigma_t[i][1] = ((c1 + c2 / radius[i + 1] ** 2 -
                               (1 + 3 * av_mu[i]) / 8 * av_density[i] * (rotation_frequency * radius[i + 1]) ** 2 +
                               (av_E[i] / radius[i + 1] ** 2) * I) - av_E[i] * tetta[i + 1])
@@ -141,7 +140,7 @@ class Dick:
 
     def tension(self, rotation_frequency: float, temperature0: int | float,
                 pressure: tuple | list | np.ndarray, temperature: tuple | list | np.ndarray,
-                ndis: int = 10) -> dict[str:  np.ndarray]:
+                ndis: int = 10, show: bool = False) -> dict[str:  np.ndarray]:
         """Расчет напряжений в диске"""
 
         assert type(temperature0) in (float, int) and temperature0 > 0
@@ -156,15 +155,15 @@ class Dick:
         tetta = [self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
                  self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0)]
         # параболический закон распределения деформаций
-        f_tetta = lambda r: \
+        func_tetta = lambda r: \
             (tetta[0] + (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
-        self.tetta = np.array([f_tetta(r) for r in self.radius])
 
         if len(temperature) == len(self.radius):
-            f_temperature = interpolate.interp1d(self.radius, temperature, kind='cubic', fill_value='extrapolate')
+            func_temperature = interpolate.interp1d(self.radius, temperature,
+                                                    kind='cubic', fill_value='extrapolate')
         else:
-            f_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
-                                       ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
+            func_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
+                                          ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
 
         radius, thickness = np.empty(0), np.empty(0)
         for i in range(len(self.radius) - 1):
@@ -173,11 +172,11 @@ class Dick:
             thickness = np.concatenate((thickness, th))
 
         average_radius = np.array([(radius[i] + radius[i + 1]) / 2 for i in range(len(radius) - 1)])
-        avarege_temperature = [f_temperature(av_r) for av_r in average_radius]
+        avarege_temperature = [func_temperature(av_r) for av_r in average_radius]
         avarege_density = np.array([self.material.density(av_t) for av_t in avarege_temperature])
         avarege_E = np.array([self.material.E(av_t) for av_t in avarege_temperature])
         avarege_mu = np.array([self.material.mu(av_t) for av_t in avarege_temperature])
-        tetta = np.array([f_tetta(r) for r in radius])
+        tetta = np.array([func_tetta(r) for r in radius])
 
         calc1 = self.calculation2(rotation_frequency, pressure,
                                   radius, thickness, tetta,
@@ -210,21 +209,28 @@ class Dick:
                            'tension_r': result['tension_r'] / 10 ** 6}).sort_values(by='radius [mm]', ascending=False)
         print(df)
 
+        if show: self.show_tension(result)
+
         f_sigma_t = interpolate.interp1d(result['radius'], result['tension_t'], kind='linear')
         f_sigma_r = interpolate.interp1d(result['radius'], result['tension_r'], kind='linear')
 
         for i in range(len(self.nholes)):
-            k = 3 - self.dholes[i] / self.b[i] - f_sigma_r(self.rholes[i]) / f_sigma_t(self.rholes[i])
-            sigma_t_hole = k * f_sigma_t(self.rholes[i]) / 10 ** 6
+            local_tension = self.local_tension(self.nholes[i], self.dholes[i], self.rholes[i],
+                                               f_sigma_t(self.rholes[i]), f_sigma_r(self.rholes[i]))
             print(f'''
             holes: {i}
             nholes []: {self.nholes[i]}, rholes [mm]: {self.rholes[i] * 1000}, dholes [mm]: {self.dholes[i] * 1000}
-            tension_t [MPa] in {(sigma_t_hole * 1.1, sigma_t_hole * 1.15)}
+            tension_t [MPa] in {local_tension}
             ''')
 
-        self.show_tension(result)
-
         return result
+
+    def local_tension(self, n, diameter, radius, sigma_t, sigma_r) -> tuple[float, float]:
+        """Местное напряжение от отверстия"""
+        b = 2 * np.pi * radius / n - diameter  # расчет расстояния между краями отверстий по окружности
+        k = 3 - diameter / b - sigma_r / sigma_t
+        sigma_t_hole = k * sigma_t
+        return sigma_t_hole * 1.1, sigma_t_hole * 1.15
 
     def show_tension(self, tensions, **kwargs) -> None:
 
@@ -444,5 +450,5 @@ if __name__ == "__main__":
 
     for disk, condition in zip(disks, conditions):
         disk.show()
-        disk.tension(**condition, ndis=10)
-        print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, 600)}')
+        disk.tension(**condition, ndis=10, show=False)
+        print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, temperature=600)}')
