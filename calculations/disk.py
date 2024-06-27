@@ -6,7 +6,7 @@ import matplotlib as mpl, matplotlib.pyplot as plt
 from material import Material
 
 
-class Dick:
+class Disk:
 
     @classmethod
     def version(cls):
@@ -152,8 +152,8 @@ class Dick:
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
         assert type(ndis) is int and ndis >= 1
 
-        tetta = [self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
-                 self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0)]
+        tetta = (self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
+                 self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0))
         # параболический закон распределения деформаций
         func_tetta = lambda r: \
             (tetta[0] + (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
@@ -202,14 +202,14 @@ class Dick:
         result = {'radius': radius, 'thickness': thickness,
                   'tension': sigma, 'tension_t': sigma_t, 'tension_r': sigma_r}
 
-        df = pd.DataFrame({'radius [mm]': result['radius'] * 1000,
-                           'thickness [mm]': result['thickness'] * 1000,
+        df = pd.DataFrame({'radius [mm]': result['radius'] * 1_000,
+                           'thickness [mm]': result['thickness'] * 1_000,
                            'tension [MPa]': result['tension'] / 10 ** 6,
                            'tension_t': result['tension_t'] / 10 ** 6,
                            'tension_r': result['tension_r'] / 10 ** 6}).sort_values(by='radius [mm]', ascending=False)
         print(df)
 
-        if show: self.show_tension(result)
+        if show: self.show_tension(rotation_frequency, temperature0, result)
 
         f_sigma_t = interpolate.interp1d(result['radius'], result['tension_t'], kind='linear')
         f_sigma_r = interpolate.interp1d(result['radius'], result['tension_r'], kind='linear')
@@ -219,7 +219,7 @@ class Dick:
                                                f_sigma_t(self.rholes[i]), f_sigma_r(self.rholes[i]))
             print(f'''
             holes: {i}
-            nholes []: {self.nholes[i]}, rholes [mm]: {self.rholes[i] * 1000}, dholes [mm]: {self.dholes[i] * 1000}
+            nholes []: {self.nholes[i]}, rholes [mm]: {self.rholes[i] * 1_000}, dholes [mm]: {self.dholes[i] * 1_000}
             tension_t [MPa] in {local_tension}
             ''')
 
@@ -232,15 +232,16 @@ class Dick:
         sigma_t_hole = k * sigma_t
         return sigma_t_hole * 1.1, sigma_t_hole * 1.15
 
-    def show_tension(self, tensions, **kwargs) -> None:
+    def show_tension(self, rotation_frequency: float, temperature0: int | float, tensions, **kwargs) -> None:
 
-        radius, thickness = tensions.pop('radius') * 1_000, tensions.pop('thickness') * 1_000  # приведение к [мм]
+        radius, thickness = tensions.get('radius') * 1_000, tensions.get('thickness') * 1_000  # приведение к [мм]
         for key in tensions:
             if key.startswith('tension'):
                 tensions[key] = tensions[key] / 10 ** 6  # приведение к [МПа]
 
         l, k = max(radius), 1.2
         ylim = 0 - l * (k - 1) / 2, l + l * (k - 1) / 2
+        func = interpolate.interp1d(radius, thickness, kind='linear')
 
         fg = plt.figure(figsize=kwargs.pop('figsize', (16, 8)))
         gs = fg.add_gridspec(1, 2)  # строки, столбцы
@@ -259,24 +260,22 @@ class Dick:
             av_th = (thickness[i] + thickness[i + 1]) / 2
             plt.gca().add_patch(mpl.patches.Rectangle((-av_th / 2, radius[i]),
                                                       av_th, radius[i + 1] - radius[i],
-                                                      angle=0, rotation_point='xy', alpha=0.5))
-        plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [0] * 2,
+                                                      angle=0, rotation_point='xy', alpha=0.5, edgecolor='blue'))
+        plt.plot([-thickness[0] / k, thickness[0] / k], [0] * 2,
                  color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
-        for i in range(len(self.nholes)):
-            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [self.rholes[i] * 1000] * 2,
-                     color='orange', linestyle='dashdot', linewidth=1.5)
-            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] + self.dholes[i] / 2) * 1_000] * 2,
-                     [-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] - self.dholes[i] / 2) * 1_000] * 2,
-                     color='black', linestyle='dashed', linewidth=1.5)
+        for r, d in zip(self.rholes, self.dholes):
+            r, d = r * 1_000, d * 1000
+            plt.plot([-func(r) / k, func(r) / k], [r] * 2, color='orange', linestyle='dashdot', linewidth=1.5)
+            plt.plot([-func(r) / 2, func(r) / 2], [r + d / 2] * 2, [-func(r) / 2, func(r) / 2], [r - d / 2] * 2,
+                     color='black', linestyle='dashed', linewidth=2)
 
-        # TODO: добавить оси направлений r и t
         # НУ
         plt.arrow(x=0, y=radius[-1], dx=0, dy=l * (k - 1) / 4 * np.sign(tensions['tension_r'][-1]),
                   color='red', width=1)
         plt.annotate(f'Pressure [MPa]: {tensions["tension_r"][-1]:.1f}',
                      xy=(3, radius[-1] + l * (k - 1) / 4 * np.sign(tensions['tension_r'][-1])),
                      fontsize=12, va='center')
-        if tensions["tension_r"][0] != 0:
+        if radius[0] != 0 and tensions["tension_r"][0] != 0:
             plt.arrow(x=0, y=radius[0], dx=0, dy=l * (k - 1) / 4 * np.sign(tensions['tension_r'][0]),
                       color='red', width=1)
             plt.annotate(f'Pressure [MPa]: {tensions["tension_r"][0]:.1f}',
@@ -308,6 +307,8 @@ class Dick:
 
     def show(self, **kwargs) -> None:
         radius, thickness = self.radius * 1_000, self.thickness * 1_000  # приведение к [мм]
+        func = interpolate.interp1d(radius, thickness, kind='linear')
+        k = 1.5
 
         plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
         plt.title("Disk", fontsize=14, fontweight='bold')
@@ -319,14 +320,13 @@ class Dick:
         if radius[0] > 0:
             plt.plot([-thickness[0] / 2, thickness[0] / 2], [radius[0], radius[0]],
                      color='black', linestyle='solid', linewidth=3)  # втулка
-        plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [0, 0],
+        plt.plot([-thickness[0] / k, thickness[0] / k], [0, 0],
                  color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
-        for i in range(len(self.nholes)):
-            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [self.rholes[i] * 1_000] * 2,
-                     color='orange', linestyle='dashdot', linewidth=1.5)
-            plt.plot([-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] + self.dholes[i] / 2) * 1_000] * 2,
-                     [-thickness[0] / 1.5, thickness[0] / 1.5], [(self.rholes[i] - self.dholes[i] / 2) * 1_000] * 2,
-                     color='black', linestyle='dashed', linewidth=1.5)
+        for r, d in zip(self.rholes, self.dholes):
+            r, d = r * 1_000, d * 1000
+            plt.plot([-func(r) / k, func(r) / k], [r] * 2, color='orange', linestyle='dashdot', linewidth=1.5)
+            plt.plot([-func(r) / 2, func(r) / 2], [r + d / 2] * 2, [-func(r) / 2, func(r) / 2], [r - d / 2] * 2,
+                     color='black', linestyle='dashed', linewidth=2)
 
         plt.grid(True)
         plt.axis('equal')
@@ -355,7 +355,7 @@ class Dick:
 
 
 if __name__ == "__main__":
-    print(Dick.version())
+    print(Disk.version())
 
     disks, conditions = list(), list()
 
@@ -383,7 +383,7 @@ if __name__ == "__main__":
         pressure = (0, 120.6 * 10 ** 6)
         temperature = (350, 650)
 
-        disks.append(Dick(material=material,
+        disks.append(Disk(material=material,
                           radius=radius, thickness=thickness,
                           nholes=nholes, rholes=rholes, dholes=dholes))
         conditions.append(dict(rotation_frequency=rotation_frequency, temperature0=temperature0,
@@ -399,11 +399,10 @@ if __name__ == "__main__":
                                 "sigma_temp": 600 * 10 ** 6
                             })
         radius = np.array(
-            [0, 272, 311, 352, 388, 434, 506.5, 509, 544, 564, 584, 619, 621.5, 726, 737, 748, 763, 775, 860, 864, 868,
-             880, 884, 887, 905]) / 1000
+            [0, 272, 434, 506.5, 509, 584, 619, 621.5, 726, 737, 748, 763, 775, 860, 864, 868, 880, 884, 887,
+             905]) / 1000
         thickness = np.array(
-            [132, 132, 120, 108, 97, 83, 88.5, 154, 154, 154, 154, 88.5, 83, 90, 107, 122, 96, 83, 89, 96, 127, 96, 89,
-             83, 83]) / 1000
+            [132, 132, 83, 88.5, 154, 154, 88.5, 83, 90, 107, 122, 96, 83, 89, 96, 127, 96, 89, 83, 83]) / 1000
         nholes, rholes, dholes = [10], [544 / 1000], [40 / 1000]
 
         print(pd.DataFrame({'radius': radius, 'thickness': thickness}))
@@ -413,7 +412,7 @@ if __name__ == "__main__":
         pressure = (0, 150 * 10 ** 6)
         temperature = (620, 800)
 
-        disks.append(Dick(material=material,
+        disks.append(Disk(material=material,
                           radius=radius, thickness=thickness,
                           nholes=nholes, rholes=rholes, dholes=dholes))
         conditions.append(dict(rotation_frequency=rotation_frequency, temperature0=temperature0,
@@ -442,7 +441,7 @@ if __name__ == "__main__":
         pressure = (0, 110 * 10 ** 6)
         temperature = (800, 1050)
 
-        disks.append(Dick(material=material,
+        disks.append(Disk(material=material,
                           radius=radius, thickness=thickness,
                           nholes=nholes, rholes=rholes, dholes=dholes))
         conditions.append(dict(rotation_frequency=rotation_frequency, temperature0=temperature0,
@@ -450,5 +449,5 @@ if __name__ == "__main__":
 
     for disk, condition in zip(disks, conditions):
         disk.show()
-        disk.tension(**condition, ndis=10, show=False)
+        disk.tension(**condition, ndis=10, show=True)
         print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, temperature=600)}')
