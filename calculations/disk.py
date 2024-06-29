@@ -1,3 +1,23 @@
+"""
+Список литератиуры:
+
+[1] = Елисеев Ю.С., Крымов В.В., Манушин Э.А. и др.
+Конструирование и расчет на прочность турбомашин ГТ и КУ:
+Учебник для студентов вузов / Под общей ред. М.И. Осипова. – М.: МГТУ, 2009
+
+[2] = Иноземцев А.А. Динамика и прочность авиационных двигателей и энергетических установок:
+учебник / А.А. Иноземцев, М.А. Нихамкин, В.Л. Сандрацкий. – М.: Машиностроение, 2008. – Т.2. – 368 с.; Т.4. – 192 с.
+
+[3] = Костюк А.Г. Динамика и прочность турбомашин:
+Учебник для вузов. – 2-е изд., перераб. и доп. – М.: Издательство МЭИ, 2000. – 480 с.
+
+[4] = Щегляев А.В. Паровые турбины. – М.: Энергоатомиздат, 1993. – В двух книгах.
+
+[5] = Малинин Н.Н. Прочность турбомашин. – М.: Машиностроние, 1962. – 291 с.
+
+[6] =
+"""
+
 import numpy as np
 import pandas as pd
 from scipy import interpolate, integrate
@@ -10,8 +30,9 @@ class Disk:
 
     @classmethod
     def version(cls):
-        version = '2.4'
+        version = '2.5'
         print('Подбор толщин и радиусов для напряжения')
+        print('Проектирование равнопрочного диска')
         return version
 
     def __init__(self, material: Material,
@@ -336,7 +357,7 @@ class Disk:
         plt.show()
 
     def frequency_safety_factor(self, rotation_frequency: int | float | np.int_ | np.float_,
-                                temperature: int | float | np.int_ | np.float_) -> tuple[float | np.float_]:
+                                temperature: int | float | np.int_ | np.float_) -> tuple[tuple, str]:
         """Запас по разрушающей частоте"""
         assert type(rotation_frequency) in (int, float, np.int_, np.float_)
         assert type(temperature) in (int, float, np.int_, np.float_) and temperature > 0
@@ -351,7 +372,35 @@ class Disk:
                integrate.quad(lambda r: self.material.density(func_temperature(r)) * func_thickness(r) * r ** 2,
                               self.radius[0], self.radius[-1], points=self.radius)[0]))
         n = np.sqrt(n)
-        return n * 0.9, n * 0.95  # действительный интервал запаса разрушающей частоты
+        return (n * 0.9, n * 0.95), ''  # действительный интервал запаса разрушающей частоты
+
+    def natural_frequencies(self, radius: int, N: int, S: int) -> tuple[float, str]:
+        """Частота собственных колебаний [6]"""
+
+        def alpha(radius, N: int, S: int) -> float:
+            """
+            radius = тип крепления (0 = центральное, -1 = периферийное)
+            N = число узловых диаметров
+            S = число узловых окружностей
+            """
+            if radius == 0:  # тип крепления центральное
+                table = [[3.75, 3.42, 5.39, 12.49],
+                         [20.91, 27.56, 34.80, 53.30],
+                         [60.68, np.nan, np.nan, np.nan]]
+                return table[S][N] if 0 <= S <= 2 and 0 <= N <= 3 else np.nan
+            elif radius == -1:  # тип крепления периферийное
+                table = [[10.24, 21.25, 33.60, 51],
+                         [39.80, 60.80, 84.60, 111],
+                         [89.00, 120.0, 153.8, 190],
+                         [158.3, 199.0, 243.0, np.nan]]
+                return table[S][N] if 0 <= S <= 3 and 0 <= N <= 3 else np.nan
+            else:
+                raise Exception('radius in (0, -1)')  # тип крепления
+
+        f = self.material.E(5) * np.mean(self.thickness) ** 2
+        f /= 12 * (1 - self.material.mu(0) ** 2) * self.material.density(0)
+        f = np.sqrt(f) * alpha(radius, N, S) / (2 * np.pi * self.radius[-1] ** 2)
+        return f, '1/s'
 
 
 if __name__ == "__main__":
@@ -451,3 +500,4 @@ if __name__ == "__main__":
         disk.show()
         disk.tension(**condition, ndis=10, show=True)
         print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, temperature=600)}')
+        print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
