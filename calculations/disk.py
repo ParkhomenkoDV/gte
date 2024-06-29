@@ -19,6 +19,7 @@
 """
 
 import numpy as np
+from numpy import array, zeros, ones, full, nan, isnan, pi, sqrt, arange, linspace
 import pandas as pd
 from scipy import interpolate, integrate
 import matplotlib as mpl, matplotlib.pyplot as plt
@@ -81,12 +82,12 @@ class Disk:
         # проверка на адекватность rholes по отношению к radius
         assert all(map(lambda i: radius[0] <= i <= radius[-1], rholes))
         # расчет и проверка расстояния между краями отверстий по окружности
-        self.b = np.array([2 * np.pi * rholes[i] / nholes[i] - dholes[i] for i in range(len(nholes))])
+        self.b = array([2 * np.pi * rholes[i] / nholes[i] - dholes[i] for i in range(len(nholes))])
         assert all(map(lambda i: i > 0, self.b))
 
-        self.radius, self.thickness = np.array(radius), np.array(thickness)
+        self.radius, self.thickness = array(radius), array(thickness)
         self.material = material
-        self.nholes, self.rholes, self.dholes = np.array(nholes), np.array(rholes), np.array(dholes)
+        self.nholes, self.rholes, self.dholes = array(nholes), array(rholes), array(dholes)
 
     @staticmethod
     def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple:
@@ -103,7 +104,7 @@ class Disk:
                                   sigma_r: float | int | np.float_ | np.int_) -> float:
         """Эквивалентное напряжение по энергетической теории"""
         sigma1, sigma3 = max(sigma_t, sigma_r), min(sigma_t, sigma_r)
-        return np.sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
+        return sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
 
     @staticmethod
     def calculation2(rotation_frequency: int | float, pressure: tuple | list | np.ndarray,
@@ -137,7 +138,7 @@ class Disk:
 
         func_tetta = lambda r: (tetta[0] + (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
         sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
-        sigma_r = sigma_t.copy() if radius[0] == 0 else np.full((len(radius) - 1, 2), pressure[0])
+        sigma_r = sigma_t.copy() if radius[0] == 0 else full((len(radius) - 1, 2), pressure[0])
         for i in range(len(radius) - 1):
             if i != 0:
                 sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
@@ -386,24 +387,28 @@ class Disk:
             if radius == 0:  # тип крепления центральное
                 table = [[3.75, 3.42, 5.39, 12.49],
                          [20.91, 27.56, 34.80, 53.30],
-                         [60.68, np.nan, np.nan, np.nan]]
-                return table[S][N] if 0 <= S <= 2 and 0 <= N <= 3 else np.nan
+                         [60.68, nan, nan, nan]]
+                return table[S][N] if 0 <= S <= 2 and 0 <= N <= 3 else nan
             elif radius == -1:  # тип крепления периферийное
                 table = [[10.24, 21.25, 33.60, 51],
                          [39.80, 60.80, 84.60, 111],
                          [89.00, 120.0, 153.8, 190],
                          [158.3, 199.0, 243.0, np.nan]]
-                return table[S][N] if 0 <= S <= 3 and 0 <= N <= 3 else np.nan
+                return table[S][N] if 0 <= S <= 3 and 0 <= N <= 3 else nan
             else:
                 raise Exception('radius in (0, -1)')  # тип крепления
 
         f = self.material.E(5) * np.mean(self.thickness) ** 2
         f /= 12 * (1 - self.material.mu(0) ** 2) * self.material.density(0)
-        f = np.sqrt(f) * alpha(radius, N, S) / (2 * np.pi * self.radius[-1] ** 2)
+        f = sqrt(f) * alpha(radius, N, S) / (2 * pi * self.radius[-1] ** 2)
         return f, '1/s'
 
-    def campbell_diagram(self, radius: int, N: int, S: int, rotation_frequency=np.arange(0, 1_000, 1)):
+    def campbell_diagram(self, radius: int, N: int, S: int,
+                         max_rotation_frequency: int, k=arange(1, 11, 1), **kwargs) -> tuple[list, str]:
         """Диаграмма Кэмпбелла [6]"""
+        assert type(max_rotation_frequency) in (int, float, np.int_, np.float_)
+        assert isinstance(k, (list, tuple, np.ndarray))
+        assert all(map(lambda i: isinstance(i, (int, float, np.int_, np.float_)), k))
 
         def B(radius: int, N: int, S: int):
             """
@@ -418,20 +423,35 @@ class Disk:
             else:
                 raise Exception('radius in (0, -1)')  # тип крепления
 
-        f, f_plus, f_minus = [np.nan] * len(rotation_frequency), [np.nan] * len(rotation_frequency), [np.nan] * len(
-            rotation_frequency)
-        for i, rot_freq in enumerate(rotation_frequency):
-            # динамическая частота колебаний вращающегося диска
-            f[i] = np.sqrt(self.natural_frequencies(radius, N, S)[0] ** 2 + B(radius, N, S) * rot_freq ** 2)
-            # волны, бегущие по и против вращения диска
-            f_plus[i], f_minus[i] = f[i] + N * rot_freq, f[i] - N * rot_freq
+        rotation_frequency = np.arange(0, max_rotation_frequency + 1, 1) * (2 * pi)  # перевод из рад/c в 1/c=об/c=Гц
+        # динамическая частота колебаний вращающегося диска
+        f = sqrt(self.natural_frequencies(radius, N, S)[0] ** 2 + B(radius, N, S) * rotation_frequency ** 2)
+        # волны бегущие по и против вращения диска
+        f_plus, f_minus = f + N * rotation_frequency, f - N * rotation_frequency
+        resonance = set()  # резонансные частоты [1/с]
 
+        plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
         plt.title('Campbell diagram', fontsize=14, fontweight='bold')
-        for k in range(10 + 1):
-            plt.plot([rotation_frequency[0], rotation_frequency[-1]],
-                     [rotation_frequency[0] * k, rotation_frequency[-1] * k],
+        for k_ in k:
+            plt.plot([0, rotation_frequency[-1]], [0, rotation_frequency[-1] * k_],
                      color='orange', linestyle='solid', linewidth=1)
-            # TODO: добавить красные точки пересечений
+            plt.text(rotation_frequency[-1], rotation_frequency[-1] * k_, f'k{k_}',
+                     fontsize=12, ha='left', va='center')
+            if k_ ** 2 - B(radius, N, S) >= 0:
+                x0 = f[0] / sqrt(k_ ** 2 - B(radius, N, S))  # f
+                if not isnan(x0) and x0 <= rotation_frequency[-1]:
+                    resonance.add(round(x0, 6))
+                    plt.scatter(x0, k_ * x0, color='red')
+            if k_ ** 2 - B(radius, N, S) + N ** 2 + 2 * k_ * N >= 0:
+                x0 = f[0] / sqrt(k_ ** 2 - B(radius, N, S) + N ** 2 + 2 * k_ * N)  # f_minus
+                if not isnan(x0) and x0 <= rotation_frequency[-1]:
+                    resonance.add(round(x0, 6))
+                    plt.scatter(x0, k_ * x0, color='red')
+            if k_ ** 2 - B(radius, N, S) + N ** 2 - 2 * k_ * N >= 0:
+                x0 = f[0] / sqrt(k_ ** 2 - B(radius, N, S) + N ** 2 - 2 * k_ * N)  # f_plus
+                if not isnan(x0) and x0 <= rotation_frequency[-1]:
+                    resonance.add(round(x0, 6))
+                    plt.scatter(x0, k_ * x0, color='red')
         plt.plot(rotation_frequency, f, color='black', linestyle='solid', linewidth=2, label='f')
         plt.plot(rotation_frequency, f_plus, color='green', linestyle='solid', linewidth=1.5, label='f+')
         plt.plot(rotation_frequency, f_minus, color='blue', linestyle='solid', linewidth=1.5, label='f-')
@@ -440,6 +460,8 @@ class Disk:
         plt.grid(True)
         plt.legend(fontsize=12)
         plt.show()
+
+        return sorted(list(resonance), reverse=False), '1/s'
 
 
 if __name__ == "__main__":
@@ -453,15 +475,15 @@ if __name__ == "__main__":
                                 "density": 8400,
                                 "alpha": 18 * 10 ** -6,
                                 "E": interpolate.interp1d(list(range(400, 800 + 1, 100)),
-                                                          np.array([1.74, 1.66, 1.57, 1.47, 1.32]) * 10 ** 11,
+                                                          array([1.74, 1.66, 1.57, 1.47, 1.32]) * 10 ** 11,
                                                           kind='cubic', bounds_error=False, fill_value='extrapolate'),
                                 "mu": interpolate.interp1d(list(range(400, 800 + 1, 100)),
                                                            [0.384, 0.379, 0.371, 0.361, 0.347],
                                                            kind='cubic', bounds_error=False, fill_value='extrapolate'),
                                 "sigma_temp": 900 * 10 ** 6
                             })
-        radius = np.array([20, 26, 30.62, 37.26, 56.94, 60.67, 72.95, 75.95, 102.41, 106.52, 109.82]) / 1000
-        thickness = np.array([36, 36, 15.43, 11.27, 10, 12, 12, 8, 6, 11, 11]) / 1000
+        radius = array([20, 26, 30.62, 37.26, 56.94, 60.67, 72.95, 75.95, 102.41, 106.52, 109.82]) / 1000
+        thickness = array([36, 36, 15.43, 11.27, 10, 12, 12, 8, 6, 11, 11]) / 1000
         nholes, rholes, dholes = [5], [66.8 / 1000], [6.2 / 1000]
 
         print(pd.DataFrame({'radius': radius, 'thickness': thickness}))
@@ -486,16 +508,16 @@ if __name__ == "__main__":
                                 "mu": 0.33,
                                 "sigma_temp": 600 * 10 ** 6
                             })
-        radius = np.array(
+        radius = array(
             [0, 272, 434, 506.5, 509, 584, 619, 621.5, 726, 737, 748, 763, 775, 860, 864, 868, 880, 884, 887,
              905]) / 1000
-        thickness = np.array(
+        thickness = array(
             [132, 132, 83, 88.5, 154, 154, 88.5, 83, 90, 107, 122, 96, 83, 89, 96, 127, 96, 89, 83, 83]) / 1000
         nholes, rholes, dholes = [10], [544 / 1000], [40 / 1000]
 
         print(pd.DataFrame({'radius': radius, 'thickness': thickness}))
 
-        rotation_frequency = 3000 * 2 * np.pi / 60
+        rotation_frequency = 3000 * 2 * pi / 60
         temperature0 = 620
         pressure = (0, 150 * 10 ** 6)
         temperature = (620, 800)
@@ -515,16 +537,16 @@ if __name__ == "__main__":
                                 "mu": 0.33,
                                 "sigma_temp": 900 * 10 ** 6
                             })
-        radius = np.array(
+        radius = array(
             [84, 95.1, 107.7, 120.2, 132.8, 145.4, 157.9, 170.6, 176.6, 189.2, 203.1, 218.9, 233.3, 245.9, 258.4, 271.9,
              277.8, 283.5, 289.3, 303]) / 1000
-        thickness = np.array(
+        thickness = array(
             [83, 83, 91, 69, 64, 58, 58, 58, 48, 43, 39, 35.8, 31, 27.8, 29.6, 35.6, 40, 50, 62, 62]) / 1000
         nholes, rholes, dholes = [], [], []
 
         print(pd.DataFrame({'radius': radius, 'thickness': thickness}))
 
-        rotation_frequency = 9150 * 2 * np.pi / 60
+        rotation_frequency = 9150 * 2 * pi / 60
         temperature0 = 300
         pressure = (0, 110 * 10 ** 6)
         temperature = (800, 1050)
@@ -537,7 +559,8 @@ if __name__ == "__main__":
 
     for disk, condition in zip(disks, conditions):
         disk.show()
-        disk.tension(**condition, ndis=10, show=True)
-        print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, temperature=600)}')
+        disk.tension(**condition, ndis=10, show=False)
+        print(
+            f'frequency_safety_factor: {disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600)}')
         print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
-        disk.campbell_diagram(0, 1, 1)
+        print(disk.campbell_diagram(0, 1, 1, condition["rotation_frequency"] * 1.1, k=np.arange(0, 10, 1)))
