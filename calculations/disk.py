@@ -15,7 +15,7 @@
 
 [5] = Малинин Н.Н. Прочность турбомашин. – М.: Машиностроние, 1962. – 291 с.
 
-[6] =
+[6] = Колебания / В.С. Чигрин. - Пособие по лабораторному практикуму - Рыбинск: РГАТА, 2005. -20 с.
 """
 
 import numpy as np
@@ -30,7 +30,7 @@ class Disk:
 
     @classmethod
     def version(cls):
-        version = '2.5'
+        version = '4.0'
         print('Подбор толщин и радиусов для напряжения')
         print('Проектирование равнопрочного диска')
         return version
@@ -377,7 +377,7 @@ class Disk:
     def natural_frequencies(self, radius: int, N: int, S: int) -> tuple[float, str]:
         """Частота собственных колебаний [6]"""
 
-        def alpha(radius, N: int, S: int) -> float:
+        def alpha(radius: int, N: int, S: int) -> float:
             """
             radius = тип крепления (0 = центральное, -1 = периферийное)
             N = число узловых диаметров
@@ -401,6 +401,45 @@ class Disk:
         f /= 12 * (1 - self.material.mu(0) ** 2) * self.material.density(0)
         f = np.sqrt(f) * alpha(radius, N, S) / (2 * np.pi * self.radius[-1] ** 2)
         return f, '1/s'
+
+    def campbell_diagram(self, radius: int, N: int, S: int, rotation_frequency=np.arange(0, 1_000, 1)):
+        """Диаграмма Кэмпбелла [6]"""
+
+        def B(radius: int, N: int, S: int):
+            """
+            radius = тип крепления (0 = центральное, -1 = периферийное)
+            N = число узловых диаметров
+            S = число узловых окружностей
+            """
+            if radius == 0:  # тип крепления центральное
+                table = [[0, 1, 2.35, 4.05],
+                         [3.3, 5.95, 8.95, 12.3]]
+                return table[S][N] if 0 <= S <= 1 and 0 <= N <= 3 else np.nan
+            else:
+                raise Exception('radius in (0, -1)')  # тип крепления
+
+        f, f_plus, f_minus = [np.nan] * len(rotation_frequency), [np.nan] * len(rotation_frequency), [np.nan] * len(
+            rotation_frequency)
+        for i, rot_freq in enumerate(rotation_frequency):
+            # динамическая частота колебаний вращающегося диска
+            f[i] = np.sqrt(self.natural_frequencies(radius, N, S)[0] ** 2 + B(radius, N, S) * rot_freq ** 2)
+            # волны, бегущие по и против вращения диска
+            f_plus[i], f_minus[i] = f[i] + N * rot_freq, f[i] - N * rot_freq
+
+        plt.title('Campbell diagram', fontsize=14, fontweight='bold')
+        for k in range(10 + 1):
+            plt.plot([rotation_frequency[0], rotation_frequency[-1]],
+                     [rotation_frequency[0] * k, rotation_frequency[-1] * k],
+                     color='orange', linestyle='solid', linewidth=1)
+            # TODO: добавить красные точки пересечений
+        plt.plot(rotation_frequency, f, color='black', linestyle='solid', linewidth=2, label='f')
+        plt.plot(rotation_frequency, f_plus, color='green', linestyle='solid', linewidth=1.5, label='f+')
+        plt.plot(rotation_frequency, f_minus, color='blue', linestyle='solid', linewidth=1.5, label='f-')
+        plt.xlabel('Frequency [1/s]', fontsize=12)
+        plt.ylabel('Frequency [1/s]', fontsize=12)
+        plt.grid(True)
+        plt.legend(fontsize=12)
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -501,3 +540,4 @@ if __name__ == "__main__":
         disk.tension(**condition, ndis=10, show=True)
         print(f'frequency_safety_factor: {disk.frequency_safety_factor(rotation_frequency, temperature=600)}')
         print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
+        disk.campbell_diagram(0, 1, 1)
