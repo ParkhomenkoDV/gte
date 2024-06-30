@@ -27,15 +27,24 @@ class Material:
 
         E = parameters.pop("E", np.nan)
         if type(E) in (int, float):
-            self.E = lambda T: E
+            self.E = interpolate.interp1d(list(range(0, 500, 100)), [E] * 5,
+                                          kind='cubic', fill_value='extrapolate')
         else:
             self.E = E
 
         mu = parameters.pop("mu", np.nan)
         if type(mu) in (int, float):
-            self.mu = lambda T: E
+            self.mu = interpolate.interp1d(list(range(0, 500, 100)), [mu] * 5,
+                                           kind='cubic', fill_value='extrapolate')
         else:
             self.mu = mu
+
+        sigma_temp = parameters.pop("sigma_temp", np.nan)
+        if type(sigma_temp) in (int, float):
+            self.sigma_temp = interpolate.interp1d(list(range(0, 500, 100)), [sigma_temp] * 5,
+                                                   kind='cubic', fill_value='extrapolate')
+        else:
+            self.sigma_temp = sigma_temp
 
     @staticmethod
     def G(E: int | float, mu: int | float) -> float:
