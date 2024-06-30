@@ -1,5 +1,5 @@
 """
-Список литератиуры:
+Список литературы:
 
 [1] = Елисеев Ю.С., Крымов В.В., Манушин Э.А. и др.
 Конструирование и расчет на прочность турбомашин ГТ и КУ:
@@ -359,7 +359,7 @@ class Disk:
 
     def frequency_safety_factor(self, rotation_frequency: int | float | np.int_ | np.float_,
                                 temperature: int | float | np.int_ | np.float_) -> tuple[tuple, str]:
-        """Запас по разрушающей частоте"""
+        """Запас по разрушающей частоте [2, c.99]"""
         assert type(rotation_frequency) in (int, float, np.int_, np.float_)
         assert type(temperature) in (int, float, np.int_, np.float_) and temperature > 0
 
@@ -368,6 +368,7 @@ class Disk:
 
         n = integrate.quad(lambda r: self.material.sigma_temp(func_temperature(r)) * func_thickness(r),
                            self.radius[0], self.radius[-1], points=self.radius)[0]
+        n += 0  # TODO: доделать!
         n /= (pressure[-1] * self.radius[-1] * self.thickness[-1] +
               (rotation_frequency ** 2 *
                integrate.quad(lambda r: self.material.density(func_temperature(r)) * func_thickness(r) * r ** 2,
@@ -404,11 +405,11 @@ class Disk:
         return f, '1/s'
 
     def campbell_diagram(self, radius: int, N: int, S: int,
-                         max_rotation_frequency: int, k=arange(1, 11, 1), **kwargs) -> tuple[list, str]:
+                         max_rotation_frequency: int, k=arange(1, 11, 1), **kwargs) -> tuple[list[float], str]:
         """Диаграмма Кэмпбелла [6]"""
         assert type(max_rotation_frequency) in (int, float, np.int_, np.float_)
         assert isinstance(k, (list, tuple, np.ndarray))
-        assert all(map(lambda i: isinstance(i, (int, float, np.int_, np.float_)), k))
+        assert all(map(lambda i: isinstance(i, (int, np.int_)), k))
 
         def B(radius: int, N: int, S: int):
             """
@@ -560,7 +561,7 @@ if __name__ == "__main__":
     for disk, condition in zip(disks, conditions):
         disk.show()
         disk.tension(**condition, ndis=10, show=False)
-        print(
-            f'frequency_safety_factor: {disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600)}')
+        print(f'frequency_safety_factor: '
+              f'{disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600)}')
         print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
-        print(disk.campbell_diagram(0, 1, 1, condition["rotation_frequency"] * 1.1, k=np.arange(0, 10, 1)))
+        print(disk.campbell_diagram(0, 1, 1, condition["rotation_frequency"] * 1.1, k=np.arange(1, 11, 1)))
