@@ -16,10 +16,12 @@
 [5] = Малинин Н.Н. Прочность турбомашин. – М.: Машиностроние, 1962. – 291 с.
 
 [6] = Колебания / В.С. Чигрин. - Пособие по лабораторному практикуму - Рыбинск: РГАТА, 2005. -20 с.
+
+[7] = Расчет дисков на прочность МАМИ
 """
 
 import numpy as np
-from numpy import array, zeros, ones, full, nan, isnan, pi, sqrt, arange, linspace
+from numpy import array, full, nan, isnan, pi, sqrt, arange, linspace
 import pandas as pd
 from scipy import interpolate, integrate
 import matplotlib as mpl, matplotlib.pyplot as plt
@@ -31,9 +33,8 @@ class Disk:
 
     @classmethod
     def version(cls):
-        version = '4.0'
+        version = '5.0'
         print('Подбор толщин и радиусов для напряжения')
-        print('Проектирование равнопрочного диска')
         return version
 
     def __init__(self, material: Material,
@@ -100,8 +101,7 @@ class Disk:
         return x, y
 
     @staticmethod
-    def equivalent_energy_tension(sigma_t: float | int | np.float_ | np.int_,
-                                  sigma_r: float | int | np.float_ | np.int_) -> float:
+    def equivalent_energy_tension(sigma_t: float | int, sigma_r: float | int) -> float:
         """Эквивалентное напряжение по энергетической теории"""
         sigma1, sigma3 = max(sigma_t, sigma_r), min(sigma_t, sigma_r)
         return sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
@@ -122,9 +122,9 @@ class Disk:
         # проверка на длину массивов сечений
         assert len(radius) == len(thickness) == len(tetta)
         # проверка на тип данных внутри массивов сечений
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), radius))
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), thickness))
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), tetta))
+        assert all(isinstance(i, (int, float)) for i in radius)
+        assert all(isinstance(i, (int, float)) for i in thickness)
+        assert all(isinstance(i, (int, float)) for i in tetta)
         # проверка на тип данных средних характеристик участков
         assert type(av_density) in (tuple, list, np.ndarray)
         assert type(av_E) in (tuple, list, np.ndarray)
@@ -132,9 +132,10 @@ class Disk:
         # проверка на длину массивов средних характеристик участков
         assert len(av_density) == len(av_E) == len(av_mu)
         # проверка на тип данных внутри массивов средних характеристик участков
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_density))
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_E))
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), av_mu))
+        print(type(av_density[0]))
+        assert all('float' in type(i).__name__ or 'int' in type(i).__name__ for i in av_density)
+        assert all(isinstance(i, (int, float)) for i in av_E)
+        assert all(isinstance(i, (int, float)) for i in av_mu)
 
         func_tetta = lambda r: (tetta[0] + (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
         sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
@@ -168,8 +169,8 @@ class Disk:
         assert type(temperature0) in (float, int) and temperature0 > 0
         assert type(pressure) in (tuple, list, np.ndarray)
         assert type(temperature) in (tuple, list, np.ndarray)
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), pressure))
-        assert all(map(lambda i: type(i) in (float, int, np.float_, np.int_), temperature))
+        assert all(map(lambda i: type(i) in (float, int), pressure))
+        assert all(map(lambda i: type(i) in (float, int), temperature))
         assert len(pressure) == 2
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
         assert type(ndis) is int and ndis >= 1
@@ -333,7 +334,7 @@ class Disk:
         k = 1.5
 
         plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
-        plt.title("Disk", fontsize=14, fontweight='bold')
+        plt.title(kwargs.pop('title', "Disk"), fontsize=14, fontweight='bold')
 
         plt.plot(thickness / 2, radius, -thickness / 2, radius,
                  color='black', linestyle='solid', linewidth=3)
@@ -357,11 +358,26 @@ class Disk:
 
         plt.show()
 
-    def frequency_safety_factor(self, rotation_frequency: int | float | np.int_ | np.float_,
-                                temperature: int | float | np.int_ | np.float_) -> tuple[tuple, str]:
+    def equal_strength(self, tension, rotation_frequency: int | float,
+                       ndis: int = 100, show: bool = True) -> dict[str:np.ndarray]:
+        """Профилирование равнопрочного диска без центрального отверстия [7]"""
+        assert type(tension) in (int, float)
+
+        radius = linspace(0, self.radius[-1], ndis)
+        thickness = 0.5 * self.material.density(0) * rotation_frequency ** 2
+        thickness *= (radius[-1] ** 2 - radius ** 2) / tension
+        thickness = self.thickness[-1] * np.exp(thickness)
+
+        if show:
+            equal_strength_disk = Disk(material=self.material, radius=radius, thickness=thickness)
+            equal_strength_disk.show(title='Equal strength disk')
+
+        return {'radius': radius, 'thickness': thickness}
+
+    def frequency_safety_factor(self, rotation_frequency: int | float, temperature: int | float) -> tuple[tuple, str]:
         """Запас по разрушающей частоте [2, c.99]"""
-        assert type(rotation_frequency) in (int, float, np.int_, np.float_)
-        assert type(temperature) in (int, float, np.int_, np.float_) and temperature > 0
+        assert type(rotation_frequency) in (int, float)
+        assert type(temperature) in (int, float) and temperature > 0
 
         func_temperature = lambda r: temperature
         func_thickness = interpolate.interp1d(self.radius, self.thickness, kind='linear')
@@ -407,7 +423,7 @@ class Disk:
     def campbell_diagram(self, radius: int, N: int, S: int,
                          max_rotation_frequency: int, k=arange(1, 11, 1), **kwargs) -> tuple[list[float], str]:
         """Диаграмма Кэмпбелла [6]"""
-        assert type(max_rotation_frequency) in (int, float, np.int_, np.float_)
+        assert type(max_rotation_frequency) in (int, float)
         assert isinstance(k, (list, tuple, np.ndarray))
         assert all(map(lambda i: isinstance(i, (int, np.int_)), k))
 
@@ -561,6 +577,9 @@ if __name__ == "__main__":
     for disk, condition in zip(disks, conditions):
         disk.show()
         disk.tension(**condition, ndis=10, show=False)
+        eq_radius, eq_thickness = disk.equal_strength(400 * 10 ** 6, condition["rotation_frequency"],
+                                                      ndis=10, show=True).values()
+        Disk(material=disk.material, radius=eq_radius, thickness=eq_thickness).tension(**condition, ndis=10, show=True)
         print(f'frequency_safety_factor: '
               f'{disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600)}')
         print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
