@@ -40,11 +40,11 @@ class Disk:
     def __init__(self, material: Material,
                  radius: tuple | list | np.ndarray, thickness: tuple | list | np.ndarray,
                  nholes=tuple(), rholes=tuple(), dholes=tuple()):
+        # проверка на тип данных material
+        assert type(material) is Material
         # проверка на тип данных radius и thickness
         assert type(radius) in (tuple, list, np.ndarray)
         assert type(thickness) in (tuple, list, np.ndarray)
-        # проверка на тип данных material
-        assert type(material) is Material
         # проверка на тип данных nholes, rholes, dholes
         assert type(nholes) in (tuple, list, np.ndarray)
         assert type(rholes) in (tuple, list, np.ndarray)
@@ -374,7 +374,8 @@ class Disk:
 
         return {'radius': radius, 'thickness': thickness}
 
-    def frequency_safety_factor(self, rotation_frequency: int | float, temperature: int | float) -> tuple[tuple, str]:
+    def frequency_safety_factor(self, rotation_frequency: int | float,
+                                temperature: int | float, pressure: int | float) -> tuple[tuple, str]:
         """Запас по разрушающей частоте [2, c.99]"""
         assert type(rotation_frequency) in (int, float)
         assert type(temperature) in (int, float) and temperature > 0
@@ -385,7 +386,7 @@ class Disk:
         n = integrate.quad(lambda r: self.material.sigma_temp(func_temperature(r)) * func_thickness(r),
                            self.radius[0], self.radius[-1], points=self.radius)[0]
         n += 0  # TODO: доделать!
-        n /= (pressure[-1] * self.radius[-1] * self.thickness[-1] +
+        n /= (pressure * self.radius[-1] * self.thickness[-1] +
               (rotation_frequency ** 2 *
                integrate.quad(lambda r: self.material.density(func_temperature(r)) * func_thickness(r) * r ** 2,
                               self.radius[0], self.radius[-1], points=self.radius)[0]))
@@ -448,7 +449,7 @@ class Disk:
         resonance = set()  # резонансные частоты [1/с]
 
         plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
-        plt.title('Campbell diagram', fontsize=14, fontweight='bold')
+        plt.title(kwargs.pop('title', 'Campbell diagram'), fontsize=14, fontweight='bold')
         for k_ in k:
             plt.plot([0, rotation_frequency[-1]], [0, rotation_frequency[-1] * k_],
                      color='orange', linestyle='solid', linewidth=1)
@@ -472,16 +473,17 @@ class Disk:
         plt.plot(rotation_frequency, f, color='black', linestyle='solid', linewidth=2, label='f')
         plt.plot(rotation_frequency, f_plus, color='green', linestyle='solid', linewidth=1.5, label='f+')
         plt.plot(rotation_frequency, f_minus, color='blue', linestyle='solid', linewidth=1.5, label='f-')
-        plt.xlabel('Frequency [1/s]', fontsize=12)
-        plt.ylabel('Frequency [1/s]', fontsize=12)
-        plt.grid(True)
+        plt.xlabel(kwargs.pop('xlabel', 'Frequency [1/s]'), fontsize=12)
+        plt.ylabel(kwargs.pop('ylabel', 'Frequency [1/s]'), fontsize=12)
+        plt.grid(kwargs.pop('grid', True))
         plt.legend(fontsize=12)
         plt.show()
 
         return sorted(list(resonance), reverse=False), '1/s'
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Тестирование"""
     print(Disk.version())
 
     disks, conditions = list(), list()
@@ -576,11 +578,17 @@ if __name__ == "__main__":
 
     for disk, condition in zip(disks, conditions):
         disk.show()
-        disk.tension(**condition, ndis=10, show=False)
+        disk.tension(**condition, ndis=10, show=True)
         eq_radius, eq_thickness = disk.equal_strength(400 * 10 ** 6, condition["rotation_frequency"],
-                                                      ndis=10, show=True).values()
+                                                      ndis=10, show=False).values()
         Disk(material=disk.material, radius=eq_radius, thickness=eq_thickness).tension(**condition, ndis=10, show=True)
         print(f'frequency_safety_factor: '
-              f'{disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600)}')
+              f'{disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600, pressure=condition["pressure"][-1])}')
         print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
         print(disk.campbell_diagram(0, 1, 1, condition["rotation_frequency"] * 1.1, k=np.arange(1, 11, 1)))
+
+
+if __name__ == "__main__":
+    import cProfile
+
+    cProfile.run('main()', sort='cumtime')
