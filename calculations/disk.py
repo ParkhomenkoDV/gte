@@ -39,7 +39,7 @@ class Disk:
 
     def __init__(self, material: Material,
                  radius: tuple | list | np.ndarray, thickness: tuple | list | np.ndarray,
-                 nholes=tuple(), rholes=tuple(), dholes=tuple()):
+                 nholes=tuple(), rholes=tuple(), dholes=tuple()) -> None:
         # проверка на тип данных material
         assert type(material) is Material
         # проверка на тип данных radius и thickness
@@ -53,12 +53,12 @@ class Disk:
         assert len(radius) == len(thickness)
         assert len(nholes) == len(rholes) == len(dholes)
         # проверка на тип данных внутри массивов radius, thickness
-        assert all(map(lambda i: type(i) in (int, float, np.float64), radius))
-        assert all(map(lambda i: type(i) in (int, float, np.float64), thickness))
+        assert all(isinstance(el, (int, float, np.number)) for el in radius)
+        assert all(isinstance(el, (int, float, np.number)) for el in thickness)
         # проверка на тип данных внутри массивов nholes, rholes, dholes
-        assert all(map(lambda i: type(i) in (int, float, np.float64), nholes))
-        assert all(map(lambda i: type(i) in (int, float, np.float64), rholes))
-        assert all(map(lambda i: type(i) in (int, float, np.float64), dholes))
+        assert all(isinstance(el, (int, float, np.number)) for el in nholes)
+        assert all(isinstance(el, (int, float, np.number)) for el in rholes)
+        assert all(isinstance(el, (int, float, np.number)) for el in dholes)
         # проверка на адекватность данных radius, thickness
         assert all(map(lambda i: i >= 0, radius))
         assert all(map(lambda i: i >= 0, thickness))
@@ -114,7 +114,7 @@ class Disk:
         # проверка НУ
         assert type(rotation_frequency) in (float, int)
         assert type(pressure) in (tuple, list, np.ndarray) and len(pressure) == 2
-        assert all(map(lambda i: type(i) in (float, int), pressure))
+        assert all(isinstance(el, (int, float, np.number)) for el in pressure)
         # проверка на тип данных сечений
         assert type(radius) in (tuple, list, np.ndarray)
         assert type(thickness) in (tuple, list, np.ndarray)
@@ -122,9 +122,9 @@ class Disk:
         # проверка на длину массивов сечений
         assert len(radius) == len(thickness) == len(tetta)
         # проверка на тип данных внутри массивов сечений
-        assert all(isinstance(i, (int, float)) for i in radius)
-        assert all(isinstance(i, (int, float)) for i in thickness)
-        assert all(isinstance(i, (int, float)) for i in tetta)
+        assert all(isinstance(el, (int, float, np.number)) for el in radius)
+        assert all(isinstance(el, (int, float, np.number)) for el in thickness)
+        assert all(isinstance(el, (int, float, np.number)) for el in tetta)
         # проверка на тип данных средних характеристик участков
         assert type(av_density) in (tuple, list, np.ndarray)
         assert type(av_E) in (tuple, list, np.ndarray)
@@ -132,10 +132,9 @@ class Disk:
         # проверка на длину массивов средних характеристик участков
         assert len(av_density) == len(av_E) == len(av_mu)
         # проверка на тип данных внутри массивов средних характеристик участков
-        print(type(av_density[0]))
-        assert all('float' in type(i).__name__ or 'int' in type(i).__name__ for i in av_density)
-        assert all(isinstance(i, (int, float)) for i in av_E)
-        assert all(isinstance(i, (int, float)) for i in av_mu)
+        assert all(isinstance(el, (int, float, np.number)) for el in av_density)
+        assert all(isinstance(el, (int, float, np.number)) for el in av_E)
+        assert all(isinstance(el, (int, float, np.number)) for el in av_mu)
 
         func_tetta = lambda r: (tetta[0] + (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
         sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
@@ -169,8 +168,8 @@ class Disk:
         assert type(temperature0) in (float, int) and temperature0 > 0
         assert type(pressure) in (tuple, list, np.ndarray)
         assert type(temperature) in (tuple, list, np.ndarray)
-        assert all(map(lambda i: type(i) in (float, int), pressure))
-        assert all(map(lambda i: type(i) in (float, int), temperature))
+        assert all(isinstance(el, (int, float, np.number)) for el in pressure)
+        assert all(isinstance(el, (int, float, np.number)) for el in temperature)
         assert len(pressure) == 2
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
         assert type(ndis) is int and ndis >= 1

@@ -29,10 +29,52 @@ from material import Material
 class Blade:
     """Лопатка/винт/лопасть"""
 
-    def __init__(self):
-        self.material = ''
-        self.height = 0
-        self.amount = 1
+    @classmethod
+    def version(cls):
+        version = '1.3'
+        print('3D построение')
+        return version
+
+    def __init__(self, material: Material, points: tuple | list | np.ndarray, amount: int = 1) -> None:
+        # проверка на тип данных material
+        assert isinstance(material, Material)
+
+        assert isinstance(points, (tuple, list, np.ndarray))
+        assert all(isinstance(point, (tuple, list, np.ndarray)) for point in points)
+        assert all(len(point) == 3 for point in points)
+        assert all('float' in type(cord).__name__ or 'int' in type(cord).__name__ for point in points for cord in point)
+
+        assert isinstance(amount, int) and 1 <= amount
+
+        self.material = material
+        self.points = np.array(sorted(points, key=lambda p: p[2], reverse=False))
+        self.amount = amount
+
+        self.height = 0  # TODO
+
+    def show(self, **kwargs):
+        """"""
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+        plt.figure(figsize=kwargs.pop('figsize', (9, 9)))
+        ax = plt.axes(projection='3d')
+        ax.axis('equal')
+        *_, zs = self.points.T
+        for i in np.unique(zs):
+            xx, yy, zz = [], [], []
+            for x, y, z in self.points:
+                if i == z:
+                    xx.append(x)
+                    yy.append(y)
+                    zz.append(z)
+            vertices = [list(zip(xx, yy, zz))]
+            poly = Poly3DCollection(vertices, alpha=0.8)
+            ax.add_collection3d(poly)
+        ax.set_title(kwargs.pop('title', 'Blade'), fontsize=14, fontweight='bold')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        plt.show()
 
     def solve(self, omega, *args, **kwargs):
         pass
@@ -86,4 +128,38 @@ class Blade:
 
 
 if __name__ == '__main__':
-    blade = Blade()
+    print(Blade.version())
+
+    blades = list()
+
+    if 1:
+        material = Material('ЖС-40', {'density': 8600})
+
+        points = [
+            (0.00, +0.000, 0.00),
+            (0.20, +0.005, 0.00),
+            (0.50, +0.010, 0.00),
+            (1.00, +0.000, 0.00),
+            (0.50, -0.010, 0.00),
+            (0.00, +0.000, 0.00),
+
+            (0.00, +0.000, 0.10),
+            (0.20, +0.005, 0.10),
+            (0.50, +0.010, 0.10),
+            (1.00, +0.000, 0.10),
+            (0.50, -0.010, 0.10),
+            (0.00, +0.000, 0.10),
+
+            (0.00, +0.000, 0.20),
+            (0.20, +0.005, 0.20),
+            (0.50, +0.010, 0.20),
+            (1.00, +0.000, 0.20),
+            (0.50, -0.010, 0.20),
+            (0.00, +0.000, 0.20),
+        ]
+
+        blade = Blade(material=material, points=points)
+        blades.append(blade)
+
+    for blade in blades:
+        blade.show()

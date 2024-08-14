@@ -112,4 +112,4 @@ def analyse(df):
 
 
 if __name__ == '__main__':
-    pass
+    print(np.array([0, 1, 2]) - np.array([5, 5, 5]))
