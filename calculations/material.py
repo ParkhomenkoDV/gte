@@ -20,10 +20,9 @@ class Material:
         self.__name = name
 
         assert isinstance(parameters, dict)
-        assert all(el in Material.__PARAMETERS for el in parameters.keys())
+        assert all(isinstance(el, str) for el in parameters.keys())  # есть возможность создавать свои свойства
 
-        for parameter in Material.__PARAMETERS:
-            value = parameters.pop(parameter, nan)
+        for parameter, value in parameters.items():
             if isinstance(value, (int, float)):
                 setattr(self, parameter, interpolate.interp1d((273.15,), (value,), kind=0,
                                                               bounds_error=False, fill_value='extrapolate'))
@@ -68,13 +67,13 @@ class Material:
         raise
 
     @staticmethod
-    def G(E: int | float, mu: int | float) -> float:
+    def E2G(E: int | float, mu: int | float) -> float:
         """Модуль сдвига Юнга II рода"""
         assert isinstance(E, (int, float)) and isinstance(mu, (int, float))
         return E / (2 * (mu + 1))
 
     @staticmethod
-    def E(G: int | float, mu: int | float) -> float:
+    def G2E(G: int | float, mu: int | float) -> float:
         """Модуль Юнга I рода"""
         assert isinstance(G, (int, float)) and isinstance(mu, (int, float))
         return 2 * G * (mu + 1)
@@ -87,6 +86,7 @@ class Material:
         gs = fg.add_gridspec(1, len(Material.__PARAMETERS))  # строки, столбцы
 
         for i, param in enumerate(Material.__PARAMETERS):
+            if not hasattr(self, param): continue
             x, y = [], []
             for t in temperature:
                 if not isnan(getattr(self, param)(t)):
@@ -118,7 +118,8 @@ def test():
                                                        (0.384, 0.379, 0.371, 0.361, 0.347),
                                                        kind=3, bounds_error=False, fill_value='extrapolate'),
                             "heat_capacity": lambda t: 4200,
-                            "conductivity": ((0, 16), (100, 18), (200, 19), (400, 19.5))
+                            "conductivity": ((0, 16), (100, 18), (200, 19), (400, 19.5)),
+                            "smth": 3.1415
                         })
 
     print(material.name)
@@ -126,6 +127,8 @@ def test():
     print(material.alpha(500))
     print(material.E(500))
     print(material.heat_capacity(20))
+    print(material.conductivity(20))
+    print(material.smth(20))
     print(material.__dict__)
     material.show(arange(200, 1_000 + 1, 100))
 
