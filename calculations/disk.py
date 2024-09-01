@@ -66,6 +66,7 @@ class Disk:
         assert all(map(lambda i: i >= 0, nholes))
         assert all(map(lambda i: i >= 0, rholes))
         assert all(map(lambda i: i >= 0, dholes))
+
         # сортировка пузырьком радиусов по возрастанию вместе с соответствующими толщинами
         swapped = False
         for i in range(len(radius) - 1, 0, -1):
@@ -78,6 +79,7 @@ class Disk:
                 swapped = False
             else:
                 break
+
         # проверка на отсортированность radius по возрастанию
         assert all(radius[i] < radius[i + 1] for i in range(len(radius) - 1))
         # проверка на адекватность rholes по отношению к radius
@@ -481,7 +483,7 @@ class Disk:
         return sorted(list(resonance), reverse=False), '1/s'
 
 
-def main() -> None:
+def test() -> None:
     """Тестирование"""
     print(Disk.version())
 
@@ -492,10 +494,10 @@ def main() -> None:
                             {
                                 "density": 8400,
                                 "alpha": 18 * 10 ** -6,
-                                "E": interpolate.interp1d(list(range(400, 800 + 1, 100)),
+                                "E": interpolate.interp1d(arange(400, 800 + 1, 100),
                                                           array([1.74, 1.66, 1.57, 1.47, 1.32]) * 10 ** 11,
                                                           kind='cubic', bounds_error=False, fill_value='extrapolate'),
-                                "mu": interpolate.interp1d(list(range(400, 800 + 1, 100)),
+                                "mu": interpolate.interp1d(arange(400, 800 + 1, 100),
                                                            [0.384, 0.379, 0.371, 0.361, 0.347],
                                                            kind='cubic', bounds_error=False, fill_value='extrapolate'),
                                 "sigma_temp": 900 * 10 ** 6
@@ -556,8 +558,8 @@ def main() -> None:
                                 "sigma_temp": 900 * 10 ** 6
                             })
         radius = array(
-            [84, 95.1, 107.7, 120.2, 132.8, 145.4, 157.9, 170.6, 176.6, 189.2, 203.1, 218.9, 233.3, 245.9, 258.4, 271.9,
-             277.8, 283.5, 289.3, 303]) / 1000
+            [84.0, 95.1, 107.7, 120.2, 132.8, 145.4, 157.9, 170.6, 176.6, 189.2, 203.1, 218.9, 233.3, 245.9, 258.4,
+             271.9, 277.8, 283.5, 289.3, 303]) / 1000
         thickness = array(
             [83, 83, 91, 69, 64, 58, 58, 58, 48, 43, 39, 35.8, 31, 27.8, 29.6, 35.6, 40, 50, 62, 62]) / 1000
         nholes, rholes, dholes = [], [], []
@@ -590,4 +592,4 @@ def main() -> None:
 if __name__ == "__main__":
     import cProfile
 
-    cProfile.run('main()', sort='cumtime')
+    cProfile.run('test()', sort='cumtime')
