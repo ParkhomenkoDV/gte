@@ -6,46 +6,66 @@ import matplotlib.pyplot as plt
 
 
 class Material:
+    __PARAMETERS = (
+        'density',  # плотность
+        'alpha',  # коэффициент линейного расширения
+        'E', 'G', 'mu',  # модуль Юнга I рода, модуль Юнга II рода, коэффициент Пуассона
+        'sigma_perm', 'sigma_temp',  # предел длительной и временной прочности
+        'conductivity',  # теплопроводность
+        'heat_capacity'  # теплоемкость
+    )
+
     def __init__(self, name: str, parameters: dict, composition=None, reference=''):
         assert isinstance(name, str)
-        self.name = name
+        self.__name = name
 
         assert isinstance(parameters, dict)
-        assert all(map(lambda k: isinstance(k, str), parameters.keys()))
-        assert all(map(lambda v: isinstance(v, (int, float)) or callable(v), parameters.values()))
+        assert all(el in Material.__PARAMETERS for el in parameters.keys())
 
-        density = parameters.pop("density", nan)
-        if type(density) in (int, float):
-            self.density = lambda T: density
-        else:
-            self.density = density
+        for parameter in Material.__PARAMETERS:
+            value = parameters.pop(parameter, nan)
+            if isinstance(value, (int, float)):
+                setattr(self, parameter, interpolate.interp1d((273.15,), (value,), kind=0,
+                                                              bounds_error=False, fill_value='extrapolate'))
+            elif isinstance(value, (tuple, list, np.ndarray)):
+                value = array(value).T
+                assert len(value.shape) == 2 and value.shape[0] == 2 and value.shape[1] > 3
+                setattr(self, parameter, interpolate.interp1d(value[0], value[1], kind=1,
+                                                              bounds_error=False, fill_value='extrapolate'))
+            elif callable(value):
+                try:
+                    value(273.15)  # проверка на вызов от численного значения
+                    setattr(self, parameter, value)
+                except Exception:
+                    print(f'parameter "{parameter}" has not callable value!')
+            else:
+                raise Exception('type of values parameters is in (int, float) or callable(int, float)')
 
-        alpha = parameters.pop("alpha", nan)
-        if type(alpha) in (int, float):
-            self.alpha = lambda T: alpha
+        if composition is None:
+            self.composition = composition
+        elif isinstance(composition, dict):
+            assert all(isinstance(el, str) for el in composition.keys())
+            assert all(isinstance(el, (float, int)) for el in composition.values())
+            assert all(0 <= el <= 1 for el in composition.values())
+            self.composition = composition
         else:
-            self.alpha = alpha
+            raise ValueError('type(composition) must be dict!')
 
-        E = parameters.pop("E", nan)
-        if type(E) in (int, float):
-            self.E = interpolate.interp1d(list(range(0, 500, 100)), [E] * 5,
-                                          kind='cubic', fill_value='extrapolate')
-        else:
-            self.E = E
+        assert isinstance(reference, str)
+        self.reference = reference
 
-        mu = parameters.pop("mu", nan)
-        if type(mu) in (int, float):
-            self.mu = interpolate.interp1d(list(range(0, 500, 100)), [mu] * 5,
-                                           kind='cubic', fill_value='extrapolate')
-        else:
-            self.mu = mu
+    @property
+    def name(self) -> str:
+        return self.__name
 
-        sigma_temp = parameters.pop("sigma_temp", nan)
-        if type(sigma_temp) in (int, float):
-            self.sigma_temp = interpolate.interp1d(list(range(0, 500, 100)), [sigma_temp] * 5,
-                                                   kind='cubic', fill_value='extrapolate')
-        else:
-            self.sigma_temp = sigma_temp
+    @name.setter
+    def name(self, name: str) -> None:
+        assert isinstance(name, str)
+        self.__name = name
+
+    @name.deleter
+    def name(self) -> None:
+        raise
 
     @staticmethod
     def G(E: int | float, mu: int | float) -> float:
@@ -59,24 +79,24 @@ class Material:
         assert isinstance(G, (int, float)) and isinstance(mu, (int, float))
         return 2 * G * (mu + 1)
 
-    def show(self, **kwargs) -> None:
+    def show(self, temperature, **kwargs) -> None:
+        assert isinstance(temperature, (tuple, list, np.ndarray))
+
         fg = plt.figure(figsize=kwargs.pop("figsize", (8, 8)))
-        fg.suptitle(self.name, fontsize=16, fontweight='bold')
-        gs = fg.add_gridspec(1, 4)  # строки, столбцы
+        fg.suptitle(self.__name, fontsize=16, fontweight='bold')
+        gs = fg.add_gridspec(1, len(Material.__PARAMETERS))  # строки, столбцы
 
-        T = list(range(200, 2_000 + 1, 50))
-
-        for i, param in enumerate(('density', 'alpha', 'E', 'mu')):
+        for i, param in enumerate(Material.__PARAMETERS):
             x, y = [], []
-            for t in T:
+            for t in temperature:
                 if not isnan(getattr(self, param)(t)):
                     x.append(t)
                     y.append(getattr(self, param)(t))
             fg.add_subplot(gs[0, i])
             plt.grid(True)
-            plt.xlim(T[0], T[-1]),
-            plt.xticks(T)
-            plt.xlabel('Temperature [K]', fontsize=12)
+            plt.xlim(temperature[0], temperature[-1]),
+            plt.xticks(temperature)
+            plt.xlabel('Temperature', fontsize=12)
             plt.ylabel(param, fontsize=12)
             plt.plot(x, y)
 
@@ -88,20 +108,26 @@ def test():
     material = Material('10Х11Н20ТЗР',
                         {
                             "density": 8400,
-                            "alpha": interpolate.interp1d([400, 600, 800],
-                                                          [18 * 10 ** -6, 18 * 10 ** -6, 18 * 10 ** -6],
-                                                          kind='linear', bounds_error=False, fill_value='extrapolate'),
-                            "E": interpolate.interp1d(list(range(400, 800 + 1, 100)),
-                                                      np.array([1.74, 1.66, 1.57, 1.47, 1.32]) * 10 ** 11,
-                                                      kind='cubic', bounds_error=False, fill_value=np.nan),
-                            "mu": interpolate.interp1d(list(range(400, 800 + 1, 100)),
-                                                       [0.384, 0.379, 0.371, 0.361, 0.347],
-                                                       kind='cubic', bounds_error=False, fill_value='extrapolate')
+                            "alpha": interpolate.interp1d((400, 600, 800),
+                                                          array((18, 18, 18)) * 10 ** -6,
+                                                          kind=1, bounds_error=False, fill_value='extrapolate'),
+                            "E": interpolate.interp1d(arange(400, 800 + 1, 100),
+                                                      array([1.74, 1.66, 1.57, 1.47, 1.32]) * 10 ** 11,
+                                                      kind=3, bounds_error=False, fill_value=nan),
+                            "mu": interpolate.interp1d(arange(400, 800 + 1, 100),
+                                                       (0.384, 0.379, 0.371, 0.361, 0.347),
+                                                       kind=3, bounds_error=False, fill_value='extrapolate'),
+                            "heat_capacity": lambda t: 4200,
+                            "conductivity": ((0, 16), (100, 18), (200, 19), (400, 19.5))
                         })
+
+    print(material.name)
     print(material.density(500))
     print(material.alpha(500))
     print(material.E(500))
-    material.show()
+    print(material.heat_capacity(20))
+    print(material.__dict__)
+    material.show(arange(200, 1_000 + 1, 100))
 
 
 if __name__ == "__main__":
