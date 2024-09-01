@@ -1,45 +1,46 @@
 import numpy as np
+from numpy import array, full, nan, isnan, pi, sqrt, arange, linspace
 # from pint import UnitRegistry  # СИ
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
 
 class Material:
-    def __init__(self, name: str, parameters: dict):
-        assert type(name) == str
+    def __init__(self, name: str, parameters: dict, composition=None, reference=''):
+        assert isinstance(name, str)
         self.name = name
 
-        assert type(parameters) is dict
-        assert all(map(lambda k: type(k) is str, parameters.keys()))
-        assert all(map(lambda v: type(v) in (int, float) or callable(v), parameters.values()))
+        assert isinstance(parameters, dict)
+        assert all(map(lambda k: isinstance(k, str), parameters.keys()))
+        assert all(map(lambda v: isinstance(v, (int, float)) or callable(v), parameters.values()))
 
-        density = parameters.pop("density", np.nan)
+        density = parameters.pop("density", nan)
         if type(density) in (int, float):
             self.density = lambda T: density
         else:
             self.density = density
 
-        alpha = parameters.pop("alpha", np.nan)
+        alpha = parameters.pop("alpha", nan)
         if type(alpha) in (int, float):
             self.alpha = lambda T: alpha
         else:
             self.alpha = alpha
 
-        E = parameters.pop("E", np.nan)
+        E = parameters.pop("E", nan)
         if type(E) in (int, float):
             self.E = interpolate.interp1d(list(range(0, 500, 100)), [E] * 5,
                                           kind='cubic', fill_value='extrapolate')
         else:
             self.E = E
 
-        mu = parameters.pop("mu", np.nan)
+        mu = parameters.pop("mu", nan)
         if type(mu) in (int, float):
             self.mu = interpolate.interp1d(list(range(0, 500, 100)), [mu] * 5,
                                            kind='cubic', fill_value='extrapolate')
         else:
             self.mu = mu
 
-        sigma_temp = parameters.pop("sigma_temp", np.nan)
+        sigma_temp = parameters.pop("sigma_temp", nan)
         if type(sigma_temp) in (int, float):
             self.sigma_temp = interpolate.interp1d(list(range(0, 500, 100)), [sigma_temp] * 5,
                                                    kind='cubic', fill_value='extrapolate')
@@ -48,8 +49,15 @@ class Material:
 
     @staticmethod
     def G(E: int | float, mu: int | float) -> float:
-        """Модуль Юнга II рода"""
+        """Модуль сдвига Юнга II рода"""
+        assert isinstance(E, (int, float)) and isinstance(mu, (int, float))
         return E / (2 * (mu + 1))
+
+    @staticmethod
+    def E(G: int | float, mu: int | float) -> float:
+        """Модуль Юнга I рода"""
+        assert isinstance(G, (int, float)) and isinstance(mu, (int, float))
+        return 2 * G * (mu + 1)
 
     def show(self, **kwargs) -> None:
         fg = plt.figure(figsize=kwargs.pop("figsize", (8, 8)))
@@ -61,7 +69,7 @@ class Material:
         for i, param in enumerate(('density', 'alpha', 'E', 'mu')):
             x, y = [], []
             for t in T:
-                if not np.isnan(getattr(self, param)(t)):
+                if not isnan(getattr(self, param)(t)):
                     x.append(t)
                     y.append(getattr(self, param)(t))
             fg.add_subplot(gs[0, i])
@@ -75,7 +83,8 @@ class Material:
         plt.show()
 
 
-if __name__ == "__main__":
+def test():
+    """Тестирование"""
     material = Material('10Х11Н20ТЗР',
                         {
                             "density": 8400,
@@ -93,3 +102,9 @@ if __name__ == "__main__":
     print(material.alpha(500))
     print(material.E(500))
     material.show()
+
+
+if __name__ == "__main__":
+    import cProfile
+
+    cProfile.run('test()', sort='cumtime')
