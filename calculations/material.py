@@ -5,6 +5,8 @@ from numpy import array, nan, isnan, sqrt, arange, linspace
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
+T0 = 273.15
+
 
 class Material:
     __PARAMETERS = {'density': 'плотность [кг/м^3]',
@@ -18,31 +20,35 @@ class Material:
                     'heat_capacity': 'теплоемкость [Дж/кг/К]',
                     'KCU': 'ударная вязкость [Дж/м^2]',
                     'HB': 'твердость по Бринеллю [Па]',
-                    'HRC': 'твердость по Роквеллу [Па]'}
+                    'HRC': 'твердость по Роквеллу [Па]',
+                    '*': 'частный параметр [...]'}
 
     @classmethod
     def help(cls):
-        print(Fore.MAGENTA + 'Material parameters:' + Fore.RESET)
+        print(Fore.CYAN + 'Material parameters:' + Fore.RESET)
         for k, v in Material.__PARAMETERS.items():
             print('\t' + f'{k}: {v}')
         print(Fore.RED + 'type value must be int, float, array with shape (-1,2) or callable(int | float)' + Fore.RESET)
 
-    def __init__(self, name: str, parameters: dict, composition=None, reference=''):
+    def __init__(self, name: str, parameters: dict, composition=None, reference='', kind: int = 1, fill_value=nan):
         assert isinstance(name, str)
         self.__name = name
+
+        assert isinstance(kind, int) and 0 <= kind <= 3
+        assert isnan(fill_value) or fill_value == 'extrapolate'
 
         assert isinstance(parameters, dict)
         assert all(isinstance(el, str) for el in parameters.keys())  # все ключи - стоки
 
         for parameter, value in parameters.items():  # есть возможность создавать свои свойства
             if isinstance(value, (int, float)):  # const
-                setattr(self, parameter, interpolate.interp1d((273.15,), (value,), kind=0,
-                                                              bounds_error=False, fill_value='extrapolate'))
+                setattr(self, parameter, interpolate.interp1d((273.15,), (value,), kind=0,  # для константы надо 0
+                                                              bounds_error=False, fill_value=fill_value))
             elif isinstance(value, (tuple, list, np.ndarray)):  # таблица значений
                 value = array(value).T
                 assert len(value.shape) == 2 and value.shape[0] == 2 and value.shape[1] > 3
-                setattr(self, parameter, interpolate.interp1d(value[0], value[1], kind=1,
-                                                              bounds_error=False, fill_value='extrapolate'))
+                setattr(self, parameter, interpolate.interp1d(value[0], value[1], kind=kind,
+                                                              bounds_error=False, fill_value=fill_value))
             elif callable(value):  # функция
                 try:
                     value(273.15)  # проверка на вызов от численного значения
@@ -102,25 +108,22 @@ class Material:
 
     def show(self, temperature, **kwargs) -> None:
         assert isinstance(temperature, (tuple, list, np.ndarray))
+        parameters = [k for k, v in self.__dict__.items() if callable(v)]
 
         fg = plt.figure(figsize=kwargs.pop("figsize", (8, 8)))
         fg.suptitle(self.__name, fontsize=16, fontweight='bold')
-        gs = fg.add_gridspec(1, len(Material.__PARAMETERS))  # строки, столбцы
+        gs = fg.add_gridspec(1, len(parameters))  # строки, столбцы
 
-        for i, param in enumerate(Material.__PARAMETERS):
+        for i, param in enumerate(parameters):
             if not hasattr(self, param): continue
-            x, y = [], []
-            for t in temperature:
-                if not isnan(getattr(self, param)(t)):
-                    x.append(t)
-                    y.append(getattr(self, param)(t))
+            xy = array([(t, getattr(self, param)(t)) for t in temperature if not isnan(getattr(self, param)(t))])
             fg.add_subplot(gs[0, i])
             plt.grid(True)
             plt.xlim(temperature[0], temperature[-1]),
             plt.xticks(temperature)
             plt.xlabel('Temperature', fontsize=12)
             plt.ylabel(param, fontsize=12)
-            plt.plot(x, y)
+            plt.plot(*xy.T)
 
         plt.show()
 
@@ -129,26 +132,46 @@ references = (
     '''Справочник по конструкционным материалам:
     Справочник / Б.Н. Арзамасов, Т.В. Соловьева, С.А. Герасимов и др.;
     Под ред. Б.Н. Арзамасова, Т.В. Соловьевой.
-    - М.: Изд-во МГТУ им Н.Э. Баумана, 2006. с.: ил.''',)
+    - М.: Изд-во МГТУ им Н.Э. Баумана, 2006. с.: ил.''',
+    '''
+    '''
+)
 
 materials = list()
 
 materials.append(Material('ХН70МВТЮБ',
                           {
-                              'sigma_': array((array((20, 600, 700, 800, 850, 900)) + 273.15,
-                                               array((1060, 980, 930, 720, 600, 380)) * 10 ** 6)).T,
-
+                              'sigma_s': array((array((20, 600, 700, 800, 850, 900)) + T0,
+                                                array((1060, 980, 930, 720, 600, 380)) * 10 ** 6)).T,
+                              'sigma_t': array((array((20, 600, 700, 800, 850, 900)) + T0,
+                                                array((560, 550, 530, 450, 400, 220)) * 10 ** 6)).T,
+                              'KCU': array((array((700, 750, 800, 850)) + 273.15,
+                                            array((0.8, 0.7, 0.6, 0.7)) * 10 ** 6)).T,
+                              'sigma_100': array((array((650, 700, 800, 850)) + T0,
+                                                  array((620, 480, 250, 180)) * 10 ** 6)).T,
+                              'sigma_200': array((array((650, 700, 800, 850)) + T0,
+                                                  array((600, 420, 230, 230)) * 10 ** 6)).T,
                           },
-                          reference=references[0] + 'c.412'))
+                          reference=references[0] + ', c. 412-413'))
+materials.append(Material('ХН80ТБЮ',
+                          {
+                              'sigma_s': array((array((29, 500, 600, 630, 650, 700)) + T0,
+                                                array((960, 1000, 830, 790, 700, 680)) * 10 ** 6)).T,
+                              'sigma_t': array((array((29, 500, 600, 630, 650, 700)) + T0,
+                                                array((650, 610, 600, 600, 550, 500)))).T,
+                              'KCU': array((array((29, 650, 675, 700)) + T0,
+                                            array((0.7, 1.0, 1.1, 1.2)) * 10 ** 6)).T
+                          },
+                          reference=references[0] + ', c. 413'))
 
 
 def test():
     """Тестирование"""
     Material.help()
 
-    material = Material('10Х11Н20ТЗР',
+    material = Material('test',  # тестируемый материал
                         {
-                            "density": 8400,
+                            "density": 8400,  # int
                             "alpha": interpolate.interp1d((400, 600, 800),
                                                           array((18, 18, 18)) * 10 ** -6,
                                                           kind=1, bounds_error=False, fill_value='extrapolate'),
@@ -158,22 +181,20 @@ def test():
                             "mu": interpolate.interp1d(arange(400, 800 + 1, 100),
                                                        (0.384, 0.379, 0.371, 0.361, 0.347),
                                                        kind=3, bounds_error=False, fill_value='extrapolate'),
-                            "heat_capacity": lambda t: 4200,
-                            "conductivity": ((0, 16), (100, 18), (200, 19), (400, 19.5)),
-                            "smth": 3.1415
+                            "heat_capacity": lambda t: 4200,  # lambda
+                            "conductivity": ((0, 16), (100, 18), (200, 19), (400, 19.5)),  # tuple
+                            "smth": 3.1415  # float
                         })
     materials.insert(0, material)
 
+    t = 700
+    temperature = arange(200, 1_000 + 1, 100)
     for material in materials:
-        print(material.name)
-        print(material.density(500))
-        print(material.alpha(500))
-        print(material.E(500))
-        print(material.heat_capacity(20))
-        print(material.conductivity(20))
-        print(material.smth(20))
-        print(material.__dict__)
-        material.show(arange(200, 1_000 + 1, 100))
+        print(Fore.MAGENTA + material.name + Fore.RESET)
+        for k, v in material.__dict__.items():
+            if callable(v):
+                print('\t' + f'{k}({t}): {v(t)}')
+        material.show(temperature)
 
 
 if __name__ == "__main__":
