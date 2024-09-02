@@ -1,37 +1,49 @@
+from colorama import Fore
 import numpy as np
-from numpy import array, full, nan, isnan, pi, sqrt, arange, linspace
+from numpy import array, nan, isnan, sqrt, arange, linspace
 # from pint import UnitRegistry  # СИ
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
 
 class Material:
-    __PARAMETERS = (
-        'density',  # плотность
-        'alpha',  # коэффициент линейного расширения
-        'E', 'G', 'mu',  # модуль Юнга I рода, модуль Юнга II рода, коэффициент Пуассона
-        'sigma_perm', 'sigma_temp',  # предел длительной и временной прочности
-        'conductivity',  # теплопроводность
-        'heat_capacity'  # теплоемкость
-    )
+    __PARAMETERS = {'density': 'плотность [кг/м^3]',
+                    'alpha': 'коэффициент линейного расширения [1/К]',
+                    'E': 'модуль Юнга I рода [Па]',
+                    'G': 'модуль (сдвига) Юнга II рода [Па]',
+                    'mu': 'коэффициент Пуассона []',
+                    'sigma_t': 'предел текучести [Па]',
+                    'sigma_s': 'предел прочности [Па]',
+                    'conductivity': 'теплопроводность [Вт/м/К]',
+                    'heat_capacity': 'теплоемкость [Дж/кг/К]',
+                    'KCU': 'ударная вязкость [Дж/м^2]',
+                    'HB': 'твердость по Бринеллю [Па]',
+                    'HRC': 'твердость по Роквеллу [Па]'}
+
+    @classmethod
+    def help(cls):
+        print(Fore.MAGENTA + 'Material parameters:' + Fore.RESET)
+        for k, v in Material.__PARAMETERS.items():
+            print('\t' + f'{k}: {v}')
+        print(Fore.RED + 'type value must be int, float, array with shape (-1,2) or callable(int | float)' + Fore.RESET)
 
     def __init__(self, name: str, parameters: dict, composition=None, reference=''):
         assert isinstance(name, str)
         self.__name = name
 
         assert isinstance(parameters, dict)
-        assert all(isinstance(el, str) for el in parameters.keys())  # есть возможность создавать свои свойства
+        assert all(isinstance(el, str) for el in parameters.keys())  # все ключи - стоки
 
-        for parameter, value in parameters.items():
-            if isinstance(value, (int, float)):
+        for parameter, value in parameters.items():  # есть возможность создавать свои свойства
+            if isinstance(value, (int, float)):  # const
                 setattr(self, parameter, interpolate.interp1d((273.15,), (value,), kind=0,
                                                               bounds_error=False, fill_value='extrapolate'))
-            elif isinstance(value, (tuple, list, np.ndarray)):
+            elif isinstance(value, (tuple, list, np.ndarray)):  # таблица значений
                 value = array(value).T
                 assert len(value.shape) == 2 and value.shape[0] == 2 and value.shape[1] > 3
                 setattr(self, parameter, interpolate.interp1d(value[0], value[1], kind=1,
                                                               bounds_error=False, fill_value='extrapolate'))
-            elif callable(value):
+            elif callable(value):  # функция
                 try:
                     value(273.15)  # проверка на вызов от численного значения
                     setattr(self, parameter, value)
@@ -78,6 +90,16 @@ class Material:
         assert isinstance(G, (int, float)) and isinstance(mu, (int, float))
         return 2 * G * (mu + 1)
 
+    @staticmethod
+    def HB2HRC(HB: int | float) -> float:
+        """Перевод твердости по Бринеллю в твердость по Роквеллу"""
+        return nan  # TODO
+
+    @staticmethod
+    def HRC2HB(HRC: int | float) -> float:
+        """Перевод твердости по Роквеллу в твердость по Бринеллю"""
+        return nan  # TODO
+
     def show(self, temperature, **kwargs) -> None:
         assert isinstance(temperature, (tuple, list, np.ndarray))
 
@@ -103,8 +125,27 @@ class Material:
         plt.show()
 
 
+references = (
+    '''Справочник по конструкционным материалам:
+    Справочник / Б.Н. Арзамасов, Т.В. Соловьева, С.А. Герасимов и др.;
+    Под ред. Б.Н. Арзамасова, Т.В. Соловьевой.
+    - М.: Изд-во МГТУ им Н.Э. Баумана, 2006. с.: ил.''',)
+
+materials = list()
+
+materials.append(Material('ХН70МВТЮБ',
+                          {
+                              'sigma_': array((array((20, 600, 700, 800, 850, 900)) + 273.15,
+                                               array((1060, 980, 930, 720, 600, 380)) * 10 ** 6)).T,
+
+                          },
+                          reference=references[0] + 'c.412'))
+
+
 def test():
     """Тестирование"""
+    Material.help()
+
     material = Material('10Х11Н20ТЗР',
                         {
                             "density": 8400,
@@ -121,16 +162,18 @@ def test():
                             "conductivity": ((0, 16), (100, 18), (200, 19), (400, 19.5)),
                             "smth": 3.1415
                         })
+    materials.insert(0, material)
 
-    print(material.name)
-    print(material.density(500))
-    print(material.alpha(500))
-    print(material.E(500))
-    print(material.heat_capacity(20))
-    print(material.conductivity(20))
-    print(material.smth(20))
-    print(material.__dict__)
-    material.show(arange(200, 1_000 + 1, 100))
+    for material in materials:
+        print(material.name)
+        print(material.density(500))
+        print(material.alpha(500))
+        print(material.E(500))
+        print(material.heat_capacity(20))
+        print(material.conductivity(20))
+        print(material.smth(20))
+        print(material.__dict__)
+        material.show(arange(200, 1_000 + 1, 100))
 
 
 if __name__ == "__main__":
