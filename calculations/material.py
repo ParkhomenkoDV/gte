@@ -37,8 +37,9 @@ class Material:
                     '*': 'частный параметр [...]'}
 
     @classmethod
-    def version(cls):
-        pass
+    def __version__(cls):
+        version = '3.0'
+        print(version)
 
     @classmethod
     def help(cls):
@@ -102,16 +103,20 @@ class Material:
         raise
 
     @staticmethod
-    def E2G(E: int | float, mu: int | float) -> float:
-        """Модуль сдвига Юнга II рода"""
-        assert isinstance(E, (int, float)) and isinstance(mu, (int, float))
-        return E / (2 * (mu + 1))
-
-    @staticmethod
-    def G2E(G: int | float, mu: int | float) -> float:
-        """Модуль Юнга I рода"""
-        assert isinstance(G, (int, float)) and isinstance(mu, (int, float))
-        return 2 * G * (mu + 1)
+    def jung(**kwargs) -> float:
+        """Модуль Юнга I и II рода"""
+        mu = kwargs.pop('mu', None)
+        E = kwargs.pop('E', None)
+        G = kwargs.pop('G', None)
+        assert isinstance(mu, (float, int, np.number)) and 0 < mu
+        if isinstance(E, (float, int, np.number)):
+            assert 0 < E
+            return E / (2 * (mu + 1))
+        elif isinstance(G, (float, int, np.number)):
+            assert 0 < G
+            return 2 * G * (mu + 1)
+        else:
+            raise Exception('isinstance(E, (float, int, np.number)) or isinstance(G, (float, int, np.number))')
 
     @staticmethod
     def hardness(h: str, value: float | int | np.number) -> dict[str:float]:
@@ -222,6 +227,7 @@ materials.append(Material('ХН70ВМТЮ',
 
 def test():
     """Тестирование"""
+    Material.__version__()
     Material.help()
 
     material = Material('test',  # тестируемый материал
