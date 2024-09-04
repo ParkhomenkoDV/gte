@@ -1,4 +1,13 @@
+"""
+Список литературы:
+
+[1] = Марочник сталей и сплавов.
+2-е изд., исправл. и доп. / Зубченко А.С., Колосков М.М., Каширский Ю.В. и др. Под ред. А.С. Зубченко.
+М.: Машиностроение, 2003. 784 с.
+"""
+
 from colorama import Fore
+import pandas as pd
 import numpy as np
 from numpy import array, nan, isnan, sqrt, arange, linspace
 # from pint import UnitRegistry  # СИ
@@ -7,6 +16,8 @@ import matplotlib.pyplot as plt
 
 T0 = 273.15  # абсолютный температурный ноль
 M = 10 ** 6  # приставка Мега
+
+hardness = pd.read_excel('libraries/Hardness.xlsx').drop(['d10mm'], axis=1)  # [1, c.784]
 
 
 class Material:
@@ -24,6 +35,10 @@ class Material:
                     'HRC': 'твердость по Роквеллу [Па]',
                     'HV': 'твердость по Виккерсу [Па]',
                     '*': 'частный параметр [...]'}
+
+    @classmethod
+    def version(cls):
+        pass
 
     @classmethod
     def help(cls):
@@ -99,16 +114,17 @@ class Material:
         return 2 * G * (mu + 1)
 
     @staticmethod
-    def HB2HRC(HB: int | float) -> float:
-        """Перевод твердости по Бринеллю в твердость по Роквеллу"""
-        assert isinstance(HB, (int, float))
-        return nan  # TODO
-
-    @staticmethod
-    def HRC2HB(HRC: int | float) -> float:
-        """Перевод твердости по Роквеллу в твердость по Бринеллю"""
-        assert isinstance(HRC, (int, float))
-        return nan  # TODO
+    def hardness(h: str, value: float | int | np.number) -> dict[str:float]:
+        """Перевод твердости"""
+        assert h in hardness.columns, hardness.columns
+        assert isinstance(value, (float, int, np.number)) and 0 <= value
+        group = hardness.groupby(h).mean()  # замена дубликатов их средним значением
+        result = dict()
+        for column in group.columns:
+            temp = group.dropna(subset=column)  # удаление nan
+            func = interpolate.interp1d(temp.index, temp[column], kind=3, fill_value=nan, bounds_error=False)
+            result[column] = float(func(value))
+        return result
 
     def show(self, temperature: tuple | list | np.ndarray, **kwargs) -> None:
         assert isinstance(temperature, (tuple, list, np.ndarray))
@@ -234,6 +250,10 @@ def test():
             if callable(v):
                 print('\t' + f'{k}({t}): {v(t)}')
         material.show(temperature)
+
+    for column in hardness.columns:
+        for h in range(0, 1_000 + 1, 10):
+            print(f'"{column}": {h}, {Material.hardness(column, h)}')
 
 
 if __name__ == "__main__":
