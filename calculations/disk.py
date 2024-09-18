@@ -32,7 +32,8 @@ from material import Material
 class Disk:
 
     @classmethod
-    def version(cls):
+    @property
+    def __version__(cls):
         version = '5.0'
         print('Подбор толщин и радиусов для напряжения')
         return version
@@ -485,7 +486,7 @@ class Disk:
 
 def test() -> None:
     """Тестирование"""
-    print(Disk.version())
+    print(Disk.__version__)
 
     disks, conditions = list(), list()
 

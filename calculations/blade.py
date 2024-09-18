@@ -18,62 +18,80 @@
 [6] = Колебания / В.С. Чигрин. - Пособие по лабораторному практикуму - Рыбинск: РГАТА, 2005. -20 с.
 """
 
+import sys
 import numpy as np
 from numpy import nan, isnan, pi, sqrt, array, linspace, arange
 from scipy import interpolate, integrate
 import matplotlib.pyplot as plt
 
+sys.path.append('D:/programming/projects/airfiols/airfoil')
+
 from material import Material
+from airfoil import Airfoil
 
 
 class Blade:
     """Лопатка/винт/лопасть"""
 
     @classmethod
-    def version(cls):
+    @property
+    def __version__(cls):
         version = '1.3'
+        print('2D построение')
         print('3D построение')
+        print('Расчет на прочность')
         return version
 
-    def __init__(self, material: Material, points: tuple | list | np.ndarray, amount: int = 1) -> None:
+    def __init__(self, material: Material, sections: dict[float | int | np.number: list, tuple, np.ndarray]) -> None:
         # проверка на тип данных material
         assert isinstance(material, Material)
 
-        assert isinstance(points, (tuple, list, np.ndarray))
-        assert all(isinstance(point, (tuple, list, np.ndarray)) for point in points)
-        assert all(len(point) == 3 for point in points)
-        assert all('float' in type(cord).__name__ or 'int' in type(cord).__name__ for point in points for cord in point)
+        assert isinstance(sections, dict)
+        assert all(isinstance(key, (int, float, np.number)) for key in sections.keys())
+        assert len(sections) >= 2  # min количество сечений
+        assert all(isinstance(value, (list, tuple, np.ndarray)) for value in sections.values())
+        assert all(isinstance(coord, (list, tuple, np.ndarray)) for value in sections.values() for coord in value)
+        assert all(len(coord) == 2 for value in sections.values() for coord in value)  # x, y
+        assert all(isinstance(x, (int, float, np.number)) and isinstance(y, (int, float, np.number))
+                   for el in sections.values() for x, y in el)
 
-        assert isinstance(amount, int) and 1 <= amount
+        self.__material = material
+        self.__sections = dict(sorted(sections.items(), key=lambda item: item[0]))  # сортировка по высоте
 
-        self.material = material
-        self.points = np.array(sorted(points, key=lambda p: p[2], reverse=False))
-        self.amount = amount
+        self.height = max(self.__sections.keys()) - min(self.__sections.keys())
 
-        self.height = 0  # TODO
+    @property
+    def material(self):
+        return self.__material
 
-    def show(self, **kwargs):
+    def show(self, D: int, **kwargs):
         """"""
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-        plt.figure(figsize=kwargs.pop('figsize', (9, 9)))
-        ax = plt.axes(projection='3d')
-        ax.axis('equal')
-        *_, zs = self.points.T
-        for i in np.unique(zs):
-            xx, yy, zz = [], [], []
-            for x, y, z in self.points:
-                if i == z:
-                    xx.append(x)
-                    yy.append(y)
-                    zz.append(z)
-            vertices = [list(zip(xx, yy, zz))]
-            poly = Poly3DCollection(vertices, alpha=0.8)
-            ax.add_collection3d(poly)
-        ax.set_title(kwargs.pop('title', 'Blade'), fontsize=14, fontweight='bold')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('z')
+        assert isinstance(D, int) and D in (2, 3)  # мерность пространства
+
+        if 2 == D:
+            pass
+        elif 3 == D:
+            from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+            plt.figure(figsize=kwargs.pop('figsize', (9, 9)))
+            ax = plt.axes(projection='3d')
+            ax.axis('equal')
+            *_, zs = self.__sections.values().T
+            for i in np.unique(zs):
+                xx, yy, zz = [], [], []
+                for x, y, z in self.__sections:
+                    if i == z:
+                        xx.append(x)
+                        yy.append(y)
+                        zz.append(z)
+                vertices = [list(zip(xx, yy, zz))]
+                poly = Poly3DCollection(vertices, alpha=0.8)
+                ax.add_collection3d(poly)
+            ax.set_title(kwargs.pop('title', 'Blade'), fontsize=14, fontweight='bold')
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_zlabel('z')
         plt.show()
 
     def solve(self, omega, *args, **kwargs):
@@ -127,39 +145,54 @@ class Blade:
         return sorted(list(resonance), reverse=False), '1/s'
 
 
-if __name__ == '__main__':
-    print(Blade.version())
+def test():
+    """Тестирование библиотеки"""
+    print(Blade.__version__)
 
     blades = list()
 
     if 1:
         material = Material('ЖС-40', {'density': 8600})
 
-        points = [
-            (0.00, +0.000, 0.00),
-            (0.20, +0.005, 0.00),
-            (0.50, +0.010, 0.00),
-            (1.00, +0.000, 0.00),
-            (0.50, -0.010, 0.00),
-            (0.00, +0.000, 0.00),
+        sections = {
+            0.2: (
+                (0.00, +0.000),
+                (0.20, +0.005),
+                (0.50, +0.010),
+                (1.00, +0.000),
+                (0.50, -0.010),
+                (0.00, +0.000),),
+            0.3: (
+                (0.00, +0.000),
+                (0.20, +0.005),
+                (0.50, +0.010),
+                (1.00, +0.000),
+                (0.50, -0.010),
+                (0.00, +0.000),),
+            0.6: (
+                (0.00, +0.000),
+                (0.20, +0.005),
+                (0.50, +0.010),
+                (1.00, +0.000),
+                (0.50, -0.010),
+                (0.00, +0.000),), }
 
-            (0.00, +0.000, 0.10),
-            (0.20, +0.005, 0.10),
-            (0.50, +0.010, 0.10),
-            (1.00, +0.000, 0.10),
-            (0.50, -0.010, 0.10),
-            (0.00, +0.000, 0.10),
-
-            (0.00, +0.000, 0.20),
-            (0.20, +0.005, 0.20),
-            (0.50, +0.010, 0.20),
-            (1.00, +0.000, 0.20),
-            (0.50, -0.010, 0.20),
-            (0.00, +0.000, 0.20),
-        ]
-
-        blade = Blade(material=material, points=points)
+        blade = Blade(material=material, sections=sections)
         blades.append(blade)
 
+    if 1:
+        material = Material('ИЭ-696', {'density': 8800})
+
+        sections = {
+            0.7: Airfoil('MYNK', ).coords,
+            0.88: Airfoil('MYNK', ).coords,
+            0.9: Airfoil('MYNK', ).coords, }
+
     for blade in blades:
-        blade.show()
+        blade.show(3)
+
+
+if __name__ == '__main__':
+    import cProfile
+
+    cProfile.run('test()', sort='cumtime')
