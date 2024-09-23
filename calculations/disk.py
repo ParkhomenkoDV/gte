@@ -9,7 +9,7 @@ import matplotlib as mpl, matplotlib.pyplot as plt
 from material import Material
 
 # Список использованной литературы
-references = MappingProxyType({
+REFERENCES = MappingProxyType({
     1: '''Елисеев Ю.С., Крымов В.В., Манушин Э.А. и др.
 Конструирование и расчет на прочность турбомашин ГТ и КУ:
 Учебник для студентов вузов / Под общей ред. М.И. Осипова. – М.: МГТУ, 2009''',
