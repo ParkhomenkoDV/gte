@@ -21,7 +21,7 @@
 """
 
 import numpy as np
-from numpy import array, full, nan, isnan, pi, sqrt, arange, linspace
+from numpy import array, full, nan, isnan, inf, pi, sqrt, arange, linspace
 import pandas as pd
 from scipy import interpolate, integrate
 import matplotlib as mpl, matplotlib.pyplot as plt
@@ -40,7 +40,9 @@ class Disk:
 
     def __init__(self, material: Material,
                  radius: tuple | list | np.ndarray, thickness: tuple | list | np.ndarray,
-                 nholes=tuple(), rholes=tuple(), dholes=tuple()) -> None:
+                 nholes: tuple | list | np.ndarray = tuple(),
+                 rholes: tuple | list | np.ndarray = tuple(),
+                 dholes: tuple | list | np.ndarray = tuple()) -> None:
         # проверка на тип данных material
         assert type(material) is Material
         # проверка на тип данных radius и thickness
@@ -94,9 +96,9 @@ class Disk:
         self.nholes, self.rholes, self.dholes = array(nholes), array(rholes), array(dholes)
 
     @staticmethod
-    def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple:
+    def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple[float, float]:
         """Дробление сечений ndis раз"""
-        k = (point1[1] - point0[1]) / (point1[0] - point0[0]) if (point1[0] - point0[0]) != 0 else np.inf
+        k = (point1[1] - point0[1]) / (point1[0] - point0[0]) if (point1[0] - point0[0]) != 0 else inf
         b = point0[1] - k * point0[0]
         delta = (point1[0] - point0[0]) / ndis
         x = point0[0] + delta * np.arange(ndis)
@@ -184,8 +186,7 @@ class Disk:
             (tetta[0] + (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
 
         if len(temperature) == len(self.radius):
-            func_temperature = interpolate.interp1d(self.radius, temperature,
-                                                    kind='cubic', fill_value='extrapolate')
+            func_temperature = interpolate.interp1d(self.radius, temperature, kind='cubic', fill_value='extrapolate')
         else:
             func_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
                                           ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
@@ -250,7 +251,8 @@ class Disk:
 
         return result
 
-    def local_tension(self, n, diameter, radius, sigma_t, sigma_r) -> tuple[float, float]:
+    def local_tension(self, n: int | np.integer, diameter: int | float | np.number, radius: int | float | np.number,
+                      sigma_t, sigma_r) -> tuple[float, float]:
         """Местное напряжение от отверстия"""
         b = 2 * np.pi * radius / n - diameter  # расчет расстояния между краями отверстий по окружности
         k = 3 - diameter / b - sigma_r / sigma_t
@@ -290,8 +292,8 @@ class Disk:
                  color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
         for r, d in zip(self.rholes, self.dholes):
             r, d = r * 1_000, d * 1000
-            plt.plot([-func(r) / k, func(r) / k], [r] * 2, color='orange', linestyle='dashdot', linewidth=1.5)
-            plt.plot([-func(r) / 2, func(r) / 2], [r + d / 2] * 2, [-func(r) / 2, func(r) / 2], [r - d / 2] * 2,
+            plt.plot((-func(r) / k, func(r) / k), [r] * 2, color='orange', linestyle='dashdot', linewidth=1.5)
+            plt.plot((-func(r) / 2, func(r) / 2), [r + d / 2] * 2, (-func(r) / 2, func(r) / 2), [r - d / 2] * 2,
                      color='black', linestyle='dashed', linewidth=2)
 
         # НУ
@@ -349,8 +351,8 @@ class Disk:
                  color='orange', linestyle='dashdot', linewidth=1.5)  # ось вращения
         for r, d in zip(self.rholes, self.dholes):
             r, d = r * 1_000, d * 1000
-            plt.plot([-func(r) / k, func(r) / k], [r] * 2, color='orange', linestyle='dashdot', linewidth=1.5)
-            plt.plot([-func(r) / 2, func(r) / 2], [r + d / 2] * 2, [-func(r) / 2, func(r) / 2], [r - d / 2] * 2,
+            plt.plot((-func(r) / k, func(r) / k), [r] * 2, color='orange', linestyle='dashdot', linewidth=1.5)
+            plt.plot((-func(r) / 2, func(r) / 2), [r + d / 2] * 2, (-func(r) / 2, func(r) / 2), [r - d / 2] * 2,
                      color='black', linestyle='dashed', linewidth=2)
 
         plt.grid(True)
@@ -377,23 +379,29 @@ class Disk:
         return {'radius': radius, 'thickness': thickness}
 
     def frequency_safety_factor(self, rotation_frequency: int | float,
-                                temperature: int | float, pressure: int | float) -> tuple[tuple, str]:
-        """Запас по разрушающей частоте [2, c.99]"""
-        assert type(rotation_frequency) in (int, float)
-        assert type(temperature) in (int, float) and temperature > 0
+                                temperature: int | float,
+                                pressure: tuple | list | np.ndarray) -> tuple[tuple[float, float], str]:
+        """Запас по разрушающей частоте [2, c. 99]"""
+        assert isinstance(rotation_frequency, (int, float))
+        assert isinstance(temperature, (int, float)) and 0 < temperature
+        assert isinstance(pressure, (tuple, list, np.ndarray))
+        assert len(pressure) == 2
 
         func_temperature = lambda r: temperature
         func_thickness = interpolate.interp1d(self.radius, self.thickness, kind='linear')
 
-        n = integrate.quad(lambda r: self.material.sigma_temp(func_temperature(r)) * func_thickness(r),
-                           self.radius[0], self.radius[-1], points=self.radius)[0]
-        n += 0  # TODO: доделать!
-        n /= (pressure * self.radius[-1] * self.thickness[-1] +
-              (rotation_frequency ** 2 *
-               integrate.quad(lambda r: self.material.density(func_temperature(r)) * func_thickness(r) * r ** 2,
-                              self.radius[0], self.radius[-1], points=self.radius)[0]))
-        n = np.sqrt(n)
-        return (n * 0.9, n * 0.95), ''  # действительный интервал запаса разрушающей частоты
+        safety = integrate.quad(lambda r: self.material.sigma_temp(func_temperature(r)) * func_thickness(r),
+                                self.radius[0], self.radius[-1], points=self.radius)[0]
+
+        for n, r, d in zip(self.nholes, self.rholes, self.dholes):
+            safety += (self.material.sigma_temp(func_temperature(r)) * r * func_thickness(r) *
+                       (1 - (n * d) / (2 * pi * r)))
+        safety /= (pressure[-1] * self.radius[-1] * self.thickness[-1] +
+                   (rotation_frequency ** 2 *
+                    integrate.quad(lambda r: self.material.density(func_temperature(r)) * func_thickness(r) * r ** 2,
+                                   self.radius[0], self.radius[-1], points=self.radius)[0]))
+        safety = np.sqrt(safety)
+        return (safety * 0.9, safety * 0.95), ''  # действительный интервал запаса разрушающей частоты
 
     def natural_frequencies(self, radius: int, N: int, S: int) -> tuple[float, str]:
         """Частота собственных колебаний [6]"""
@@ -580,12 +588,12 @@ def test() -> None:
 
     for disk, condition in zip(disks, conditions):
         disk.show()
-        disk.tension(**condition, ndis=10, show=True)
+        tensions = disk.tension(**condition, ndis=10, show=True)
         eq_radius, eq_thickness = disk.equal_strength(400 * 10 ** 6, condition["rotation_frequency"],
                                                       ndis=10, show=False).values()
         Disk(material=disk.material, radius=eq_radius, thickness=eq_thickness).tension(**condition, ndis=10, show=True)
         print(f'frequency_safety_factor: '
-              f'{disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600, pressure=condition["pressure"][-1])}')
+              f'{disk.frequency_safety_factor(condition["rotation_frequency"], temperature=600, pressure=pressure)}')
         print(f'natural_frequencies: {disk.natural_frequencies(-1, 0, 0)}')
         print(disk.campbell_diagram(0, 1, 1, condition["rotation_frequency"] * 1.1, k=np.arange(1, 11, 1)))
 
