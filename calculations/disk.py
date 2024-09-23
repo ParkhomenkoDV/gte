@@ -91,7 +91,7 @@ class Disk:
         self.nholes, self.rholes, self.dholes = array(nholes), array(rholes), array(dholes)
 
     @staticmethod
-    def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple[float, float]:
+    def slicing(point0: tuple, point1: tuple, ndis: int | np.integer) -> tuple[float, float]:
         """Дробление сечений ndis раз"""
         assert isinstance(point0, (tuple, list, np.ndarray)) and isinstance(point1, (tuple, list, np.ndarray))
         assert len(point0) == 2 and len(point1) == 2
@@ -142,6 +142,9 @@ class Disk:
         func_tetta = lambda r: (tetta[0] + (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
         sigma_t = full((len(radius) - 1, 2), 400 * 10 ** 6)
         sigma_r = sigma_t.copy() if radius[0] == 0 else full((len(radius) - 1, 2), pressure[0])
+
+
+
         for i in range(len(radius) - 1):
             if i != 0:
                 sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
@@ -176,6 +179,7 @@ class Disk:
         assert len(pressure) == 2
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
         assert isinstance(ndis, (int, np.integer)) and ndis >= 1
+        assert isinstance(show, bool)
 
         tetta = (self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
                  self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0))
@@ -184,7 +188,7 @@ class Disk:
             (tetta[0] + (tetta[-1] - tetta[0]) * ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
 
         if len(temperature) == len(self.radius):
-            func_temperature = interpolate.interp1d(self.radius, temperature, kind='cubic', fill_value='extrapolate')
+            func_temperature = interpolate.interp1d(self.radius, temperature, kind=3, fill_value='extrapolate')
         else:
             func_temperature = lambda r: (temperature[0] + (temperature[-1] - temperature[0]) *
                                           ((r - self.radius[0]) / (self.radius[-1] - self.radius[0])) ** 2)
@@ -250,14 +254,14 @@ class Disk:
         return result
 
     def local_tension(self, n: int | np.integer, diameter: int | float | np.number, radius: int | float | np.number,
-                      sigma_t, sigma_r) -> tuple[float, float]:
+                      sigma_t: float | int | np.number, sigma_r: float | int | np.number) -> tuple[float, float]:
         """Местное напряжение от отверстия"""
         b = 2 * np.pi * radius / n - diameter  # расчет расстояния между краями отверстий по окружности
         k = 3 - diameter / b - sigma_r / sigma_t
         sigma_t_hole = k * sigma_t
         return sigma_t_hole * 1.1, sigma_t_hole * 1.15
 
-    def show_tension(self, rotation_frequency: float, temperature0: int | float, tensions, **kwargs) -> None:
+    def show_tension(self, rotation_frequency: float, temperature0: int | float, tensions: dict, **kwargs) -> None:
 
         radius, thickness = tensions.get('radius') * 1_000, tensions.get('thickness') * 1_000  # приведение к [мм]
         for key in tensions:
@@ -266,7 +270,7 @@ class Disk:
 
         l, k = max(radius), 1.2
         ylim = 0 - l * (k - 1) / 2, l + l * (k - 1) / 2
-        func = interpolate.interp1d(radius, thickness, kind='linear')
+        func = interpolate.interp1d(radius, thickness, kind=1)
 
         fg = plt.figure(figsize=kwargs.pop('figsize', (16, 8)))
         gs = fg.add_gridspec(1, 2)  # строки, столбцы
@@ -360,10 +364,13 @@ class Disk:
 
         plt.show()
 
-    def equal_strength(self, tension, rotation_frequency: int | float,
+    def equal_strength(self, tension: int | float | np.number, rotation_frequency: int | float | np.number,
                        ndis: int = 100, show: bool = True) -> dict[str:np.ndarray]:
         """Профилирование равнопрочного диска без центрального отверстия [7]"""
-        assert type(tension) in (int, float)
+        assert isinstance(tension, (int, float, np.number))
+        assert isinstance(rotation_frequency, (int, float, np.number))
+        assert isinstance(ndis, (int, np.integer))
+        assert isinstance(show, bool)
 
         radius = linspace(0, self.radius[-1], ndis)
         thickness = 0.5 * self.material.density(0) * rotation_frequency ** 2
@@ -401,7 +408,7 @@ class Disk:
         safety = np.sqrt(safety)
         return (safety * 0.9, safety * 0.95), ''  # действительный интервал запаса разрушающей частоты
 
-    def natural_frequencies(self, radius: int, N: int, S: int) -> tuple[float, str]:
+    def natural_frequencies(self, radius: int | np.integer, N: int, S: int) -> tuple[float, str]:
         """Частота собственных колебаний [6]"""
 
         def alpha(radius: int, N: int, S: int) -> float:
@@ -419,7 +426,7 @@ class Disk:
                 table = [[10.24, 21.25, 33.60, 51],
                          [39.80, 60.80, 84.60, 111],
                          [89.00, 120.0, 153.8, 190],
-                         [158.3, 199.0, 243.0, np.nan]]
+                         [158.3, 199.0, 243.0, nan]]
                 return table[S][N] if 0 <= S <= 3 and 0 <= N <= 3 else nan
             else:
                 raise Exception('radius in (0, -1)')  # тип крепления
@@ -429,12 +436,13 @@ class Disk:
         f = sqrt(f) * alpha(radius, N, S) / (2 * pi * self.radius[-1] ** 2)
         return f, '1/s'
 
-    def campbell_diagram(self, radius: int, N: int, S: int,
-                         max_rotation_frequency: int, k=arange(1, 11, 1), **kwargs) -> tuple[list[float], str]:
+    def campbell_diagram(self, radius: int | np.integer, N: int | np.integer, S: int | np.integer,
+                         max_rotation_frequency: int | float | np.number,
+                         k=arange(1, 11, 1), **kwargs) -> tuple[list[float], str]:
         """Диаграмма Кэмпбелла [6]"""
-        assert type(max_rotation_frequency) in (int, float)
+        assert isinstance(max_rotation_frequency, (int, float, np.number))
         assert isinstance(k, (list, tuple, np.ndarray))
-        assert all(map(lambda i: isinstance(i, (int, np.int_)), k))
+        assert all(map(lambda i: isinstance(i, (int, np.integer)), k))
 
         def B(radius: int, N: int, S: int):
             """
@@ -443,9 +451,9 @@ class Disk:
             S = число узловых окружностей
             """
             if radius == 0:  # тип крепления центральное
-                table = [[0, 1, 2.35, 4.05],
-                         [3.3, 5.95, 8.95, 12.3]]
-                return table[S][N] if 0 <= S <= 1 and 0 <= N <= 3 else np.nan
+                table = ((0, 1, 2.35, 4.0),
+                         (3.3, 5.95, 8.95, 12.3))
+                return table[S][N] if 0 <= S <= 1 and 0 <= N <= 3 else nan
             else:
                 raise Exception('radius in (0, -1)')  # тип крепления
 
