@@ -143,8 +143,6 @@ class Disk:
         sigma_t = full((len(radius) - 1, 2), 400 * 10 ** 6)
         sigma_r = sigma_t.copy() if radius[0] == 0 else full((len(radius) - 1, 2), pressure[0])
 
-
-
         for i in range(len(radius) - 1):
             if i != 0:
                 sigma_t[i][0] = (av_mu[i] * (thickness[i - 1] / thickness[i]) * sigma_r[i - 1][1] +
