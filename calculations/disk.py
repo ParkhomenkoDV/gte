@@ -39,14 +39,14 @@ class Disk:
                  rholes: tuple | list | np.ndarray = tuple(),
                  dholes: tuple | list | np.ndarray = tuple()) -> None:
         # проверка на тип данных material
-        assert type(material) is Material
+        assert isinstance(material, Material)
         # проверка на тип данных radius и thickness
-        assert type(radius) in (tuple, list, np.ndarray)
-        assert type(thickness) in (tuple, list, np.ndarray)
+        assert isinstance(radius, (tuple, list, np.ndarray))
+        assert isinstance(thickness, (tuple, list, np.ndarray))
         # проверка на тип данных nholes, rholes, dholes
-        assert type(nholes) in (tuple, list, np.ndarray)
-        assert type(rholes) in (tuple, list, np.ndarray)
-        assert type(dholes) in (tuple, list, np.ndarray)
+        assert isinstance(nholes, (tuple, list, np.ndarray))
+        assert isinstance(rholes, (tuple, list, np.ndarray))
+        assert isinstance(dholes, (tuple, list, np.ndarray))
         # проверка на равенство массивов radius, thickness и nholes, rholes, dholes
         assert len(radius) == len(thickness)
         assert len(nholes) == len(rholes) == len(dholes)
@@ -93,6 +93,9 @@ class Disk:
     @staticmethod
     def slicing(point0: tuple, point1: tuple, ndis: int) -> tuple[float, float]:
         """Дробление сечений ndis раз"""
+        assert isinstance(point0, (tuple, list, np.ndarray)) and isinstance(point1, (tuple, list, np.ndarray))
+        assert len(point0) == 2 and len(point1) == 2
+        assert isinstance(ndis, (int, np.integer)) and 1 <= ndis
         k = (point1[1] - point0[1]) / (point1[0] - point0[0]) if (point1[0] - point0[0]) != 0 else inf
         b = point0[1] - k * point0[0]
         delta = (point1[0] - point0[0]) / ndis
@@ -107,18 +110,18 @@ class Disk:
         return sqrt(sigma1 ** 2 - sigma1 * sigma3 + sigma3 ** 2)
 
     @staticmethod
-    def calculation2(rotation_frequency: int | float, pressure: tuple | list | np.ndarray,
+    def calculation2(rotation_frequency: int | float | np.number, pressure: tuple | list | np.ndarray,
                      radius: np.ndarray, thickness: np.ndarray, tetta: np.ndarray,
                      av_density: np.ndarray, av_E: np.ndarray, av_mu: np.ndarray) -> dict[str: np.ndarray]:
         """Метод двух расчетов"""
         # проверка НУ
-        assert type(rotation_frequency) in (float, int)
-        assert type(pressure) in (tuple, list, np.ndarray) and len(pressure) == 2
+        assert isinstance(rotation_frequency, (float, int, np.number))
+        assert isinstance(pressure, (tuple, list, np.ndarray)) and len(pressure) == 2
         assert all(isinstance(el, (int, float, np.number)) for el in pressure)
         # проверка на тип данных сечений
-        assert type(radius) in (tuple, list, np.ndarray)
-        assert type(thickness) in (tuple, list, np.ndarray)
-        assert type(tetta) in (tuple, list, np.ndarray)
+        assert isinstance(radius, (tuple, list, np.ndarray))
+        assert isinstance(thickness, (tuple, list, np.ndarray))
+        assert isinstance(tetta, (tuple, list, np.ndarray))
         # проверка на длину массивов сечений
         assert len(radius) == len(thickness) == len(tetta)
         # проверка на тип данных внутри массивов сечений
@@ -126,9 +129,9 @@ class Disk:
         assert all(isinstance(el, (int, float, np.number)) for el in thickness)
         assert all(isinstance(el, (int, float, np.number)) for el in tetta)
         # проверка на тип данных средних характеристик участков
-        assert type(av_density) in (tuple, list, np.ndarray)
-        assert type(av_E) in (tuple, list, np.ndarray)
-        assert type(av_mu) in (tuple, list, np.ndarray)
+        assert isinstance(av_density, (tuple, list, np.ndarray))
+        assert isinstance(av_E, (tuple, list, np.ndarray))
+        assert isinstance(av_mu, (tuple, list, np.ndarray))
         # проверка на длину массивов средних характеристик участков
         assert len(av_density) == len(av_E) == len(av_mu)
         # проверка на тип данных внутри массивов средних характеристик участков
@@ -137,7 +140,7 @@ class Disk:
         assert all(isinstance(el, (int, float, np.number)) for el in av_mu)
 
         func_tetta = lambda r: (tetta[0] + (tetta[-1] - tetta[0]) * ((r - radius[0]) / (radius[-1] - radius[0])) ** 2)
-        sigma_t = np.full((len(radius) - 1, 2), 400 * 10 ** 6)
+        sigma_t = full((len(radius) - 1, 2), 400 * 10 ** 6)
         sigma_r = sigma_t.copy() if radius[0] == 0 else full((len(radius) - 1, 2), pressure[0])
         for i in range(len(radius) - 1):
             if i != 0:
@@ -160,19 +163,19 @@ class Disk:
 
         return {'tension_t': sigma_t, 'tension_r': sigma_r}
 
-    def tension(self, rotation_frequency: float, temperature0: int | float,
+    def tension(self, rotation_frequency: float | int | np.number, temperature0: int | float | np.number,
                 pressure: tuple | list | np.ndarray, temperature: tuple | list | np.ndarray,
                 ndis: int = 10, show: bool = False) -> dict[str:  np.ndarray]:
         """Расчет напряжений в диске"""
 
-        assert type(temperature0) in (float, int) and temperature0 > 0
-        assert type(pressure) in (tuple, list, np.ndarray)
-        assert type(temperature) in (tuple, list, np.ndarray)
+        assert isinstance(temperature0, (float, int, np.number)) and temperature0 > 0
+        assert isinstance(pressure, (tuple, list, np.ndarray))
+        assert isinstance(temperature, (tuple, list, np.ndarray))
         assert all(isinstance(el, (int, float, np.number)) for el in pressure)
         assert all(isinstance(el, (int, float, np.number)) for el in temperature)
         assert len(pressure) == 2
         assert len(temperature) == 2 or len(temperature) == len(self.radius)
-        assert type(ndis) is int and ndis >= 1
+        assert isinstance(ndis, (int, np.integer)) and ndis >= 1
 
         tetta = (self.material.alpha((temperature[0] + temperature0) / 2) * (temperature[0] - temperature0),
                  self.material.alpha((temperature[-1] + temperature0) / 2) * (temperature[-1] - temperature0))
