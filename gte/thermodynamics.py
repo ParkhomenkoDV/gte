@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 from tqdm import tqdm
 from functools import lru_cache
 from typing import Final  # const

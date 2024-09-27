@@ -2,14 +2,15 @@
 .ipynb_checkpoints
 __pycache__
 venv/
+*.lnk
 
 
 /documentation/
 /drawing/
 /useful/
 
-calculations/tests/
-calculations/exports/
-calculations/links/
+gte/tests/
+gte/exports/
+gte/links/
 
 tester.py
