@@ -1,5 +1,8 @@
 colorama
 tqdm
-pandas
 numpy
+pandas
+openpyxl
+jinja2
 scipy
+matplotlib
