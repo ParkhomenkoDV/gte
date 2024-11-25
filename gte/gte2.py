@@ -584,7 +584,7 @@ class GTE(Variability):
             for i, node in enumerate(self.scheme[contour]):
                 node._place = {'contour': contour, 'pos': i}
 
-    def gte_generator(self):
+    def gte_generator(self): #TODO __iter__
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
         list_count_combinations = list()  # список из количеств комбинаций
         list_count_combinations.append(self.mode.variability())  # для режима работы ГТД
