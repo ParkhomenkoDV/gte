@@ -2,10 +2,10 @@ import sys
 from copy import deepcopy
 
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from colorama import Fore
 
-import pandas as pd
 from numpy import nan, inf, linspace, sqrt, cos, sin, radians, prod
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
