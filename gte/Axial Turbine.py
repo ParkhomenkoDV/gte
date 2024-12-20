@@ -1,16 +1,7 @@
-import time
-from numba import njit
 from math import degrees, radians, log10, sqrt, pi, sin, cos, tan, asin, acos, atan
-import openpyxl
 import numpy as np
-from colorama import Style
 import matplotlib.pyplot as plt
-from Характеристики_РТ import Cp_air as Cp_возд
-from Характеристики_РТ import Cp_exhaust_1 as Сp_г_alfa_1
-from Характеристики_РТ import Cp_exhaust as Cp_г_фун
-from Характеристики_РТ import R_exhaust as R_г_фун
-from Характеристики_РТ import Cp_fuel as Cp_топ
-from Характеристики_РТ import av as Cp_сред
+
 
 ORIGIN = 1  # начало отсчета начиная c
 Error = "Ошибки, баги и предупреждения:"
@@ -94,8 +85,6 @@ n_запас = 0.9
 # Расчет турбины
 # Газовая постоянная для продуктов сгорания
 R_г = R_г_фун(alfa, fuel)
-
-start_time = time.monotonic()  # начало отсчета времени
 
 # Удельная работа турбины
 L_т = 2 * N_т / (G_г + (G_г + G_охл - G_ут_т))
@@ -1262,5 +1251,4 @@ print('H_т_I = ' + str(H_т_I))
 print('H_т_torm_I = ' + str(H_т_torm_I))
 print('******************************************************')
 
-print("Program ended in", round(time.monotonic() - start_time, 3))
 print(Error)

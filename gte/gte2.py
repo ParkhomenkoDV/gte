@@ -1,20 +1,14 @@
-import sys
 from copy import deepcopy
 
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
 from colorama import Fore
-
+from tqdm import tqdm
+import numpy as np
 from numpy import nan, inf, linspace, sqrt, cos, sin, radians, prod
+import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
 from thermodynamics import Substance, atmosphere_standard, GDF, R_gas, l_stoichiometry
-
-sys.path.append('D:/Programming/Python')
-
-import decorators
 
 
 def It(T0, T1, g):
@@ -584,7 +578,7 @@ class GTE(Variability):
             for i, node in enumerate(self.scheme[contour]):
                 node._place = {'contour': contour, 'pos': i}
 
-    def gte_generator(self): #TODO __iter__
+    def gte_generator(self):  # TODO __iter__
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
         list_count_combinations = list()  # список из количеств комбинаций
         list_count_combinations.append(self.mode.variability())  # для режима работы ГТД

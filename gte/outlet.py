@@ -158,7 +158,7 @@ if __name__ == '__main__':
     outlet = Outlet()
     outlet.σ = 0.98
     outlet.g_leak = 0.0001
-    n.TT1 = 1500
-    n.PP1 = 600_000
+    n.TT_inlet = 1500
+    n.PP_inlet = 600_000
     n.a_ox = 3
     print(outlet.solve(substance='EXHAUST', fuel='КЕРОСИН'))

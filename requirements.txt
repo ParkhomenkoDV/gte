@@ -6,3 +6,5 @@ openpyxl
 jinja2
 scipy
 matplotlib
+
+decorators @ git+https://github.com/ParkhomenkoDV/decorators@master
