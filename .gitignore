@@ -9,10 +9,7 @@ venv/
 /drawing/
 /useful/
 
-gte/tests/
 gte/exports/
 gte/links/
-
-tester.py
 
 *.mp4
