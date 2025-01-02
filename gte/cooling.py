@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import openpyxl
 import pandas as pd
-from colorama import Style
 from scipy import interpolate
 from scipy.optimize import root
 
@@ -25,21 +24,6 @@ def rotation_matrix(angle, x, x_transfer, y, y_transfer):
         B_ = np.array([[(x[i_] - x_transfer)], [(y[i_] - y_transfer)]])
         [X_[i_], Y_[i_]] = np.matmul(A_, B_)
     return X_, Y_
-
-
-# Округление до rounding_to в меньшую сторону
-def floor(number, rounding_to):
-    return math.floor(number / rounding_to) * rounding_to
-
-
-# Округление до rounding_to в большую сторону
-def ceil(number, rounding_to):
-    return math.ceil(number / rounding_to) * rounding_to
-
-
-def print_warning(text):
-    print("\033[31m {}".format(text))
-    print(Style.RESET_ALL)
 
 
 def lambda_ад(s_отн_, lambda_2_ад):
@@ -61,18 +45,14 @@ def lambda_ад(s_отн_, lambda_2_ад):
                                 [1.507, 1.526, 1.486, 1.595, 1.502, 1.349, 1.208, 1.054, 0.936, 0.845, 0.727, 0.619,
                                  0.490, 0.401, 0.235, 0, 0.165, 0.199, 0.216, 0.246, 0.366, 0.506, 0.568, 0.659,
                                  0.820]])
-        F = interpolate.interp2d(X_s_отн, Y_lambda_2_ад, Z_lambda_ад, kind='linear')(s_отн_, lambda_2_ад)
-        return F
+        return interpolate.interp2d(X_s_отн, Y_lambda_2_ад, Z_lambda_ад, kind='linear')(s_отн_, lambda_2_ад)
     else:
         if (s_отн < -0.891 or s_отн > 0.91) and (lambda_2_ад < 0.77 or lambda_2_ад > 1.39):
-            return print_warning(
-                'Нет данных lambda_ад для s_отн = ' + str(s_отн) + '.\n '
-                                                                   'Нет данных lambda_ад для lambda_2_ад = ' + str(
-                    lambda_2_ад) + '.')
+            return print('Нет данных lambda_ад для s_отн = ' + str(s_отн) + '.\n Нет данных lambda_ад для lambda_2_ад = ' + str(lambda_2_ад) + '.')
         elif s_отн < -0.891 or s_отн > 0.91:
-            return print_warning('Нет данных lambda_ад для s_отн = ' + str(s_отн) + '.')
+            return print('Нет данных lambda_ад для s_отн = ' + str(s_отн) + '.')
         elif lambda_2_ад < 0.77 or lambda_2_ад > 1.39:
-            return print_warning('Нет данных lambda_ад для lambda_2_ад = ' + str(lambda_2_ад) + '.')
+            return print('Нет данных lambda_ад для lambda_2_ад = ' + str(lambda_2_ад) + '.')
 
 
 # Зависимость коэф. А от угла поворота потока
@@ -82,7 +62,7 @@ def коэф_A(epsilon_):
         Y_A = np.array([1.1, 0.989, 0.906, 0.856, 0.823, 0.802, 0.789, 0.788])
         return interpolate.interp1d(X_epsilon, Y_A, kind='cubic')(epsilon_)
     else:
-        print_warning('Угол поворота потока epsilon = ' + str(degrees(epsilon_)) + '. epsilon ∈ [25..60]')
+        print('Угол поворота потока epsilon = ' + str(degrees(epsilon_)) + '. epsilon ∈ [25..60]')
 
 
 def my_flip_matr(matr, n_flip):
@@ -101,36 +81,6 @@ def combining_functions(fun, x_s_профиля, l_спинки, l_корыта,
             return T_охл
         elif (p == N_профиля - 1) and (x_s_профиля[p] < x <= l_корыта):
             return fun[p](x)
-
-
-# Динамическая вязкость газа
-def mu_г_fun(T):
-    if 0 + 273.15 <= T <= 2000 + 273.15:
-        x_T = np.array(
-            [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900,
-             2000]) + 273.15
-        y_mu = np.array(
-            [15.8, 20.4, 24.6, 28.3, 31.6, 34.8, 38.0, 40.6, 43.5, 46.0, 47.7, 51.0, 53.0, 55.0, 56.6, 58.6, 60.0, 64.6,
-             68.5, 72.0, 75.4]) * 10 ** -6
-        return interpolate.interp1d(x_T, y_mu, kind='linear')(T)
-    else:
-        print_warning('Нет данных динамической вязкости дымовых газов, полученных при сжигании природного газа \n '
-                      ' среднего химического состава при T = ' + str(T) + ' k.')
-
-
-# Теплопроводность газа
-def lambda_г_fun(T):
-    if 0 + 273.15 <= T <= 2000 + 273.15:
-        x_T = np.array(
-            [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900,
-             2000]) + 273.15
-        y_mu = np.array(
-            [2.28, 3.12, 4.00, 4.83, 5.68, 6.54, 7.44, 8.25, 9.15, 9.98, 10.90, 11.75, 12.62, 13.51, 14.40, 15.30,
-             16.20, 17.05, 18.1, 18.95, 19.85]) * 10 ** -2
-        return interpolate.interp1d(x_T, y_mu, kind='linear')(T)
-    else:
-        print_warning('Нет данных теплопроводности дымовых газов, полученных при сжигании природного газа среднего \n '
-                      ' химического состава при T = ' + str(T) + ' k.')
 
 
 def phi_1_fun(Xn_D, Re_D):
@@ -490,9 +440,7 @@ if __name__ == '__main__':
         # Параметр выдува воздуха
         m[i] = ro_в[i] * c_в[i] / (ro_г[i] * c_г[i])
         if m[i] < 0.5:
-            print_warning(
-                'При s_отн = ' + str(s_отн[i]) + ' параметр вдува m = ' + str(
-                    m[i]) + ' < 0.5. Происходит отрыв струи.')
+            print('При s_отн = ' + str(s_отн[i]) + ' параметр вдува m = ' + str(m[i]) + ' < 0.5. Происходит отрыв струи.')
         # Эквивалентная высота щели
         if i == N - 1:
             s_э[i] = N_отв_Л[i] * h_вых_паза * delta_вых_паза * 1 / h_лопатки[i]
@@ -583,7 +531,7 @@ if __name__ == '__main__':
     alfa_г_вх_сред_0 = K_Tu_вх * Nu_вх_сред * lambda_г / (2 * r_вх)
 
     if Re_вх < 5 * 10 ** 3 or Re_вх > 4 * 10 ** 4 or M_г_вх > 0.9 or Tu_вх < 0 or Tu_вх > 10:
-        print_warning('Формулы подобия Nu для выходной кромки не справедливы, т.к. нарушаются условия подобия.')
+        print('Формулы подобия Nu для выходной кромки не справедливы, т.к. нарушаются условия подобия.')
 
     # Число Рейнольдса осредненное
     Re_ср = c_г_вых * b * ro_г_вых / mu_г
@@ -613,7 +561,7 @@ if __name__ == '__main__':
     Nu_вых_вп = 0.051 * Re_вых ** 0.73
 
     if Re_вых < 1.86 * 10 ** 5 or Re_вых > 1.5 * 10 ** 6 or M_вых > 0.96 or Tu_вых < 6 or Tu_вых > 12:
-        print_warning('Формулы подобия Nu для выходной кромки не справедливы, т.к. нарушаются условия подобия.')
+        print('Формулы подобия Nu для выходной кромки не справедливы, т.к. нарушаются условия подобия.')
 
     # Коэф. теплоотдачи газа на выходной кромке со стороны спинки
     alfa_г_вых_сп_0 = Nu_вых_сп * lambda_г / b
@@ -753,7 +701,7 @@ if __name__ == '__main__':
     Re_D_возд_1 = G_охл_1 * d_э_1 / (h_лопатки[0] * 2 * Z_n_1 * mu_в)
 
     if Re_D_возд_1 < 3 * 10 ** 2 or Re_D_возд_1 > 3 * 10 ** 4:
-        print_warning('Нет данных phi_1 для Re_D_возд_1 = ' + str(Re_D_возд_1) + '. Re_D ∈ [3*10^2..3*10^4]')
+        print('Нет данных phi_1 для Re_D_возд_1 = ' + str(Re_D_возд_1) + '. Re_D ∈ [3*10^2..3*10^4]')
 
     # Комплекс
     V_0_1 = G_охл_1 * R_в * T_в_torm / (p_в_torm * 97 * 10 ** -6)
@@ -799,7 +747,7 @@ if __name__ == '__main__':
     Re_D_возд_2 = G_охл_2 * d_э_2 / (h_лопатки[0] * 2 * Z_n_2 * mu_в)
 
     if Re_D_возд_2 < 3 * 10 ** 2 or Re_D_возд_2 > 3 * 10 ** 4:
-        print_warning('Нет данных phi_1 для Re_D_возд_2 = ' + str(Re_D_возд_2) + '. Re_D ∈ [3*10^2..3*10^4]')
+        print('Нет данных phi_1 для Re_D_возд_2 = ' + str(Re_D_возд_2) + '. Re_D ∈ [3*10^2..3*10^4]')
 
     # Комплекс
     V_0_2 = G_охл_2 * R_в * T_в_torm / (p_в_torm * 220 * 10 ** -6)
@@ -963,24 +911,6 @@ if __name__ == '__main__':
     fig1.savefig(r'Охлаждение\Коэф. теплоотдачи газа без учета выдува воздуха.jpg', dpi=800)
 
     plt.close('all')
-
-    # Y = np.zeros(len(X))
-    # for i in range(len(X)):
-    #     Y[i] = alfa_г_single_fun(X[i])
-    # fig1, ax1 = plt.subplots(1, figsize=(400 / 25.4, 220 / 25.4))
-    # fig1.subplots_adjust(hspace=10 / 25.4)
-    # l1, = ax1.plot(X * 1000, Y, color='black')
-    # ax1.grid()
-    # ax1.minorticks_on()
-    # ax1.grid(which='major', linewidth=0.7, color='k')
-    # ax1.grid(which='minor', linewidth=0.5, linestyle='--')
-    # min_x = floor(min(X * 1000), 10)
-    # max_x = ceil(max(X * 1000), 10)
-    # ax1.set_xlim(min_x, max_x)
-    # ax1.set_xticks(np.arange(min_x, max_x + 10, 10))
-    # ax1.set_ylim(min_y, max_y)
-    # ax1.set_yticks(np.arange(min_y, max_y + 50, 200))
-    # fig1.savefig(r'Охлаждение\Коэф. теплоотдачи газа с учетом выдува воздуха.jpg', dpi=800)
 
     s_отн = my_flip_matr(s_отн, N_сп)
     x_s = my_flip_matr(np.hstack((-x_s_сп, x_s_вп)), N_сп)
