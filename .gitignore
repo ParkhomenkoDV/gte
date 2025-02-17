@@ -2,14 +2,16 @@
 .ipynb_checkpoints
 __pycache__
 venv/
-*.lnk
 
 
 /documents/
-/drawing/
 /useful/
-
 gte/exports/
 gte/links/
 
+
 *.mp4
+*.bak
+*.prt
+*.m3d
+*.lnk
