@@ -4,8 +4,6 @@ __pycache__
 venv/
 
 
-/documents/
-/useful/
 gte/exports/
 gte/links/
 
@@ -14,4 +12,5 @@ gte/links/
 *.bak
 *.prt
 *.m3d
+*.tmp
 *.lnk
