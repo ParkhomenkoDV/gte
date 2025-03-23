@@ -10,6 +10,7 @@ gte/links/
 
 *.mp4
 *.bak
+*.cd~
 *.prt
 *.m3d
 *.tmp
