@@ -13,5 +13,6 @@ gte/links/
 *.bak
 *.cd~
 *.m3d
+*.x_t
 *.tmp
 *.lnk
