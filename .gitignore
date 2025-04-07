@@ -14,5 +14,6 @@ gte/links/
 *.cd~
 *.m3d
 *.x_t
+*.stp
 *.tmp
 *.lnk
