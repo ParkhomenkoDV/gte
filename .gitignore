@@ -9,6 +9,7 @@ gte/exports/
 gte/links/
 
 
+*.html
 *.mp4
 *.bak
 *.cd~
