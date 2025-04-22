@@ -5,8 +5,8 @@ venv/
 
 
 drawings/ansys/
-gte/exports/
-gte/links/
+src/exports/
+src/links/
 
 
 *.html
