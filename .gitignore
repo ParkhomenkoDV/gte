@@ -1,12 +1,12 @@
 .idea
 .ipynb_checkpoints
 __pycache__
+**/.DS_Store
+.venv/
 venv/
 
 
-drawings/ansys/
 src/exports/
-src/links/
 
 
 *.html
