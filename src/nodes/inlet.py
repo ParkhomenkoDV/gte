@@ -1,26 +1,17 @@
-from math import nan
-from numpy import sqrt
+from copy import deepcopy
 
-# from thermodynamics import atmosphere_standard, Cp, R_gas
-from colorama import Fore
-
-from node import Node
-# from tools import isnum, eps
+from node import GTENode
+from numpy import nan
+from substance import Substance
 
 
-class Inlet(Node):
+class Inlet(GTENode):
     """Входное устройство"""
 
     def __init__(self, name: str = "Inlet"):
-        Node.init(self)
-        self.init()
-        self.name = name
+        GTENode.__init__(self, name=name)
 
-    def init(self) -> None:
-        self.sigma = nan
-
-    def __str__(self):
-        return self.name
+        self.loss_pressure = nan
 
     def set_combination(self, combination, inlet_main) -> None:
         """Установка комбинации"""
@@ -46,82 +37,24 @@ class Inlet(Node):
                 getattr(inlet_main, varible_params[j])[positions[j]],
             )
 
-    def input_parameters(self) -> list:
-        correct_input = False
-        while not correct_input:
-            self.σ_var = [sigma for sigma in input("σ [] = ").strip().split()]
-            if not self.σ_var:
-                break
-            for sigma in self.σ_var:
-                if not isnum(sigma) or float(sigma) < 0 or float(sigma) > 1:
-                    print(Fore.RED + "σ must be a number in [0..1] or empty string!")
-                    correct_input = False
-                    break
-                correct_input = True
-        self.σ_var = [float(sigma) for sigma in self.σ_var]
-
-        correct_input = False
-        while not correct_input:
-            self.g_leak_var = [gleak for gleak in input("g утечки [] = ").split()]
-            for gleak in self.g_leak_var:
-                if not isnum(gleak) or float(gleak) < 0 or float(gleak) > 1:
-                    print(Fore.RED + "g_leak must be a number in [0..1]!")
-                    correct_input = False
-                    break
-                correct_input = True
-        self.g_leak_var = [float(gleak) for gleak in self.g_leak_var]
-
     @staticmethod
-    def σ_inlet(M: float) -> float:
+    def get_loss_pressure(mach: float) -> float:
         """Коэффициент сохранения полного давления на входе"""
-        if M >= 2:  # работает только для ПВРД!!!
-            k = (
+        if mach >= 2:  # работает только для ПВРД!
+            coefs = (
                 0.7345454545,
                 0.4873659674,
-                0.3040559441,
+                -0.3040559441,
                 0.05421911422,
-                0.003263403263,
+                -0.003263403263,
             )
-            return k[0] + k[1] * M - k[2] * M**2 + k[3] * M**3 - k[4] * M**4
+            return sum(coefs[i] * mach**i for i in range(len(coefs)))
         else:
             return nan
 
-    def get_inlet_parameters(self, **kwargs) -> None:
-        """Расчет параметров перед"""
-        # Невозмущенные параметры
-        self.R_gas1 = R_gas(
-            self.substance, a_ox=getattr(self, "a_ox1", None), fuel=fuel
-        )
-        if not hasattr(self, "T1") and self.substance.strip().upper() == "AIR":
-            self.T1 = atmosphere_standard(kwargs.get("H", None))["T"]
-        if not hasattr(self, "P1") and self.substance.strip().upper() == "AIR":
-            self.P1 = atmosphere_standard(kwargs.get("H", None))["P"]
-        assert self.T1 and self.P1, (
-            f"{type(self).__name__} object has no attributes T1 and P1!"
-        )
-        self.ρ1 = self.P1 / (self.R_gas1 * self.T1)
-        self.g1 = 1
-        self.Cp1 = Cp(
-            self.substance,
-            T=self.T1,
-            P=self.P1,
-            a_ox=getattr(self, "a_ox1", None),
-            fuel=fuel,
-        )
-        self.k1 = self.Cp1 / (self.Cp1 - self.R_gas1)
-        self.Mc1 = 0
-        self.c1 = 0
-        self.TT1 = self.T1
-        self.PP1 = self.P1
-        self.ρρ1 = self.ρ1
-
-    def get_outlet_parameters(
-        self, how="all", error=1 / 100, Niter=100, **kwargs
-    ) -> None:
+    '''
+    def get_outlet_parameters(self, error=1 / 100, Niter=100, **kwargs) -> None:
         """Расчет параметров после"""
-        self.R_gas3 = R_gas(
-            self.substance, a_ox=getattr(self, "a_ox1", None), fuel=fuel
-        )
 
         self.Mc3 = kwargs.get("M", None)
         self.c3 = kwargs.get("v", None)
@@ -134,7 +67,7 @@ class Inlet(Node):
             self.c3 = self.Mc3 * sqrt(self.k1 * self.R_gas1 * self.T1)
 
         if not hasattr(self, "σ"):
-            self.σ = self.σ_inlet(self.Mc3)
+            self.σ = self.loss_pressure(self.Mc3)
 
         self.k3 = self.k1  # нулевое приближение
         for iteration in range(Niter):
@@ -163,30 +96,25 @@ class Inlet(Node):
             f"{type(self).__name__} object has no attribute g_leak!"
         )
         self.g3 = self.g1 - self.g_leak
+        '''
 
-    def __calculate(
-        self, how="all", error: float = 1 / 100, Niter: int = 100, **kwargs
-    ) -> None:
-        global fuel
+    def calculate(self, substance_inlet: Substance) -> Substance:
+        self.substance_inlet = deepcopy(substance_inlet)
+        self.substance_outlet = deepcopy(self.substance_inlet)
 
-        self.substance = kwargs.get("substance", "")
-        assert self.substance, (
-            f"{type(self).__name__} object has no attribute substance!"
-        )
-        fuel = kwargs.get("fuel", "")  # горючее
-
-        self.get_inlet_parameters(**kwargs)
-        self.get_outlet_parameters(how=how, error=error, Niter=Niter, **kwargs)
-
-    def solve(
-        self, how="all", error: float = 1 / 100, Niter: int = 100, **kwargs
-    ) -> None:
-        self.__calculate(how=how, error=error, Niter=Niter, **kwargs)
+        return self.substance_outlet
 
 
 if __name__ == "__main__":
+    s = Substance("air", parameters={"T": 300, "P": 101_325, "mach": 0})
+
     inlet = Inlet()
+    inlet.calculate(s)
+    print(inlet.summary)
     print(inlet.__dict__)
+
+    exit()
+
     inlet.Mc = 0
     inlet.sigma = 0.98
     inlet.g_leak = 0.005

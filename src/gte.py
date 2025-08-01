@@ -1,40 +1,39 @@
-import os
 import sys
 from copy import deepcopy
-from tqdm import tqdm
-from colorama import Fore
 
 import pandas as pd
-import polars as pl
-from numpy import nan, inf, isnan, linspace, arange, cos, sin, radians, prod
-import matplotlib.pyplot as plt
+from colorama import Fore
+from numpy import arange, cos, inf, isnan, linspace, nan, prod, radians, sin
+from tqdm import tqdm
 
-sys.path.append('D:/Programming/Python/')
+sys.path.append("D:/Programming/Python/")
 
-from tools import to_roman, isnum, export2, eps, isiter
-from thermodynamics import Cp, R_gas, OXIDIZERS, FUELS
+# from thermodynamics import FUELS, OXIDIZERS, Cp, R_gas
+# from tools import eps, export2, isiter, isnum, to_roman
+
+"""from nodes.combustion_chambler import CombustionChamber  # камера сгорания
+from nodes.compressor import Compressor  # компрессор
+from nodes.gear import Gear  # коробка приводов
+from nodes.heat_exchanger import HeatExchanger  # теплообменный аппарат
 
 # узлы ГТД
 from nodes.inlet import Inlet  # вход
-from nodes.compressor import Compressor  # компрессор
-from nodes.combustion_chambler import CombustionChamber  # камера сгорания
-from nodes.turbine import Turbine  # турбина
-from nodes.nozzle import Nozzle  # сопло
-from nodes.mixing_chamber import MixingChamber  # камера смешения
-from nodes.outlet import Outlet  # выход
-from nodes.heat_exchanger import HeatExchanger  # теплообменный аппарат
-from nodes.gear import Gear  # коробка приводов
 from nodes.load import Load  # нагрузка
+from nodes.mixing_chamber import MixingChamber  # камера смешения
+from nodes.nozzle import Nozzle  # сопло
+from nodes.outlet import Outlet  # выход
 from nodes.propeller import Propeller  # пропеллер
-
+from nodes.turbine import Turbine  # турбина"""
 
 # 1 = перед, 2 = посередине, 3 = после
+
 
 def find_node_in_scheme(scheme, node2find) -> tuple:
     """Поиск положения узла в схеме"""
     for contour in scheme:
         for i, node in enumerate(scheme[contour]):
-            if scheme[contour][i] is node2find: return contour, i
+            if scheme[contour][i] is node2find:
+                return contour, i
 
 
 def get_combination(combination: int, max_list: list[int]) -> list[int]:
@@ -56,7 +55,7 @@ class GTE_scheme:
         return self.__scheme
 
     def validate(self, scheme) -> bool:
-        assert isinstance(scheme, dict), 'type(scheme) is dict!'
+        assert isinstance(scheme, dict), "type(scheme) is dict!"
         return True
 
     def show(self):
@@ -69,24 +68,27 @@ class GTE:
     @classmethod
     def version(cls) -> str:
         version = 6.0
-        next_version = ('камера смешения',
-                        'переход к массивам в местах постоянства диапазона значений'
-                        'теплак плак-плак',
-                        'упразднение outlet -> nozzle and outlet = переходный канал',
-                        'type(node) is class -> isinstance(node, class)'
-                        'ТД параметры через PTM 1677 as {"O2": 98, "H2": 2}',
-                        'соотношение соответствующих относительных расходов к своим контурам',
-                        'охлаждение турбины',
-                        'get_inlet_parameters() for all nodes',
-                        'get_outlet_parameters() for all nodes',
-                        'продолжение расчета',
-                        'multiprocessing',
-                        'ускорение расчета до 6000 [ГТД/с]')
-        print(f'{cls.__name__} version: {Fore.GREEN}{version}')
-        for i, v in enumerate(next_version): print(cls.__name__ + ' version:', int(version) + i + 1, v)
+        next_version = (
+            "камера смешения",
+            "переход к массивам в местах постоянства диапазона значений"
+            "теплак плак-плак",
+            "упразднение outlet -> nozzle and outlet = переходный канал",
+            "type(node) is class -> isinstance(node, class)"
+            'ТД параметры через PTM 1677 as {"O2": 98, "H2": 2}',
+            "соотношение соответствующих относительных расходов к своим контурам",
+            "охлаждение турбины",
+            "get_inlet_parameters() for all nodes",
+            "get_outlet_parameters() for all nodes",
+            "продолжение расчета",
+            "multiprocessing",
+            "ускорение расчета до 6000 [ГТД/с]",
+        )
+        print(f"{cls.__name__} version: {Fore.GREEN}{version}")
+        for i, v in enumerate(next_version):
+            print(cls.__name__ + " version:", int(version) + i + 1, v)
         return str(version)
 
-    def __init__(self, name='GTE') -> None:
+    def __init__(self, name="GTE") -> None:
         self.name = name
         self.scheme = GTE_scheme()
         self.loads = []  # нагрузки/отборы мощности ГТД
@@ -103,7 +105,8 @@ class GTE:
     def __len__(self) -> int:
         """Количество узлов в ГТД"""
         i = len(self.loads)
-        for contour in self.scheme: i += len(self.scheme[contour])
+        for contour in self.scheme:
+            i += len(self.scheme[contour])
         return i
 
     def __str__(self) -> str:
@@ -111,16 +114,24 @@ class GTE:
 
     def get_variability(self) -> int:
         """Максимальное количество комбинаций варьируемых параметров"""
-        return prod([len(value) for key, value in self.__dict__.items()
-                     if type(value) is list and len(value) and not key.startswith('_')])
+        return prod(
+            [
+                len(value)
+                for key, value in self.__dict__.items()
+                if type(value) is list and len(value) and not key.startswith("_")
+            ]
+        )
 
     def set_comb(self, gte_main, combination, combinations, max_combinations) -> None:
         pass
 
     def __set_combination(self, combination, gte_main) -> None:
         """Установка комбинации"""
-        varible_params = [key for key, value in gte_main.__dict__.items()
-                          if type(value) is list and len(value) and not key.startswith('_')]
+        varible_params = [
+            key
+            for key, value in gte_main.__dict__.items()
+            if type(value) is list and len(value) and not key.startswith("_")
+        ]
         positions = [0] * len(varible_params)
 
         for i in range(combination):
@@ -131,32 +142,47 @@ class GTE:
                     positions[j] += 1
                     continue
         for j, param in enumerate(varible_params):
-            setattr(self, varible_params[j], getattr(gte_main, varible_params[j])[positions[j]])
+            setattr(
+                self,
+                varible_params[j],
+                getattr(gte_main, varible_params[j])[positions[j]],
+            )
 
     def gte_generator(self):
         """Генератор объектов ГТД с заданными варьируемыми параметрами"""
         max_combinations = [self.get_variability()]  # для ГТД
-        for node in self.__path: max_combinations.append(node.get_variability())  # для узлов ГТД
+        for node in self.__path:
+            max_combinations.append(node.get_variability())  # для узлов ГТД
         combinations = [1] * (1 + len(self.__path))
 
-        for comb in tqdm(range(prod(max_combinations)), desc='Calculation', ncols=70):
+        for comb in tqdm(range(prod(max_combinations)), desc="Calculation", ncols=70):
             gte_var = deepcopy(self)
             gte_var.__set_combination(combinations[0], self)
-            for i, node in enumerate(gte_var.__path): node.set_combination(combinations[i + 1], self.__path[i])
+            for i, node in enumerate(gte_var.__path):
+                node.set_combination(combinations[i + 1], self.__path[i])
             gte_var.__update_combination(self, combinations, max_combinations)
             yield gte_var
 
-        '''for contour in self.scheme:
+        """for contour in self.scheme:
             for node in self.scheme[contour]:
                 for attr in node.attrs:
                     if isiter(attr):
-                        yield'''
+                        yield"""
 
     def __update_combination(self, gte_main, combinations, max_combinations) -> None:
-        self.warnings = {0: set(), 1: set(), 2: set(), 3: set()}  # обнуление предупреждений
+        self.warnings = {
+            0: set(),
+            1: set(),
+            2: set(),
+            3: set(),
+        }  # обнуление предупреждений
         if max_combinations[0] > 1:  # если есть варьируемые параметры ГТД
-            if combinations[0] < max_combinations[0]:  # если не конец варьирования параметров ГТД
-                self.__set_combination(combinations[0], gte_main)  # установка текущих параметров варьирования
+            if (
+                combinations[0] < max_combinations[0]
+            ):  # если не конец варьирования параметров ГТД
+                self.__set_combination(
+                    combinations[0], gte_main
+                )  # установка текущих параметров варьирования
                 combinations[0] += 1  # задание следующего номера комбинации
                 return
             else:
@@ -164,9 +190,18 @@ class GTE:
                 combinations[0] = 1
 
         for i, node in enumerate(self.__path):
-            node.warnings = {0: set(), 1: set(), 2: set(), 3: set()}  # обнуление предупреждений
-            if max_combinations[i + 1] > 1:  # проверка наличия варьируемых параметров узлов ГТД
-                if combinations[i + 1] < max_combinations[i + 1]:  # проверка конца варьирования параметров узлов ГТД
+            node.warnings = {
+                0: set(),
+                1: set(),
+                2: set(),
+                3: set(),
+            }  # обнуление предупреждений
+            if (
+                max_combinations[i + 1] > 1
+            ):  # проверка наличия варьируемых параметров узлов ГТД
+                if (
+                    combinations[i + 1] < max_combinations[i + 1]
+                ):  # проверка конца варьирования параметров узлов ГТД
                     node.set_combination(combinations[i + 1], gte_main.__path[i])
                     combinations[i + 1] += 1
                     return
@@ -178,13 +213,11 @@ class GTE:
     def input_action(cls) -> str:
         """Ввод действия"""
         while True:
-            print(f'{Fore.YELLOW}Input action:', end=' ')
-            print('''"a": add; "d": del; "e": end.''')
-            action = input('action: ').strip().lower()
-            if action not in ('a', 'add',
-                              'd', 'del', 'delete',
-                              'e', 'end'):
-                print(f'{Fore.RED}No such action')
+            print(f"{Fore.YELLOW}Input action:", end=" ")
+            print(""""a": add; "d": del; "e": end.""")
+            action = input("action: ").strip().lower()
+            if action not in ("a", "add", "d", "del", "delete", "e", "end"):
+                print(f"{Fore.RED}No such action")
                 continue
             return action
 
@@ -192,47 +225,66 @@ class GTE:
     def input_node(cls):
         """Ввод узла"""
         while True:
-            print(Fore.YELLOW + 'Input contour:', '(CONTOUR, КОНТУР)')
-            print(Fore.YELLOW + 'Input node:', end=' ')
-            print(Fore.YELLOW + 'I', 'nlet',
-                  Fore.YELLOW + 'C', 'ompressor',
-                  Fore.YELLOW + 'C', 'ombustion', ' ', Fore.YELLOW + 'C', 'hamber',
-                  Fore.YELLOW + 'T', 'urbine',
-                  Fore.YELLOW + 'N', 'ozzle',
-                  Fore.YELLOW + 'M', 'ixing', ' ', Fore.YELLOW + 'C', 'hamber',
-                  Fore.YELLOW + 'O', 'utlet',
-                  Fore.YELLOW + 'H', 'eat', ' ', Fore.YELLOW + 'E', 'xchanger',
-                  sep='')
-            print(f'{Fore.YELLOW}Input load:', end=' ')
-            print('Gear: (G); Load: (L); Propeller: (P);')
-            node = input('item: ').upper()
+            print(Fore.YELLOW + "Input contour:", "(CONTOUR, КОНТУР)")
+            print(Fore.YELLOW + "Input node:", end=" ")
+            print(
+                Fore.YELLOW + "I",
+                "nlet",
+                Fore.YELLOW + "C",
+                "ompressor",
+                Fore.YELLOW + "C",
+                "ombustion",
+                " ",
+                Fore.YELLOW + "C",
+                "hamber",
+                Fore.YELLOW + "T",
+                "urbine",
+                Fore.YELLOW + "N",
+                "ozzle",
+                Fore.YELLOW + "M",
+                "ixing",
+                " ",
+                Fore.YELLOW + "C",
+                "hamber",
+                Fore.YELLOW + "O",
+                "utlet",
+                Fore.YELLOW + "H",
+                "eat",
+                " ",
+                Fore.YELLOW + "E",
+                "xchanger",
+                sep="",
+            )
+            print(f"{Fore.YELLOW}Input load:", end=" ")
+            print("Gear: (G); Load: (L); Propeller: (P);")
+            node = input("item: ").upper()
 
-            if node in ('CONTOUR', 'КОНТУР'):
-                return 'CONTOUR'
-            elif node in ('I', 'IN', 'INLET', 'ВХ'):
+            if node in ("CONTOUR", "КОНТУР"):
+                return "CONTOUR"
+            elif node in ("I", "IN", "INLET", "ВХ"):
                 return Inlet()
-            elif node in ('C', 'COMP', 'COMPRESSOR'):
+            elif node in ("C", "COMP", "COMPRESSOR"):
                 return Compressor()
-            elif node in ('CC', 'COMBUSTION CHAMBER', 'COMBUSTION_CHAMBER', 'КС'):
+            elif node in ("CC", "COMBUSTION CHAMBER", "COMBUSTION_CHAMBER", "КС"):
                 return CombustionChamber()
-            elif node in ('T', 'TURB', 'TURBINE'):
+            elif node in ("T", "TURB", "TURBINE"):
                 return Turbine()
-            elif node in ('N', 'NOZZLE'):
+            elif node in ("N", "NOZZLE"):
                 return Nozzle()
-            elif node in ('MC', 'MIXING CHAMBER', 'MIXING_CHAMBER'):
+            elif node in ("MC", "MIXING CHAMBER", "MIXING_CHAMBER"):
                 return MixingChamber()
-            elif node in ('O', 'OUT', 'OUTLET', 'ВЫХ'):
+            elif node in ("O", "OUT", "OUTLET", "ВЫХ"):
                 return Outlet()
-            elif node in ('HE', 'HEAT EXCHANGER', 'HEAT_EXCHANGER'):
+            elif node in ("HE", "HEAT EXCHANGER", "HEAT_EXCHANGER"):
                 return HeatExchanger()
-            elif node in ('G', 'GEAR'):
+            elif node in ("G", "GEAR"):
                 return Gear()
-            elif node in ('L', 'LOAD'):
+            elif node in ("L", "LOAD"):
                 return Load()
-            elif node in ('P', 'PROPELLER'):
+            elif node in ("P", "PROPELLER"):
                 return Propeller()
             else:
-                print(Fore.RED + 'No such item!')
+                print(Fore.RED + "No such item!")
                 continue
 
     def find_node_in_GTE(self, find_node) -> int:
@@ -252,29 +304,38 @@ class GTE:
         contour = 1
         if len(self.scheme) > 1:
             while True:  # ввод контура
-                contour = input('Input the contour in scheme GTE from 1 to ' + str(len(self.scheme)) + ': ')
-                if isnum(contour, type_num='int') and 1 <= int(contour) <= len(self.scheme):
+                contour = input(
+                    "Input the contour in scheme GTE from 1 to "
+                    + str(len(self.scheme))
+                    + ": "
+                )
+                if isnum(contour, type_num="int") and 1 <= int(contour) <= len(
+                    self.scheme
+                ):
                     contour = int(contour)
                     break
                 else:
-                    print(Fore.RED + 'contour is int num in [1..{}]!'.format(len(self.scheme)))
+                    print(
+                        Fore.RED
+                        + "contour is int num in [1..{}]!".format(len(self.scheme))
+                    )
         return contour
 
     def validate_scheme(self) -> bool:
         """Проверка на правильность ввода схемы"""
         print()
         if len(self) == 0:
-            print(Fore.RED + 'Empty GTE scheme!')
+            print(Fore.RED + "Empty GTE scheme!")
             return False
 
         try:
             self.set_path()
         except:
-            print(Fore.RED + 'Incorrect GTE solve path!')
+            print(Fore.RED + "Incorrect GTE solve path!")
             return False
 
         if len(self.__path) != len(self):
-            print(Fore.RED + 'Incorrect count items of GTE!')
+            print(Fore.RED + "Incorrect count items of GTE!")
             return False
 
         return True  # выполнены все проверки
@@ -288,58 +349,87 @@ class GTE:
                 if type(node) is Turbine:  # если узел - это турбина
                     if node._shafts:  # если у турбины есть валы
                         for shaft in node._shafts:  # для каждого вала данной турбины
-                            for tp, els in shaft.items():  # для каждой связи данного вала
-                                if tp in ('-', '+'):
+                            for (
+                                tp,
+                                els,
+                            ) in shaft.items():  # для каждой связи данного вала
+                                if tp in ("-", "+"):
                                     for el in els:
                                         if type(el) is Compressor:
                                             c, n = find_node_in_scheme(self.scheme, el)
                                             for i in range(n + 1):
                                                 if self.scheme[c][i] not in self.__path:
-                                                    self.__path.append(self.scheme[c][i])
+                                                    self.__path.append(
+                                                        self.scheme[c][i]
+                                                    )
                                         elif type(el) is Load or type(el) is Propeller:
-                                            if el not in self.__path: self.__path.append(el)
+                                            if el not in self.__path:
+                                                self.__path.append(el)
                                         else:
-                                            raise 'Invalid turbine shafts'
-                                if tp == '0':
+                                            raise "Invalid turbine shafts"
+                                if tp == "0":
                                     for el in els:
-                                        if el not in self.__path: self.__path.append(el)
+                                        if el not in self.__path:
+                                            self.__path.append(el)
                     else:
-                        raise 'Turbine object has no attribute shafts!'
+                        raise "Turbine object has no attribute shafts!"
                     self.__path.append(node)  # добавить турбину в путь обхода расчета
                 else:  # иначе если узел не турбина и данного узла нет в пути обхода расчета
-                    if node not in self.__path: self.__path.append(node)
+                    if node not in self.__path:
+                        self.__path.append(node)
 
-        for i, node in enumerate(self.__path): node.name = i
+        for i, node in enumerate(self.__path):
+            node.name = i
         self.output_scheme(numerate=True)
-        print(f'\n{Fore.CYAN}Путь обхода расчета ГТД:',
-              list(f'{node.name}: ' + type(node).__name__ for node in self.__path))
+        print(
+            f"\n{Fore.CYAN}Путь обхода расчета ГТД:",
+            list(f"{node.name}: " + type(node).__name__ for node in self.__path),
+        )
 
     def input_scheme(self) -> None:
         """Ввод схемы ГТД"""
         while True:
-            print(f'\n{Fore.YELLOW}INPUT GTE SCHEME')
+            print(f"\n{Fore.YELLOW}INPUT GTE SCHEME")
             self.scheme = self.scheme if self.scheme else {1: []}
             while True:
                 print()
                 self.output_scheme(numerate=True)  # вывод схемы
                 action = self.input_action()  # ввод действия
-                if action in ('a', 'add'):
+                if action in ("a", "add"):
                     node = self.input_node()
-                    if node in ('CONTOUR', 'КОНТУР'):
+                    if node in ("CONTOUR", "КОНТУР"):
                         self.scheme[max(self.scheme.keys()) + 1] = []
-                    elif type(node) in (Inlet, Compressor, CombustionChamber, Turbine, Nozzle, Outlet, HeatExchanger):
+                    elif type(node) in (
+                        Inlet,
+                        Compressor,
+                        CombustionChamber,
+                        Turbine,
+                        Nozzle,
+                        Outlet,
+                        HeatExchanger,
+                    ):
                         contour = self.input_contour()
                         place = 0
                         if self.scheme[contour]:
                             while True:  # ввод положения в контуре
-                                place = input('Input the place in scheme GTE from 1 to ' +
-                                              str(len(self.scheme[contour]) + 1) + ': ')
-                                if isnum(place, type_num='int') and 1 <= int(place) <= len(self.scheme[contour]) + 1:
+                                place = input(
+                                    "Input the place in scheme GTE from 1 to "
+                                    + str(len(self.scheme[contour]) + 1)
+                                    + ": "
+                                )
+                                if (
+                                    isnum(place, type_num="int")
+                                    and 1 <= int(place) <= len(self.scheme[contour]) + 1
+                                ):
                                     place = int(place)
                                     break
                                 else:
-                                    print(Fore.RED +
-                                          'place is int num in [1..{}]!'.format(len(self.scheme[contour]) + 1))
+                                    print(
+                                        Fore.RED
+                                        + "place is int num in [1..{}]!".format(
+                                            len(self.scheme[contour]) + 1
+                                        )
+                                    )
                         if place == 0 or place == len(self.scheme[contour]) + 1:
                             self.scheme[contour].insert(place - 1, node)
                         else:
@@ -348,61 +438,84 @@ class GTE:
                         place = 0
                         if self.loads:
                             while True:
-                                place = input('Input the place in GTE loads from 1 to ' +
-                                              str(len(self.loads) + 1) + ': ')
-                                if isnum(place, type_num='int') and 1 <= int(place) <= len(self.loads) + 1:
+                                place = input(
+                                    "Input the place in GTE loads from 1 to "
+                                    + str(len(self.loads) + 1)
+                                    + ": "
+                                )
+                                if (
+                                    isnum(place, type_num="int")
+                                    and 1 <= int(place) <= len(self.loads) + 1
+                                ):
                                     place = int(place)
                                     break
                                 else:
-                                    print(Fore.RED + 'place is int num in [1..{}]!'.format(len(self.loads) + 1))
+                                    print(
+                                        Fore.RED
+                                        + "place is int num in [1..{}]!".format(
+                                            len(self.loads) + 1
+                                        )
+                                    )
                         if place == 0 or place == len(self.loads) + 1:
                             self.loads.insert(place - 1, node)
                         else:
                             self.loads[place - 1] = node
-                elif action in ('d', 'del', 'delete'):
+                elif action in ("d", "del", "delete"):
                     if self.count_items() == 0:
-                        print(f'{Fore.RED}No place to delete!')
+                        print(f"{Fore.RED}No place to delete!")
                         continue
                     node = self.input_node()
-                    if node in ('CONTOUR', 'КОНТУР'):
+                    if node in ("CONTOUR", "КОНТУР"):
                         contour = self.input_contour()
                         try:
                             del self.scheme[contour]
                         except:
-                            print(Fore.RED + 'No contour to delete!')
+                            print(Fore.RED + "No contour to delete!")
                     else:
                         pos = self.count_items()
                         if pos > 1:
                             self.output_scheme(numerate=True)  # вывод схемы
                             while True:
-                                pos = input('Input item position from [1..{}]: '.format(self.count_items()))
+                                pos = input(
+                                    "Input item position from [1..{}]: ".format(
+                                        self.count_items()
+                                    )
+                                )
                                 if isnum(pos) and 1 <= int(pos) <= self.count_items():
                                     pos = int(pos)
                                     break
                                 else:
-                                    print(Fore.RED + 'Position is int num in [1..{}]!'.format(self.count_items()))
+                                    print(
+                                        Fore.RED
+                                        + "Position is int num in [1..{}]!".format(
+                                            self.count_items()
+                                        )
+                                    )
                         i = 0
                         for c in self.scheme:
                             for _, n in enumerate(self.scheme[c]):
                                 i += 1
-                                if i == pos: self.scheme[c].pop(_)
+                                if i == pos:
+                                    self.scheme[c].pop(_)
                         for _, n in enumerate(self.loads):
                             i += 1
-                            if i == pos: self.loads.pop(_)
-                elif action in ('e', 'end'):
+                            if i == pos:
+                                self.loads.pop(_)
+                elif action in ("e", "end"):
                     break
 
             self.input_shafts()  # ввод валов (связей)
 
-            if self.validate_scheme: break
+            if self.validate_scheme:
+                break
 
     def input_mixing_nodes(self) -> None:
         """Ввод узлов смешения"""
-        print(Fore.YELLOW + '\nINPUT MIXING NODES')
+        print(Fore.YELLOW + "\nINPUT MIXING NODES")
 
     def input_shafts(self) -> None:
         """Ввод валов (связей)"""
-        print(Fore.YELLOW + '\nINPUT GTE SHAFTS')
+        print(Fore.YELLOW + "\nINPUT GTE SHAFTS")
 
         d = []
 
@@ -413,24 +526,31 @@ class GTE:
                     while True:
                         print()
                         self.output_scheme(numerate=True)
-                        print(f'Contour {to_roman(contour)} Turbine position {i_node + 1}')
+                        print(
+                            f"Contour {to_roman(contour)} Turbine position {i_node + 1}"
+                        )
 
                         while True:
-                            pos = input(f'Input item position from [1..{len(self)}]: ')
+                            pos = input(f"Input item position from [1..{len(self)}]: ")
                             if isnum(pos) and 1 <= int(pos) <= len(self):
                                 pos = int(pos)
                                 break
                             else:
-                                print(Fore.RED + f'Position is int num in [1..{len(self)}]!')
+                                print(
+                                    Fore.RED
+                                    + f"Position is int num in [1..{len(self)}]!"
+                                )
 
                         i = 0
                         for c in self.scheme:
                             for n in self.scheme[c]:
                                 i += 1
-                                if i == pos: item = n
+                                if i == pos:
+                                    item = n
                         for n in self.loads:
                             i += 1
-                            if i == pos: item = n
+                            if i == pos:
+                                item = n
 
                         if item not in d:
                             s = s if s else []
@@ -445,10 +565,10 @@ class GTE:
                                 s.append(item)
                                 d.append(item)
                             else:
-                                print(Fore.RED + 'Such item with Turbine!')
+                                print(Fore.RED + "Such item with Turbine!")
                                 continue
                         else:
-                            print(Fore.RED + 'Such node already!')
+                            print(Fore.RED + "Such node already!")
                             continue
 
                         node.shafts.append(s)
@@ -465,10 +585,15 @@ class GTE:
             else:
                 correct_input = False
                 while not correct_input:
-                    m_list = [m for m in input('contour ' + to_roman(contour) + ': m = ').split()]
+                    m_list = [
+                        m
+                        for m in input(
+                            "contour " + to_roman(contour) + ": m = "
+                        ).split()
+                    ]
                     for m in m_list:
                         if not isnum(m) or float(m) < 0:
-                            print(Fore.RED + 'm must be a number >= 0!')
+                            print(Fore.RED + "m must be a number >= 0!")
                             correct_input = False
                             break
                         correct_input = True
@@ -478,12 +603,12 @@ class GTE:
         """Вывод схемы ГТД"""
         i = 0
         for contour in self.scheme:
-            print(Fore.MAGENTA + 'contour ' + to_roman(contour), ':', sep='', end=' ')
+            print(Fore.MAGENTA + "contour " + to_roman(contour), ":", sep="", end=" ")
             if numerate is True:
                 temp_list = []
                 for node in self.scheme[contour]:
                     i += 1
-                    temp_list.append('{}: '.format(i) + type(node).__name__)
+                    temp_list.append("{}: ".format(i) + type(node).__name__)
             else:
                 temp_list = list(type(node).__name__ for node in self.scheme[contour])
             print(temp_list)
@@ -491,41 +616,41 @@ class GTE:
             temp_list = []
             for node in self.loads:
                 i += 1
-                temp_list.append('{}: '.format(i) + type(node).__name__)
+                temp_list.append("{}: ".format(i) + type(node).__name__)
         else:
             temp_list = list(type(node).__name__ for node in self.loads)
-        print(Fore.MAGENTA + 'loads and gears:', temp_list)
+        print(Fore.MAGENTA + "loads and gears:", temp_list)
 
     def input_GTE_parameters(self) -> None:
         """Ввод параметров ГТД"""
         correct_input = False
         while not correct_input:
-            self.oxidizer_var = [ox.upper() for ox in input('oxidizer: ').split()]
+            self.oxidizer_var = [ox.upper() for ox in input("oxidizer: ").split()]
             for oxidizer in self.oxidizer_var:
                 if oxidizer not in OXIDIZERS:
-                    print(Fore.RED + 'No such oxidizer: ' + oxidizer)
-                    print('Possible options:', OXIDIZERS)
+                    print(Fore.RED + "No such oxidizer: " + oxidizer)
+                    print("Possible options:", OXIDIZERS)
                     correct_input = False
                     break
                 correct_input = True
 
         correct_input = False
         while not correct_input:
-            self.fuel_var = [fuel.upper() for fuel in input('fuel: ').split()]
+            self.fuel_var = [fuel.upper() for fuel in input("fuel: ").split()]
             for fuel in self.fuel_var:
                 if fuel not in FUELS:
-                    print(Fore.RED + 'No such fuel: ' + fuel)
-                    print('Possible options:', FUELS)
+                    print(Fore.RED + "No such fuel: " + fuel)
+                    print("Possible options:", FUELS)
                     correct_input = False
                     break
                 correct_input = True
 
         correct_input = False
         while not correct_input:
-            self.H_var = [H for H in input('H [м] = ').split()]
+            self.H_var = [H for H in input("H [м] = ").split()]
             for H in self.H_var:
                 if not isnum(H):
-                    print(Fore.RED + 'H must be a number!')
+                    print(Fore.RED + "H must be a number!")
                     correct_input = False
                     break
                 correct_input = True
@@ -534,12 +659,12 @@ class GTE:
         while not self.M_var and not self.v_var:
             correct_input = False
             while not correct_input:
-                self.M_var = [M.lower() for M in input('M [] = ').split()]
+                self.M_var = [M.lower() for M in input("M [] = ").split()]
                 if not self.M_var:
                     break
                 for M in self.M_var:
                     if not isnum(M) or float(M) < 0:
-                        print(Fore.RED + 'M must me a number >= 0 or empty string!')
+                        print(Fore.RED + "M must me a number >= 0 or empty string!")
                         correct_input = False
                         break
                     correct_input = True
@@ -548,12 +673,12 @@ class GTE:
             if not self.M_var:
                 correct_input = False
                 while not correct_input:
-                    self.v_var = [v.lower() for v in input('v [м/с] = ').split()]
+                    self.v_var = [v.lower() for v in input("v [м/с] = ").split()]
                     if not self.v_var:
                         break
                     for v in self.v_var:
                         if not isnum(v) or float(v) < 0:
-                            print(Fore.RED + 'v must be a number >= 0 or empty string!')
+                            print(Fore.RED + "v must be a number >= 0 or empty string!")
                             correct_input = False
                             break
                         correct_input = True
@@ -561,10 +686,10 @@ class GTE:
 
         correct_input = False
         while not correct_input:
-            self.R_var = [R for R in input('R [Н] = ').split()]
+            self.R_var = [R for R in input("R [Н] = ").split()]
             for R in self.R_var:
                 if not isnum(R) or float(R) < 0:
-                    print(Fore.RED + 'R must be a number >= 0!')
+                    print(Fore.RED + "R must be a number >= 0!")
                     correct_input = False
                     break
                 correct_input = True
@@ -572,10 +697,10 @@ class GTE:
 
         correct_input = False
         while not correct_input:
-            self.resource_var = [res for res in input('resource [ч] = ').split()]
+            self.resource_var = [res for res in input("resource [ч] = ").split()]
             for res in self.resource_var:
                 if not isnum(res) or float(res) < 0:
-                    print(Fore.RED + 'resource is num > 0!')
+                    print(Fore.RED + "resource is num > 0!")
                     correct_input = False
                     break
                 correct_input = True
@@ -584,9 +709,16 @@ class GTE:
     def input_node_parameters(self) -> None:
         """Ввод параметров узлов ГТД"""
         for contour in self.scheme:
-            print('Parameters of nodes of ' + Fore.MAGENTA + 'contour ' + to_roman(contour), ':', sep='')
+            print(
+                "Parameters of nodes of "
+                + Fore.MAGENTA
+                + "contour "
+                + to_roman(contour),
+                ":",
+                sep="",
+            )
             for node in self.scheme[contour]:
-                print('Parameters of ' + Fore.YELLOW + type(node).__name__, ':', sep='')
+                print("Parameters of " + Fore.YELLOW + type(node).__name__, ":", sep="")
                 node.input_parameters()
 
     def get_mass_flow(self) -> None:
@@ -601,7 +733,10 @@ class GTE:
                     for tp, els in shaft.items():
                         for el in els:
                             if type(el) is Compressor:
-                                Lc += el.L * self.m[find_node_in_scheme(self.scheme, el)[0]]
+                                Lc += (
+                                    el.L
+                                    * self.m[find_node_in_scheme(self.scheme, el)[0]]
+                                )
                             else:
                                 if type(el) is Gear:
                                     η *= el.η
@@ -619,9 +754,10 @@ class GTE:
             if self.G[1] < G1:
                 self.G[1] = (self.R / self.R_) / sum(self.m.values())
             else:
-                self.warnings[3] = {'Не достигнута заданная тяга!'}
+                self.warnings[3] = {"Не достигнута заданная тяга!"}
 
-        for contour in self.scheme: self.G[contour] = self.G[1] * self.m[contour]
+        for contour in self.scheme:
+            self.G[contour] = self.G[1] * self.m[contour]
 
         self.G_fuel = self.g_fuel * self.G[1]
 
@@ -641,37 +777,51 @@ class GTE:
             if type(node) is Load or type(node) is Propeller:
                 N_minus += node.N
         self.N = N_plus - N_minus
-        if eps('rel', N_plus, N_minus) <= error or isnan(eps('rel', N_plus, N_minus)):
+        if eps("rel", N_plus, N_minus) <= error or isnan(eps("rel", N_plus, N_minus)):
             return True
         else:
             return False
 
-    def __calculate(self, how='all', error: float = 0.01, Niter: int = 100, **kwargs):
+    def __calculate(self, how="all", error: float = 0.01, Niter: int = 100, **kwargs):
         for iteration in range(Niter):
             for i, node in enumerate(self.__path):
-                self.__path[i].solve(how=how, error=error, Niter=Niter,  # параметры расчета
-                                     scheme=self.scheme,  # схема ГТД
-                                     m=self.m,  # степень контурностей
-                                     # рабочее тело, окислитель, горючее, теплоноситель
-                                     substance=self.substance, fuel=self.fuel,
-                                     H=self.H, M=self.M, v=self.v,  # высотно-скоростные характеристики ГТД
-                                     resource=self.resource,  # ресурс ГТД
-                                     G=self.G[1])
-                if self.__path[i].warnings[3]: return
+                self.__path[i].solve(
+                    how=how,
+                    error=error,
+                    Niter=Niter,  # параметры расчета
+                    scheme=self.scheme,  # схема ГТД
+                    m=self.m,  # степень контурностей
+                    # рабочее тело, окислитель, горючее, теплоноситель
+                    substance=self.substance,
+                    fuel=self.fuel,
+                    H=self.H,
+                    M=self.M,
+                    v=self.v,  # высотно-скоростные характеристики ГТД
+                    resource=self.resource,  # ресурс ГТД
+                    G=self.G[1],
+                )
+                if self.__path[i].warnings[3]:
+                    return
 
             self.g_fuel = 0  # относительный массовый расход горючего []
             self.R_ = 0  # суммарная удельная тяга ГТД [м/с]
             for contour in self.scheme:
                 for node in self.scheme[contour]:
-                    if type(node) is CombustionChamber: self.g_fuel += node.g_fuel * self.m[contour]
-                    if hasattr(node, 'R_'): self.R_ += node.R_ * self.m[contour]
+                    if type(node) is CombustionChamber:
+                        self.g_fuel += node.g_fuel * self.m[contour]
+                    if hasattr(node, "R_"):
+                        self.R_ += node.R_ * self.m[contour]
             self.R_ = self.R_ / sum(self.m.values())
 
             self.get_mass_flow()
-            if self.check_power(): break
+            if self.check_power():
+                break
         else:
-            self.warnings[2].add('Нарушен баланс мощностей!')
-            print(Fore.RED + f'Iteration limit in module {GTE.__name__} in function {self.solve.__name__}!')
+            self.warnings[2].add("Нарушен баланс мощностей!")
+            print(
+                Fore.RED
+                + f"Iteration limit in module {GTE.__name__} in function {self.solve.__name__}!"
+            )
 
         self.G_fuel_N = self.G_fuel / self.N if self.N != 0 else inf
         self.G_fuel_R = self.G_fuel / self.R if self.R != 0 else inf
@@ -679,121 +829,230 @@ class GTE:
         # аэрокосмический научный журнал УДК 629.7.036.34 2016г
         # сопротивление газогенератора
         m = sum(self.m.values()) - 1
-        Cx_1 = 2.0005 * 10 ** (-2) * (m - 1) ** 0 \
-               - 0.1879 * 10 ** (-3) * (m - 1) ** 1 \
-               + 2.8571 * 10 ** (-5) * (m - 1) ** 2 \
-               - 3.4667 * 10 ** (-7) * (m - 1) ** 3
+        Cx_1 = (
+            2.0005 * 10 ** (-2) * (m - 1) ** 0
+            - 0.1879 * 10 ** (-3) * (m - 1) ** 1
+            + 2.8571 * 10 ** (-5) * (m - 1) ** 2
+            - 3.4667 * 10 ** (-7) * (m - 1) ** 3
+        )
         # сопротивление обечайки ГТД
-        Cx_ = 3.5606 * 10 ** (-2) * (m - 1) ** 0 \
-              - 1.2744 * 10 ** (-3) * (m - 1) ** 1 \
-              + 3.3429 * 10 ** (-5) * (m - 1) ** 2 \
-              - 3.6667 * 10 ** (-7) * (m - 1) ** 3
+        Cx_ = (
+            3.5606 * 10 ** (-2) * (m - 1) ** 0
+            - 1.2744 * 10 ** (-3) * (m - 1) ** 1
+            + 3.3429 * 10 ** (-5) * (m - 1) ** 2
+            - 3.6667 * 10 ** (-7) * (m - 1) ** 3
+        )
         self.Cx = Cx_1 + Cx_  # коэффициент сопротивления мотогондолы
 
-        '''for contour in self.scheme:
+        """for contour in self.scheme:
             for node in self.scheme[contour]:
                 for priority in node.warnings:
                     self.warnings[priority] = self.warnings | node.warnings
-        for node in self.loads: self.warnings = self.warnings | node.warnings'''
+        for node in self.loads: self.warnings = self.warnings | node.warnings"""
 
-        '''for node in self.__path: print('{}: '.format(self.find_node_in_GTE(node)) + Fore.YELLOW + type(node).__name__,
+        """for node in self.__path: print('{}: '.format(self.find_node_in_GTE(node)) + Fore.YELLOW + type(node).__name__,
                                        ': ', node.__dict__, sep='')
-        print(Fore.YELLOW + GTE.__name__, ': ', self.__dict__, sep='')'''
+        print(Fore.YELLOW + GTE.__name__, ': ', self.__dict__, sep='')"""
 
-    def solve(self, how='all', error: float = 0.01, Niter: int = 100, **kwargs):
+    def solve(self, how="all", error: float = 0.01, Niter: int = 100, **kwargs):
         """Варьирование параметров ГТД"""
         data = list()
         for gte_var in self.gte_generator():
             gte_var.__calculate(how=how, error=error, Niter=Niter)
-            data.append({
-                # схема ГТД
-                **dict(zip(list(f'contour{to_roman(contour)}' for contour in gte_var.scheme),
-                           list('+'.join(list(type(node).__name__ + f'_{node.name}' for node in v))
-                                for v in gte_var.scheme.values()))),
-                # нагрузка ГТД
-                'loads': '+'.join(list(type(node).__name__ + f'_{node.name}'
-                                       for node in gte_var.loads)),
-                # степень контурности контуров
-                **dict(zip(list(f'm{to_roman(contour)} []' for contour in gte_var.scheme),
-                           list(gte_var.m.values()))),
-                # предупреждения
-                # 'warnings': '; '.join(gte_var.warnings),
-                'H [м]': gte_var.H, 'M []': gte_var.M, 'R [кН]': gte_var.R / 1000,
-                'resource [ч]': gte_var.resource / 3600,
-                'oxidizer': gte_var.substance, 'fuel': gte_var.fuel,
-                'R_ [м/с]': getattr(gte_var, 'R_', None),
-                'g fuel [%]': getattr(gte_var, 'g_fuel', nan) * 100,
-                **dict(zip(list(f'G{to_roman(contour)} [кг/с]' for contour in gte_var.scheme),
-                           list(gte_var.G.values()))),
-                'G fuel [г/с]': getattr(gte_var, 'G_fuel', nan) * 1000,
-                'G fuel/N [г/Вт/ч]': getattr(gte_var, 'G_fuel_N', nan) * 1000 * 3600,
-                'G fuel/R [г/Н/ч]': getattr(gte_var, 'G_fuel_R', nan) * 1000 * 3600,
-                'Cx []': getattr(self, 'Cx', None),
-                # узлы ГТД
-                **dict(zip(list(type(node).__name__ + f'_{node.name} ' + k
+            data.append(
+                {
+                    # схема ГТД
+                    **dict(
+                        zip(
+                            list(
+                                f"contour{to_roman(contour)}"
+                                for contour in gte_var.scheme
+                            ),
+                            list(
+                                "+".join(
+                                    list(
+                                        type(node).__name__ + f"_{node.name}"
+                                        for node in v
+                                    )
+                                )
+                                for v in gte_var.scheme.values()
+                            ),
+                        )
+                    ),
+                    # нагрузка ГТД
+                    "loads": "+".join(
+                        list(
+                            type(node).__name__ + f"_{node.name}"
+                            for node in gte_var.loads
+                        )
+                    ),
+                    # степень контурности контуров
+                    **dict(
+                        zip(
+                            list(
+                                f"m{to_roman(contour)} []" for contour in gte_var.scheme
+                            ),
+                            list(gte_var.m.values()),
+                        )
+                    ),
+                    # предупреждения
+                    # 'warnings': '; '.join(gte_var.warnings),
+                    "H [м]": gte_var.H,
+                    "M []": gte_var.M,
+                    "R [кН]": gte_var.R / 1000,
+                    "resource [ч]": gte_var.resource / 3600,
+                    "oxidizer": gte_var.substance,
+                    "fuel": gte_var.fuel,
+                    "R_ [м/с]": getattr(gte_var, "R_", None),
+                    "g fuel [%]": getattr(gte_var, "g_fuel", nan) * 100,
+                    **dict(
+                        zip(
+                            list(
+                                f"G{to_roman(contour)} [кг/с]"
+                                for contour in gte_var.scheme
+                            ),
+                            list(gte_var.G.values()),
+                        )
+                    ),
+                    "G fuel [г/с]": getattr(gte_var, "G_fuel", nan) * 1000,
+                    "G fuel/N [г/Вт/ч]": getattr(gte_var, "G_fuel_N", nan)
+                    * 1000
+                    * 3600,
+                    "G fuel/R [г/Н/ч]": getattr(gte_var, "G_fuel_R", nan) * 1000 * 3600,
+                    "Cx []": getattr(self, "Cx", None),
+                    # узлы ГТД
+                    **dict(
+                        zip(
+                            list(
+                                type(node).__name__ + f"_{node.name} " + k
                                 for contour in gte_var.scheme
                                 for node in gte_var.scheme[contour]
-                                for k, v in node.__dict__.items()),
-                           list(v
+                                for k, v in node.__dict__.items()
+                            ),
+                            list(
+                                v
                                 for contour in gte_var.scheme
                                 for node in gte_var.scheme[contour]
-                                for k, v in node.__dict__.items()))),
-                # нагрузка ГТД
-                **dict(zip(list(type(node).__name__ + f'_{node.name} ' + k
+                                for k, v in node.__dict__.items()
+                            ),
+                        )
+                    ),
+                    # нагрузка ГТД
+                    **dict(
+                        zip(
+                            list(
+                                type(node).__name__ + f"_{node.name} " + k
                                 for node in gte_var.loads
-                                for k, v in node.__dict__.items()),
-                           list(v
+                                for k, v in node.__dict__.items()
+                            ),
+                            list(
+                                v
                                 for node in gte_var.loads
-                                for k, v in node.__dict__.items())))})
-        pd.set_option('display.max_row', None)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', None)
+                                for k, v in node.__dict__.items()
+                            ),
+                        )
+                    ),
+                }
+            )
+        pd.set_option("display.max_row", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.width", None)
         # tqdm.pandas(desc="Converting to DataFrame")
         df = pd.DataFrame(data)  # .progress_apply(lambda x: x)
         # print(df, end='\n')
-        print(df.info(memory_usage='deep'))
-        export2(df, file_path='exports/' + self.name, file_name=self.name,
-                file_extension=kwargs.get('file_type', 'pkl'), sheet_name='Cycle',
-                show_time=True)
+        print(df.info(memory_usage="deep"))
+        export2(
+            df,
+            file_path="exports/" + self.name,
+            file_name=self.name,
+            file_extension=kwargs.get("file_type", "pkl"),
+            sheet_name="Cycle",
+            show_time=True,
+        )
         # print(f'{Fore.YELLOW}Elapsed memory: {round(getsizeof(df) / 1024 / 1024, 3)} Mb')
 
     def export_gte_main(self) -> None:
         data = {  # схема ГТД
-            **dict(zip(list(f'contour{to_roman(contour)}' for contour in self.scheme),
-                       list('+'.join(list(type(node).__name__ + f'_{node.name}' for node in v))
-                            for v in self.scheme.values()))),
+            **dict(
+                zip(
+                    list(f"contour{to_roman(contour)}" for contour in self.scheme),
+                    list(
+                        "+".join(
+                            list(type(node).__name__ + f"_{node.name}" for node in v)
+                        )
+                        for v in self.scheme.values()
+                    ),
+                )
+            ),
             # нагрузка ГТД
-            'loads': '+'.join(list(type(node).__name__ + f'_{node.name}' for node in self.loads)),
+            "loads": "+".join(
+                list(type(node).__name__ + f"_{node.name}" for node in self.loads)
+            ),
             # степень контурности контуров
-            **{f'm{to_roman(key)} []': [[dct[key] for dct in self.m]] for key in self.m[0]},
-            'H [м]': [self.H], 'M []': [self.M], 'R [кН]': [[R / 1000 for R in self.R]],
-            'resource [ч]': [[resource / 3600 for resource in self.resource]],
-            'oxidizer': [self.substance], 'fuel': [self.fuel],
-            **dict(zip(list(type(node).__name__ + f'_{node.name} ' + k
-                            for contour in self.scheme
-                            for node in self.scheme[contour]
-                            for k, v in node.__dict__.items() if type(v) is list),
-                       list(str(v)
-                            for contour in self.scheme
-                            for node in self.scheme[contour]
-                            for k, v in node.__dict__.items() if type(v) is list))),
-            **dict(zip(list(type(node).__name__ + f'_{node.name} ' + k
-                            for node in self.loads
-                            for k, v in node.__dict__.items() if type(v) is list),
-                       list(str(v)
-                            for node in self.loads
-                            for k, v in node.__dict__.items() if type(v) is list)))}
-        pd.set_option('display.max_row', None)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', None)
+            **{
+                f"m{to_roman(key)} []": [[dct[key] for dct in self.m]]
+                for key in self.m[0]
+            },
+            "H [м]": [self.H],
+            "M []": [self.M],
+            "R [кН]": [[R / 1000 for R in self.R]],
+            "resource [ч]": [[resource / 3600 for resource in self.resource]],
+            "oxidizer": [self.substance],
+            "fuel": [self.fuel],
+            **dict(
+                zip(
+                    list(
+                        type(node).__name__ + f"_{node.name} " + k
+                        for contour in self.scheme
+                        for node in self.scheme[contour]
+                        for k, v in node.__dict__.items()
+                        if type(v) is list
+                    ),
+                    list(
+                        str(v)
+                        for contour in self.scheme
+                        for node in self.scheme[contour]
+                        for k, v in node.__dict__.items()
+                        if type(v) is list
+                    ),
+                )
+            ),
+            **dict(
+                zip(
+                    list(
+                        type(node).__name__ + f"_{node.name} " + k
+                        for node in self.loads
+                        for k, v in node.__dict__.items()
+                        if type(v) is list
+                    ),
+                    list(
+                        str(v)
+                        for node in self.loads
+                        for k, v in node.__dict__.items()
+                        if type(v) is list
+                    ),
+                )
+            ),
+        }
+        pd.set_option("display.max_row", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.width", None)
         df = pd.DataFrame(data)
-        print(df.T, end='\n')
-        export2(df, file_path='exports/' + self.name, file_name=self.name + ' input', file_extension='xlsx',
-                sheet_name='input', show_time=True, index=False)
+        print(df.T, end="\n")
+        export2(
+            df,
+            file_path="exports/" + self.name,
+            file_name=self.name + " input",
+            file_extension="xlsx",
+            sheet_name="input",
+            show_time=True,
+            index=False,
+        )
 
 
 class GTE_inputs(GTE):
     """Ручной ввод параметров ГТД"""
+
     pass
 
 
@@ -801,40 +1060,48 @@ class GTE_inputs(GTE):
 def input_language():
     """Ввод языка"""
     while True:
-        lang = input('Input language (en, ru): ').strip().lower()
-        if lang in ('en', 'eng', 'english'):
-            lang = 'en'
+        lang = input("Input language (en, ru): ").strip().lower()
+        if lang in ("en", "eng", "english"):
+            lang = "en"
             return lang
-        elif lang in ('ru', 'rus', 'russian'):
-            lang = 'ru'
+        elif lang in ("ru", "rus", "russian"):
+            lang = "ru"
             return lang
         else:
-            print(Fore.RED + 'No such language!')
+            print(Fore.RED + "No such language!")
 
 
 if __name__ == "__main__":
-
-    how = 'cycle'
+    how = "cycle"
     error = 0.01
     Niter = 8
 
-    gte = GTE('АД')
+    gte = GTE("АД")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor('a'), Compressor('a'), CombustionChamber(), Turbine('a'), Turbine('a')],
-                      2: [Inlet(), Compressor('a'), MixingChamber(), Nozzle()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+            ],
+            2: [Inlet(), Compressor("a"), MixingChamber(), Nozzle()],
+        }
         gte.loads = []
 
         gte.m = [{1: 1, 2: 1.2}]
-        '''[{1: 1, 2: 0.6}, {1: 1, 2: 0.7}, {1: 1, 2: 0.8}, {1: 1, 2: 0.9}, {1: 1, 2: 1.0},
-                 {1: 1, 2: 1.1}, {1: 1, 2: 1.2}, {1: 1, 2: 1.3}, {1: 1, 2: 1.4}, {1: 1, 2: 1.5}]'''
+        """[{1: 1, 2: 0.6}, {1: 1, 2: 0.7}, {1: 1, 2: 0.8}, {1: 1, 2: 0.9}, {1: 1, 2: 1.0},
+                 {1: 1, 2: 1.1}, {1: 1, 2: 1.2}, {1: 1, 2: 1.3}, {1: 1, 2: 1.4}, {1: 1, 2: 1.5}]"""
 
         gte.H = [0]  # list(linspace(-2_000, 11_000, 13 + 1))
         gte.M = [0]  # list(linspace(0, 0.8, 8 + 1))
         gte.R = [40_000]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [3_000 * 3600]
 
         gte.scheme[1][0].σ = [0.95]
@@ -855,13 +1122,13 @@ if __name__ == "__main__":
         gte.scheme[1][3].T_lim = [1200]
         gte.scheme[1][3].g_leak = [0]
 
-        gte.scheme[1][4]._shafts = [{'-': [gte.scheme[1][2]]}]
+        gte.scheme[1][4]._shafts = [{"-": [gte.scheme[1][2]]}]
         gte.scheme[1][4].ηη = [0.92]
         gte.scheme[1][4].η_mechanical = [0.99]
         gte.scheme[1][4].T_lim = [1200]
         gte.scheme[1][4].g_leak = [0.05]
 
-        gte.scheme[1][5]._shafts = [{'-': [gte.scheme[1][1], gte.scheme[2][1]]}]
+        gte.scheme[1][5]._shafts = [{"-": [gte.scheme[1][1], gte.scheme[2][1]]}]
         gte.scheme[1][5].ηη = [0.92]
         gte.scheme[1][5].η_mechanical = [0.99]
         gte.scheme[1][5].T_lim = [1200]
@@ -884,12 +1151,14 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('Jumo 004b')
+    gte = GTE("Jumo 004b")
     if 1:
-        print(f'{Fore.CYAN}{gte}')
-        gte.scheme = {1: [Inlet(), Compressor('a'), CombustionChamber(), Turbine('a'), Nozzle()]}
+        print(f"{Fore.CYAN}{gte}")
+        gte.scheme = {
+            1: [Inlet(), Compressor("a"), CombustionChamber(), Turbine("a"), Nozzle()]
+        }
         gte.loads = []
 
         gte.m = [{1: 1}]
@@ -899,8 +1168,8 @@ if __name__ == "__main__":
         gte.R = [10_000]
         gte.resource = [150 * 3600]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
 
         gte.scheme[1][0].σ = [0.98]
         gte.scheme[1][0].g_leak = [0.005]
@@ -916,7 +1185,7 @@ if __name__ == "__main__":
         gte.scheme[1][2].σ = [0.94]
         gte.scheme[1][2].g_leak = [0]
 
-        gte.scheme[1][3]._shafts = [{'-': [gte.scheme[1][1]]}]
+        gte.scheme[1][3]._shafts = [{"-": [gte.scheme[1][1]]}]
         gte.scheme[1][3].ηη = [0.92]
         gte.scheme[1][3].η_mechanical = [0.99]
         gte.scheme[1][3].T_lim = [1000]
@@ -929,15 +1198,24 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how=how, error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('ТВ3-117')
+    gte = GTE("ТВ3-117")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor('a'), CombustionChamber(), Turbine('a'), Turbine('a'), Nozzle()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+                Nozzle(),
+            ]
+        }
         gte.loads = [Gear(), Propeller()]
         gte.loads[0].η = [0.92]
-        gte.loads[1].N = [2.2 * 10 ** 6]
+        gte.loads[1].N = [2.2 * 10**6]
 
         gte.m = [{1: 1}]
 
@@ -946,8 +1224,8 @@ if __name__ == "__main__":
         gte.R = [0]
         gte.resource = [3000 * 3600]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
 
         gte.scheme[1][0].σ = [0.98]
         gte.scheme[1][0].g_leak = [0.005]
@@ -963,14 +1241,14 @@ if __name__ == "__main__":
         gte.scheme[1][2].T_lim = [1000]
         gte.scheme[1][2].g_leak = [0]
 
-        gte.scheme[1][3]._shafts = [{'-': [gte.scheme[1][1]]}]
+        gte.scheme[1][3]._shafts = [{"-": [gte.scheme[1][1]]}]
         gte.scheme[1][3].ηη = [0.92]
         gte.scheme[1][3].η_mechanical = [0.99]
         gte.scheme[1][3].T_lim = [1200]
         gte.scheme[1][3].g_leak = [0.05]
 
         gte.scheme[1][4].shafts = [[gte.loads[0], gte.loads[1]]]
-        gte.scheme[1][4].PP3 = [10 ** 5]
+        gte.scheme[1][4].PP3 = [10**5]
         gte.scheme[1][4].ηη = [0.92]
         gte.scheme[1][4].η_mechanical = [0.99]
         gte.scheme[1][4].T_lim = [1200]
@@ -981,16 +1259,26 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how=how, error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('ТВ7-117')
+    gte = GTE("ТВ7-117")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor('a'), Compressor('r'), CombustionChamber(),
-                          Turbine('a'), Turbine('a'), Turbine('a'), Outlet()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("r"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+                Turbine("a"),
+                Outlet(),
+            ]
+        }
         gte.loads = [Gear(), Propeller()]
         gte.loads[0].η = [0.92]
-        gte.loads[1].N = [2.2 * 10 ** 6]
+        gte.loads[1].N = [2.2 * 10**6]
 
         gte.m = [{1: 1}]
 
@@ -999,8 +1287,8 @@ if __name__ == "__main__":
         gte.R = [0]
         gte.resource = [3000 * 3600]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
 
         gte.scheme[1][0].σ = [0.98]
         gte.scheme[1][0].g_leak = [0.005]
@@ -1033,7 +1321,7 @@ if __name__ == "__main__":
         gte.scheme[1][5].g_leak = [0.05]
 
         gte.scheme[1][6].shafts = [[gte.loads[0], gte.loads[1]]]
-        gte.scheme[1][6].PP3 = [10 ** 5]
+        gte.scheme[1][6].PP3 = [10**5]
         gte.scheme[1][6].ηη = [0.92]
         gte.scheme[1][6].η_mechanical = [0.99]
         gte.scheme[1][6].T_lim = [1200]
@@ -1044,24 +1332,39 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how=how, error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how=how, error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('ПС-90А')
+    gte = GTE("ПС-90А")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
+        print(f"{Fore.CYAN}{gte.name}")
         gte.scheme = {
-            1: [Inlet(), Compressor('a'), Compressor('a'), CombustionChamber(), Turbine('a'), Turbine('a'), Nozzle()],
-            2: [Inlet(), Compressor('a'), Nozzle()]}
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+                Nozzle(),
+            ],
+            2: [Inlet(), Compressor("a"), Nozzle()],
+        }
         gte.loads = []
 
-        gte.m = [{1: 1, 2: 3}, {1: 1, 2: 3.5}, {1: 1, 2: 4}, {1: 1, 2: 4.5}, {1: 1, 2: 5}]
+        gte.m = [
+            {1: 1, 2: 3},
+            {1: 1, 2: 3.5},
+            {1: 1, 2: 4},
+            {1: 1, 2: 4.5},
+            {1: 1, 2: 5},
+        ]
 
         gte.H = [0, 11000]
         gte.M = [0, 0.8]
         gte.R = [10_000, 120_000]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [5000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1088,7 +1391,7 @@ if __name__ == "__main__":
         gte.scheme[1][4].T_lim = [1200]
         gte.scheme[1][4].g_leak = [0.05]
 
-        gte.scheme[1][5].shafts = [{'-': [gte.scheme[1][1], gte.scheme[2][1]]}]
+        gte.scheme[1][5].shafts = [{"-": [gte.scheme[1][1], gte.scheme[2][1]]}]
         gte.scheme[1][5].ηη = [0.92]
         gte.scheme[1][5].η_mechanical = [0.99]
         gte.scheme[1][5].T_lim = [1000]
@@ -1113,14 +1416,23 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('CFM-56')
+    gte = GTE("CFM-56")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
+        print(f"{Fore.CYAN}{gte.name}")
         gte.scheme = {
-            1: [Inlet(), Compressor('a'), Compressor('a'), CombustionChamber(), Turbine('a'), Turbine('a'), Nozzle()],
-            2: [Inlet(), Compressor('a'), Nozzle()]}
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+                Nozzle(),
+            ],
+            2: [Inlet(), Compressor("a"), Nozzle()],
+        }
         gte.loads = []
 
         gte.m = [{1: 1, 2: 4}, {1: 1, 2: 5}, {1: 1, 2: 6}, {1: 1, 2: 7}, {1: 1, 2: 8}]
@@ -1129,8 +1441,8 @@ if __name__ == "__main__":
         gte.M = [0.8]
         gte.R = [80_000]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [5000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1182,20 +1494,36 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('RR Trent')
+    gte = GTE("RR Trent")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(),
-                          Compressor('a'), Compressor('a'), Compressor('a'),
-                          CombustionChamber(),
-                          Turbine('a'), Turbine('a'), Turbine('a'),
-                          Nozzle()],
-                      2: [Inlet(), Compressor('a'), Nozzle()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("a"),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+                Turbine("a"),
+                Nozzle(),
+            ],
+            2: [Inlet(), Compressor("a"), Nozzle()],
+        }
         gte.loads = [Gear()]
 
-        gte.m = [{1: 1, 2: 6}, {1: 1, 2: 7}, {1: 1, 2: 8}, {1: 1, 2: 9}, {1: 1, 2: 10}, {1: 1, 2: 11}, {1: 1, 2: 12}]
+        gte.m = [
+            {1: 1, 2: 6},
+            {1: 1, 2: 7},
+            {1: 1, 2: 8},
+            {1: 1, 2: 9},
+            {1: 1, 2: 10},
+            {1: 1, 2: 11},
+            {1: 1, 2: 12},
+        ]
 
         gte.loads[0].η = [0.92]
 
@@ -1203,8 +1531,8 @@ if __name__ == "__main__":
         gte.M = [0.8]
         gte.R = [160_000]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [5000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1241,7 +1569,10 @@ if __name__ == "__main__":
         gte.scheme[1][6].T_lim = [1200]
         gte.scheme[1][6].g_leak = [0.05]
 
-        gte.scheme[1][7].shafts = [[gte.loads[0], gte.scheme[1][1]], [gte.loads[0], gte.scheme[2][1]]]
+        gte.scheme[1][7].shafts = [
+            [gte.loads[0], gte.scheme[1][1]],
+            [gte.loads[0], gte.scheme[2][1]],
+        ]
         gte.scheme[1][7].ηη = [0.92]
         gte.scheme[1][7].η_mechanical = [0.99]
         gte.scheme[1][7].T_lim = [1000]
@@ -1266,29 +1597,40 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('АИ-222-25')
+    gte = GTE("АИ-222-25")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor('a'), Compressor('a'), CombustionChamber(), Turbine('a'), Turbine('a')],
-                      2: [Inlet(), Compressor('a'), MixingChamber(), Nozzle()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+            ],
+            2: [Inlet(), Compressor("a"), MixingChamber(), Nozzle()],
+        }
         gte.loads = []
 
-        gte.m = [{1: 1, 2: 0.8},
-                 {1: 1, 2: 0.9},
-                 {1: 1, 2: 1.0},
-                 {1: 1, 2: 1.1},
-                 {1: 1, 2: 1.2},
-                 {1: 1, 2: 1.3},
-                 {1: 1, 2: 1.4}]
+        gte.m = [
+            {1: 1, 2: 0.8},
+            {1: 1, 2: 0.9},
+            {1: 1, 2: 1.0},
+            {1: 1, 2: 1.1},
+            {1: 1, 2: 1.2},
+            {1: 1, 2: 1.3},
+            {1: 1, 2: 1.4},
+        ]
 
         gte.H = list(linspace(0, 6_000, 6 + 1))
         gte.M = list(linspace(0, 0.6, 6 + 1))
         gte.R = [25_000]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [3000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1338,32 +1680,50 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('АЛ-31Ф')
+    gte = GTE("АЛ-31Ф")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor('a'), Compressor('a'), CombustionChamber(), Turbine('a'), Turbine('a')],
-                      2: [Inlet(), Compressor('a'), HeatExchanger(), MixingChamber(), CombustionChamber(), Nozzle()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor("a"),
+                Compressor("a"),
+                CombustionChamber(),
+                Turbine("a"),
+                Turbine("a"),
+            ],
+            2: [
+                Inlet(),
+                Compressor("a"),
+                HeatExchanger(),
+                MixingChamber(),
+                CombustionChamber(),
+                Nozzle(),
+            ],
+        }
         gte.loads = []
 
-        gte.m = [{1: 1, 2: 0.2},
-                 {1: 1, 2: 0.4},
-                 {1: 1, 2: 0.6},
-                 {1: 1, 2: 0.8},
-                 {1: 1, 2: 1.0},
-                 {1: 1, 2: 1.2},
-                 {1: 1, 2: 1.4},
-                 {1: 1, 2: 1.6},
-                 {1: 1, 2: 1.8},
-                 {1: 1, 2: 2.0}]
+        gte.m = [
+            {1: 1, 2: 0.2},
+            {1: 1, 2: 0.4},
+            {1: 1, 2: 0.6},
+            {1: 1, 2: 0.8},
+            {1: 1, 2: 1.0},
+            {1: 1, 2: 1.2},
+            {1: 1, 2: 1.4},
+            {1: 1, 2: 1.6},
+            {1: 1, 2: 1.8},
+            {1: 1, 2: 2.0},
+        ]
 
         gte.H = list(linspace(-2_000, 14_000, 16 + 1))
         gte.M = list(linspace(0, 3, 30 + 1))
         gte.R = [12_000]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [3000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1413,16 +1773,18 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(error=error, Niter=Niter, file_type="xlsx")
 
-    gte = GTE('ГСУ')
+    gte = GTE("ГСУ")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]
+        }
         gte.loads = [Gear(), Load()]
 
         gte.loads[0].η = list(linspace(0.8, 1, 10 + 1))
-        gte.loads[1].N = list(linspace(100 * 10 ** 3, 500 * 10 ** 3, 4 + 1))
+        gte.loads[1].N = list(linspace(100 * 10**3, 500 * 10**3, 4 + 1))
 
         gte.m = [{1: 1}]
 
@@ -1430,8 +1792,8 @@ if __name__ == "__main__":
         gte.M = list(linspace(0, 0.6, 6 + 1))
         gte.R = [0]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [3000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1459,16 +1821,25 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='pkl')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="pkl")
 
-    gte = GTE('ГТД для БПЛА')
+    gte = GTE("ГТД для БПЛА")
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Turbine(), Outlet()]}
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor(),
+                CombustionChamber(),
+                Turbine(),
+                Turbine(),
+                Outlet(),
+            ]
+        }
         gte.loads = [Gear(), Propeller()]
 
         gte.loads[0].η = list(linspace(0.8, 1, 10 + 1))
-        gte.loads[1].N = list(linspace(100 * 10 ** 3, 500 * 10 ** 3, 4 + 1))
+        gte.loads[1].N = list(linspace(100 * 10**3, 500 * 10**3, 4 + 1))
 
         gte.m = [{1: 1}]
 
@@ -1476,8 +1847,8 @@ if __name__ == "__main__":
         gte.M = list(linspace(0, 0.6, 6 + 1))
         gte.R = [0]
 
-        gte.substance = ['AIR']
-        gte.fuel = ['KEROSENE']
+        gte.substance = ["AIR"]
+        gte.fuel = ["KEROSENE"]
         gte.resource = [3000 * 3600]
 
         gte.scheme[1][0].σ = [0.98]
@@ -1511,20 +1882,39 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(how='cycle', error=error, Niter=Niter, file_type='pkl')
+        gte.solve(how="cycle", error=error, Niter=Niter, file_type="pkl")
 
-    gte = GTE('GTE MONSTER')  # экземпляр ГТД
+    gte = GTE("GTE MONSTER")  # экземпляр ГТД
     if 0:
-        print(f'{Fore.CYAN}{gte.name}')
-        gte.scheme = {1: [Inlet(), Compressor(), Compressor(), Compressor(),
-                          CombustionChamber(),
-                          Turbine(), Turbine(), Turbine(), Nozzle()],
-                      2: [Inlet(), Compressor(), HeatExchanger(), Nozzle()],
-                      3: [Inlet(), Compressor(), HeatExchanger(), Nozzle()]}
-        gte.loads = [Gear(), Gear(), Load(),
-                     Gear(), Gear(), Load(),
-                     Gear(), Gear(), Load(),
-                     Gear(), Load()]
+        print(f"{Fore.CYAN}{gte.name}")
+        gte.scheme = {
+            1: [
+                Inlet(),
+                Compressor(),
+                Compressor(),
+                Compressor(),
+                CombustionChamber(),
+                Turbine(),
+                Turbine(),
+                Turbine(),
+                Nozzle(),
+            ],
+            2: [Inlet(), Compressor(), HeatExchanger(), Nozzle()],
+            3: [Inlet(), Compressor(), HeatExchanger(), Nozzle()],
+        }
+        gte.loads = [
+            Gear(),
+            Gear(),
+            Load(),
+            Gear(),
+            Gear(),
+            Load(),
+            Gear(),
+            Gear(),
+            Load(),
+            Gear(),
+            Load(),
+        ]
 
         gte.scheme[1][0].σ = [0.98]
         gte.scheme[1][0].g_leak = [0.005]
@@ -1548,28 +1938,34 @@ if __name__ == "__main__":
         gte.scheme[1][4].T_lim = [1000]
         gte.scheme[1][4].g_leak = [0]
 
-        gte.scheme[1][5].shafts = [{'-': [gte.scheme[1][3]], '0': [gte.loads[0]]},
-                                   {'-': [gte.loads[2]], '0': [gte.loads[1]]}]
+        gte.scheme[1][5].shafts = [
+            {"-": [gte.scheme[1][3]], "0": [gte.loads[0]]},
+            {"-": [gte.loads[2]], "0": [gte.loads[1]]},
+        ]
         gte.scheme[1][5].ηη = [0.9]
         gte.scheme[1][5].η_mechanical = [0.99]
         gte.scheme[1][5].T_lim = [1000]
         gte.scheme[1][5].g_leak = [0.05]
 
-        gte.scheme[1][6].shafts = [{'-': [gte.scheme[1][2]], '0': [gte.loads[3]]},
-                                   {'-': [gte.loads[5]], '0': [gte.loads[4]]}]
+        gte.scheme[1][6].shafts = [
+            {"-": [gte.scheme[1][2]], "0": [gte.loads[3]]},
+            {"-": [gte.loads[5]], "0": [gte.loads[4]]},
+        ]
         gte.scheme[1][6].ηη = [0.9]
         gte.scheme[1][6].η_mechanical = [0.99]
         gte.scheme[1][6].T_lim = [1000]
         gte.scheme[1][6].g_leak = [0.05]
 
-        gte.scheme[1][7].shafts = [{'-': [gte.scheme[1][1]], '0': [gte.loads[6]]},
-                                   {'-': [gte.loads[8]], '0': [gte.loads[7]]}]
+        gte.scheme[1][7].shafts = [
+            {"-": [gte.scheme[1][1]], "0": [gte.loads[6]]},
+            {"-": [gte.loads[8]], "0": [gte.loads[7]]},
+        ]
         gte.scheme[1][7].ηη = [0.9]
         gte.scheme[1][7].η_mechanical = [0.99]
         gte.scheme[1][7].T_lim = [1000]
         gte.scheme[1][7].g_leak = [0.05]
 
-        gte.scheme[1][8].shafts = [{'-': [gte.loads[10]], '0': [gte.loads[9]]}]
+        gte.scheme[1][8].shafts = [{"-": [gte.loads[10]], "0": [gte.loads[9]]}]
         gte.scheme[1][8].ηη = [0.9]
         gte.scheme[1][8].η_mechanical = [0.99]
         gte.scheme[1][8].T_lim = [1000]
@@ -1602,41 +1998,9 @@ if __name__ == "__main__":
 
         gte.validate_scheme()
         gte.export_gte_main()
-        gte.solve(error=error, Niter=Niter, file_type='xlsx')
+        gte.solve(error=error, Niter=Niter, file_type="xlsx")
 
     if False:
-        lang = input_language()
-
-        while True:
-            gte_name = input(f'{Fore.CYAN}GTE name: ').strip()
-            if not gte_name:
-                break
-            else:
-                print(f'{Fore.RED}')
-
-        while True:
-            how = input(f'{Fore.CYAN}Input "all" to solve ').strip()
-            if not how:
-                break
-            else:
-                print(f'{Fore.RED}')
-
-        while True:
-            error = input(f'{Fore.CYAN}error (%) = ').strip()
-            if isnum(error) and 0 < float(error):
-                error = float(error) / 100
-                break
-            else:
-                print(f'{Fore.RED}error is num > 0]!')
-
-        while True:
-            Niter = input(f'{Fore.CYAN}maximum number of iterations = ').strip()
-            if isnum(Niter, type_num='int') and 0 < float(Niter):
-                Niter = int(Niter)
-                break
-            else:
-                print(f'{Fore.RED}type(Niter) is int and 0 < Ndis!')
-
         GTE().version()  # версия программы
         gte = GTE(gte_name)  # экземпляр ГТД
 
@@ -1645,7 +2009,9 @@ if __name__ == "__main__":
         gte.input_GTE_parameters()  # ввод характеристик ГТД
         gte.input_node_parameters()  # ввод характеристик узлов
         gte.export_gte_main()
-        gte.variation(how=how, )
+        gte.variation(
+            how=how,
+        )
         # gte.draw_longitudinal_section_parameters()
         # gte.draw_cycle('T(S)')
         print("The End.")

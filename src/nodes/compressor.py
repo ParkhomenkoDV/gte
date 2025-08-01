@@ -7,8 +7,9 @@ from scipy import integrate
 from substance import Substance
 from thermodynamics import adiabatic_index, efficiency_polytropic
 
-from src.errors import ITERATION_LIMIT
-from src.parameters import parameters as gtep
+from src.config import EPSREL, NITER
+from src.config import parameters as gtep
+from src.errors import ITERATION_LIMIT_ERROR
 
 
 class Compressor(GTENode):
@@ -24,8 +25,8 @@ class Compressor(GTENode):
     def calculate(
         self,
         substance_inlet: Substance,
-        epsrel: float = 0.01,
-        niter: int = 10,
+        epsrel: float = EPSREL,
+        niter: int = NITER,
         **kwargs,
     ) -> Substance:
         GTENode.validate_substance(self, substance_inlet)
@@ -52,14 +53,14 @@ class Compressor(GTENode):
                 break
             self.outlet.parameters[gtep.k] = k_outlet
         else:
-            raise AssertionError(ITERATION_LIMIT.format(self.name))
+            raise AssertionError(ITERATION_LIMIT_ERROR.format(self.name))
 
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
             self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
         )
         self.outlet.parameters[gtep.mf] = (
-            1 - self.mass_flow_leak
-        ) * self.inlet.parameters[gtep.mf]
+            self.inlet.parameters[gtep.mf] - self.mass_flow_leak
+        )
 
         self.ηn = efficiency_polytropic("C", pipi=self.pipi, effeff=self.eff, k=k)
         self.power = (

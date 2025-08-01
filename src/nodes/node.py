@@ -1,36 +1,25 @@
-from math import nan, prod
-import numpy as np
+from abc import ABC, abstractmethod
+
+from numpy import array, nan, prod
+from substance import Substance
+
+from src.config import parameters as gtep
+from src.errors import SUBSTANCE_ATTRIBUTE_ERROR
 
 
-class Node:
-    """Базовый класс узла"""
+class GTENode(ABC):
+    """Абстрактный базовый класс узла ГТД"""
 
-    def __init__(self):
-        self.init()
+    def __init__(self, name: str = "node") -> None:
+        self.name: str = name
 
-    def init(self) -> None:
-        """Инициализация параметров"""
-        self.ox_inlet, self.ox_outlet = nan, nan
-        self.R_gas_inlet, self.R_gas_outlet = nan, nan
-        self.k_inlet, self.k_outlet = nan, nan
-        self.Cp_inlet, self.Cp_outlet = nan, nan
-        self.G_inlet, self.G_outlet = nan, nan
-        self.g_inlet, self.g_outlet = nan, nan
-        self.g_leak = nan
+        self.inlet = Substance("inlet")
+        self.outlet = Substance("outlet")
 
-        # полные параметры
-        self.TT_inlet, self.TT_outlet = nan, nan
-        self.PP_inlet, self.PP_outlet = nan, nan
-        self.RoRo_inlet, self.RoRo_outlet = nan, nan
+        self.mass_flow_leak = nan
 
-        # статические параметры
-        self.T_inlet, self.T_outlet = nan, nan
-        self.P_inlet, self.P_outlet = nan, nan
-        self.Ro_inlet, self.Ro_outlet = nan, nan
-        self.Mc_inlet, self.Mc_outlet = nan, nan
-        self.c_inlet, self.c_outlet = nan, nan
-
-        self.warnings = set()  # предупреждения
+    def __str__(self) -> str:
+        return self.name
 
     def get_variability(self) -> int:
         """Максимальное количество комбинаций варьируемых параметров"""
@@ -38,39 +27,68 @@ class Node:
             [
                 len(value)
                 for key, value in self.__dict__.items()
-                if isinstance(value, (list, tuple, np.array))
+                if isinstance(value, (list, tuple, array))
                 and len(value)
                 and not key.startswith("_")
             ]
         )
 
-    @property
-    def inlet_parameters(self) -> dict[str:float]:
-        return {k: v for k, v in self.__dict__.items() if k.endswith("inlet")}
-    
-    @property
-    def outlet_parameters(self) -> dict[str:float]:
-        return {k: v for k, v in self.__dict__.items() if k.endswith("outlet")}
+    def set_combination(self, combination: int, main_node) -> None:
+        """Установка комбинации"""
+        varible_params = [
+            key
+            for key, value in main_node.__dict__.items()
+            if type(value) is list and len(value) and not key.startswith("_")
+        ]
+        positions = [0] * len(varible_params)
 
-    '''def get_inlet_parameters(self) -> None:
-        """Расчет параметров перед"""
-        if scheme:
-            if hasattr(scheme[c][n - 1], 'a_ox3'): self.a_ox1 = scheme[c][n - 1].a_ox3
-            self.TT1 = scheme[c][n - 1].TT3
-            self.PP1 = scheme[c][n - 1].PP3
-            self.g1 = scheme[c][n - 1].g3
-        assert hasattr(self, 'TT1'), f'{type(self).__name__} object has no attribute TT1!'
-        assert hasattr(self, 'PP1'), f'{type(self).__name__} object has no attribute PP1!'
-        if not hasattr(self, 'g1'): self.g1 = 1
-        self.R_gas1 = R_gas(self.substance, a_ox=getattr(self, 'a_ox1', None), fuel=fuel)
-        self.ρρ1 = self.PP1 / (self.R_gas1 * self.TT1)
-        self.Cp1 = Cp(self.substance, T=self.TT1, P=self.PP1, a_ox=getattr(self, 'a_ox1', None), fuel=fuel)
-        self.k1 = self.Cp1 / (self.Cp1 - self.R_gas1)'''
+        for i in range(combination):
+            for j, param in enumerate(varible_params):
+                if positions[j] == len(getattr(main_node, varible_params[j])) - 1:
+                    positions[j] = 0
+                else:
+                    positions[j] += 1
+                    continue
+        for j, param in enumerate(varible_params):
+            setattr(
+                self,
+                varible_params[j],
+                getattr(main_node, varible_params[j])[positions[j]],
+            )
+
+    def validate_substance(self, substance: Substance) -> None:
+        """Проверка параметров рабочего тела на входе"""
+        assert isinstance(substance, Substance), TypeError(
+            "type substance must be Substance"
+        )
+        assert substance.parameters.get(gtep.TT), AttributeError(
+            SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT)
+        )
+        assert substance.parameters.get(gtep.PP), AttributeError(
+            SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP)
+        )
+        assert substance.parameters.get(gtep.mf), AttributeError(
+            SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf)
+        )
+
+    @abstractmethod
+    def calculate(self, Niter: int = 10) -> Substance:
+        """Расчет узла"""
+        # расчет входных параметров
+        # расчет параметров узла
+        # расчет выходных параметров
+        # вывод выходных параметров
+        pass
+
+    @property
+    def summary(self) -> dict:
+        return {
+            **{f"{self.name}_{k}": v for k, v in self.__dict__.items()},
+            **{f"{k}_inlet": v for k, v in self.inlet.parameters.items()},
+            **{f"{k}_outlet": v for k, v in self.outlet.parameters.items()},
+        }
 
 
 if __name__ == "__main__":
-    bn = Node()
-    print(bn.__dict__)
-    print(bn.inlet_parameters)
-    print(bn.outlet_parameters)
-
+    n = GTENode()
+    print(n.summary)
