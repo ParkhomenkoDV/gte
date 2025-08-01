@@ -1,193 +1,105 @@
-from thermodynamics import η_polytropic, Cp, R_gas
-from tools import isnum, eps
-from colorama import Fore
+from copy import deepcopy
 
-from node import Node
+from mathematics import eps
+from node import GTENode
+from numpy import nan
+from scipy import integrate
+from substance import Substance
+from thermodynamics import adiabatic_index, efficiency_polytropic
 
-
-def find_node_in_scheme(scheme, node2find) -> tuple:
-    """Поиск положения узла в схеме"""
-    for contour in scheme:
-        for i, node in enumerate(scheme[contour]):
-            if scheme[contour][i] is node2find:
-                return contour, i
+from src.errors import ITERATION_LIMIT
+from src.parameters import parameters as gtep
 
 
-class Compressor(Node):
+class Compressor(GTENode):
     """Компрессор"""
 
-    def __init__(self, compressor_type, name="Compressor"):
-        Node.init(self)
-        self.name = name
-        self.type = compressor_type  # тип компрессора
-        self.warnings = {0: set(), 1: set(), 2: set(), 3: set()}  # предупреждения
+    def __init__(self, name="Compressor"):
+        GTENode.__init__(self, name=name)
 
-    def __str__(self) -> str:
-        return self.name
+        self.pipi = nan
+        self.eff = nan
+        self.power = nan
 
-    def set_combination(self, combination, compressor_main) -> None:
-        """Установка комбинации"""
-        varible_params = [
-            key
-            for key, value in compressor_main.__dict__.items()
-            if type(value) is list and len(value) and not key.startswith("_")
-        ]
-        positions = [0] * len(varible_params)
+    def calculate(
+        self,
+        substance_inlet: Substance,
+        epsrel: float = 0.01,
+        niter: int = 10,
+        **kwargs,
+    ) -> Substance:
+        GTENode.validate_substance(self, substance_inlet)
+        self.inlet = deepcopy(substance_inlet)
+        self.outlet = deepcopy(self.inlet)
 
-        for i in range(combination):
-            for j, param in enumerate(varible_params):
-                if positions[j] == len(getattr(compressor_main, varible_params[j])) - 1:
-                    positions[j] = 0
-                else:
-                    positions[j] += 1
-                    continue
-        for j, param in enumerate(varible_params):
-            setattr(
-                self,
-                varible_params[j],
-                getattr(compressor_main, varible_params[j])[positions[j]],
+        self.outlet.parameters[gtep.PP] = self.inlet.parameters[gtep.PP] / self.pipi
+
+        for _ in range(niter):
+            k = 0.5 * (self.inlet.parameters[gtep.k] + self.outlet.parameters[gtep.k])
+            self.outlet.parameters[gtep.TT] = self.inlet.parameters[gtep.TT] * (
+                1 + (self.pipi ** ((k - 1) / k) - 1) / self.eff
             )
 
-    def input_parameters(self) -> list:
-        correct_input = False
-        while not correct_input:
-            self.ππ_var = [pp for pp in input("π* [] = ").split()]
-            for pp in self.ππ_var:
-                if not isnum(pp) or float(pp) < 1:
-                    print(Fore.RED + "π* must be a number >= 1!")
-                    correct_input = False
-                    break
-                correct_input = True
-        self.ππ_var = [float(pp) for pp in self.ππ_var]
-
-        correct_input = False
-        while not correct_input:
-            self.ηη_var = [eta for eta in input("η* [] = ").split()]
-            for eta in self.ηη_var:
-                if not isnum(eta) or float(eta) < 0 or float(eta) > 1:
-                    print(f"{Fore.RED}η* must be a number in [0..1]!")
-                    correct_input = False
-                    break
-                correct_input = True
-        self.ηη_var = [float(eta) for eta in self.ηη_var]
-
-        correct_input = False
-        while not correct_input:
-            self.g_leak_var = [gleak for gleak in input("g утечки [] = ").split()]
-            for gleak in self.g_leak_var:
-                if not isnum(gleak) or float(gleak) < 0 or float(gleak) > 1:
-                    print(f"{Fore.RED}g_leak is num in [0..1]!")
-                    correct_input = False
-                    break
-                correct_input = True
-        self.g_leak_var = [float(gleak) for gleak in self.g_leak_var]
-
-    def get_inlet_parameters(self) -> None:
-        """Расчет параметров перед"""
-        if scheme:
-            if hasattr(scheme[c][n - 1], "a_ox3"):
-                self.a_ox1 = scheme[c][n - 1].a_ox3
-            self.TT1 = scheme[c][n - 1].TT3
-            self.PP1 = scheme[c][n - 1].PP3
-            self.g1 = scheme[c][n - 1].g3
-        assert hasattr(self, "TT1"), (
-            f"{type(self).__name__} object has no attribute TT1!"
-        )
-        assert hasattr(self, "PP1"), (
-            f"{type(self).__name__} object has no attribute PP1!"
-        )
-        if not hasattr(self, "g1"):
-            self.g1 = 1
-        self.R_gas1 = R_gas(
-            self.substance, a_ox=getattr(self, "a_ox1", None), fuel=fuel
-        )
-        self.ρρ1 = self.PP1 / (self.R_gas1 * self.TT1)
-        self.Cp1 = Cp(
-            self.substance,
-            T=self.TT1,
-            P=self.PP1,
-            a_ox=getattr(self, "a_ox1", None),
-            fuel=fuel,
-        )
-        self.k1 = self.Cp1 / (self.Cp1 - self.R_gas1)
-
-    def get_outlet_parameters(self, how="all", error=1 / 100, Niter=100) -> None:
-        """Расчет параметров после"""
-        if hasattr(self, "a_ox1"):
-            self.a_ox3 = self.a_ox1
-        self.R_gas3 = R_gas(
-            self.substance, a_ox=getattr(self, "a_ox1", None), fuel=fuel
-        )
-        assert hasattr(self, "ππ") or hasattr(self, "PP3"), (
-            f"{type(self).__name__} object has no attributes ππ or PP3!"
-        )
-        if not hasattr(self, "ππ"):
-            self.ππ = self.PP3 / self.PP1
-        self.PP3 = self.PP1 * self.ππ
-        self.k3 = self.k1  # нулевое приближение
-        for iteration in range(Niter):
-            k2 = 0.5 * (self.k1 + self.k3)
-            assert hasattr(self, "ηη"), (
-                f"{type(self).__name__} object has no attributes ηη!"
+            self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](
+                T=self.outlet.parameters[gtep.TT], P=self.outlet.parameters[gtep.PP]
             )
-            self.TT3 = self.TT1 * (1 + (self.ππ ** ((k2 - 1) / k2) - 1) / self.ηη)
-            self.Cp3 = Cp(
-                self.substance,
-                T=self.TT3,
-                P=self.PP3,
-                a_ox=getattr(self, "a_ox1", None),
-                fuel=fuel,
+            k_outlet = adiabatic_index(
+                self.outlet.parameters[gtep.gc],
+                self.outlet.parameters[gtep.Cp],
             )
-            if abs(eps("rel", self.Cp3 / (self.Cp3 - self.R_gas3), self.k3)) <= error:
+            if abs(eps("rel", self.outlet.parameters[gtep.k], k_outlet)) <= epsrel:
+                self.outlet.parameters[gtep.k] = k_outlet
                 break
-            self.k3 = self.Cp3 / (self.Cp3 - self.R_gas3)
+            self.outlet.parameters[gtep.k] = k_outlet
         else:
-            print(
-                f"{Fore.RED}Iteration limit"
-                f"in class {Compressor.__name__} in method {Compressor.get_outlet_parameters.__name__}!"
-            )
-        self.ρρ3 = self.PP3 / (self.R_gas3 * self.TT3)
-        assert hasattr(self, "g_leak"), (
-            f"{type(self).__name__} object has no attribute g_leak!"
+            raise AssertionError(ITERATION_LIMIT.format(self.name))
+
+        self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
+            self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
         )
-        self.g3 = self.g1 - self.g_leak
-        self.ηn = η_polytropic(what="C", ππ=self.ππ, ηη=self.ηη, k=k2)
-        self.L = self.Cp3 * self.TT3 - self.Cp1 * self.TT1
+        self.outlet.parameters[gtep.mf] = (
+            1 - self.mass_flow_leak
+        ) * self.inlet.parameters[gtep.mf]
 
-    def __calculate(
-        self, how="all", error: float = 1 / 100, Niter: int = 100, **kwargs
-    ) -> None:
-        global c, n, scheme, fuel
-        c = n = None
-        scheme = kwargs.get("scheme", {})
-
-        if scheme:
-            c, n = find_node_in_scheme(scheme, self)
-            self.substance = scheme[c][n - 1].substance
-        else:
-            self.substance = kwargs.get("substance", "")  # рабочее тело
-        assert self.substance, (
-            f"{type(self).__name__} object has no attribute substance!"
+        self.ηn = efficiency_polytropic("C", pipi=self.pipi, effeff=self.eff, k=k)
+        self.power = (
+            integrate.quad(
+                self.outlet.functions[gtep.Cp],
+                self.inlet.parameters[gtep.TT],
+                self.outlet.parameters[gtep.TT],
+            )[0]
+            * (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf])
+            / 2
         )
-        fuel = kwargs.get("fuel", "")  # горючее
 
-        self.get_inlet_parameters()
-        self.get_outlet_parameters(how=how, error=error, Niter=Niter)
-
-    def solve(self, how="all", error=0.01, Niter=100, **kwargs) -> None:
-        self.__calculate(how=how, error=error, Niter=Niter, **kwargs)
+        return self.outlet
 
 
 if __name__ == "__main__":
-    compressor = Compressor("a")
+    for k, v in gtep.items():
+        print(f"{k:<10}: {v}")
 
-    compressor.TT1 = 300
-    compressor.PP1 = 115666
+    substance_inlet = Substance(
+        "air",
+        parameters={
+            gtep.gc: 287,
+            gtep.TT: 300,
+            gtep.PP: 101_325,
+            gtep.mf: 100,
+            gtep.Cp: 1006,
+            gtep.k: 1.4,
+        },
+        functions={
+            gtep.Cp: lambda T: 1006,
+        },
+    )
 
-    compressor.ηη = 0.86
-    compressor.ππ = 6
-    compressor.g_leak = 0.05
+    compressor = Compressor()
+    compressor.pipi = 6
+    compressor.eff = 0.86
+    compressor.mass_flow_leak = 0.03
 
-    compressor.solve(substance="AIR")
-    for k, v in compressor.__dict__.items():
-        print(k, "=", v)
+    compressor.calculate(substance_inlet)
+
+    for k, v in compressor.summary.items():
+        print(f"{k:<40}: {v}")
