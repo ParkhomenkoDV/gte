@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
 
-from numpy import array, nan, prod
+from numpy import array, prod
 from substance import Substance
 
 from src.config import parameters as gtep
 from src.errors import SUBSTANCE_ATTRIBUTE_ERROR
+
+"""
+Порядок расчета ТД параметров:
+excess_oxidizing -> gas_const -> G -> T -> P -> D -> Cp -> k ->
+"""
 
 
 class GTENode(ABC):
@@ -16,7 +21,7 @@ class GTENode(ABC):
         self.inlet = Substance("inlet")
         self.outlet = Substance("outlet")
 
-        self.mass_flow_leak = nan
+        self.mass_flow_leak: float = 0
 
     def __str__(self) -> str:
         return self.name
@@ -70,6 +75,10 @@ class GTENode(ABC):
         assert substance.parameters.get(gtep.mf), AttributeError(
             SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf)
         )
+
+    def equations(self, x, *args: tuple) -> tuple:
+        """Уравнения"""
+        pass
 
     @abstractmethod
     def calculate(self, Niter: int = 10) -> Substance:
