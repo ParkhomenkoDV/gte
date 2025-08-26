@@ -31,6 +31,9 @@ parameters = Constants(
     # числа
     mach="mach_number",  # число Маха
     Nu="nusselt_number",  # число Нуссельта
+    # КПД
+    effeff="efficiency",  # полный кпд
+    power="power",  # мощность
 )
 
 EPSREL = 0.01  # относительная ошибка
