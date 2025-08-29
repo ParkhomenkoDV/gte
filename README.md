@@ -4,7 +4,7 @@
 Library for thermodynamic calculation of the cycle of a gas turbine engine of **any** design.
 
 ## About
-- assemble the engine diagram
+- assemble the engine scheme
 - apply boundary conditions
 - calculate engine cycle by `calculate()` method 
 
