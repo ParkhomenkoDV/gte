@@ -1,1 +1,1 @@
-from .gte import GTE
+from src.gte import GTE
