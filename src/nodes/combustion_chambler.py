@@ -1,18 +1,36 @@
 from copy import deepcopy
 
-from node import GTENode
-from numpy import nan
+import numpy as np
+from numpy import isnan, nan
+from scipy import integrate
+from scipy.optimize import fsolve
 from substance import Substance
 from thermodynamics import (
     T0,
-    # Cp,
-    # Qa1,
+    adiabatic_index,
     gas_const,
-    # atmosphere_standard,
+    heat_capacity_at_constant_pressure,
+    lower_heating_value,
     stoichiometry,
 )
 
 from src.config import parameters as gtep
+from src.nodes import GTENode
+
+
+def average_integral(f, *borders) -> float:
+    """Среднеинтегральное значение"""
+    for border in borders:
+        assert isinstance(border, (tuple, list))
+        for b in border:
+            assert isinstance(b, (int, float, np.number)), f"{type(b)}"
+
+    if borders[0][0] == borders[0][1]:
+        return f(borders[0][0])
+    else:
+        return integrate.quad(f, borders[0][0], borders[0][1])[0] / (
+            borders[0][1] - borders[0][0]
+        )
 
 
 class CombustionChamber(GTENode):
@@ -21,86 +39,103 @@ class CombustionChamber(GTENode):
     def __init__(self, name="CombustionChamber"):
         GTENode.__init__(self, name=name)
 
-        self.total_pressure_loss = nan
+        self.fuel = Substance("fuel")
+
         self.efficiency_burn = nan
         self.total_pressure_loss = 0
 
-    def get_outlet_parameters(self) -> None:
-        """if hasattr(self, "TT3"):  # для КС
-            g_fuel3 = (
-                Cp(
-                    self.substance,
-                    T=self.TT3,
-                    P=self.PP3,
-                    a_ox=getattr(self, "a_ox1", None),
-                    fuel=fuel,
-                )
-                * self.TT3
-            )
-            g_fuel3 -= self.Cp1 * self.TT1
-            g_fuel3 /= (
-                Qa1(fuel) * self.η_burn
-                - (1 + l_stoichiometry(fuel))
-                * (
-                    Cp("EXHAUST", fuel=fuel, a_ox=1, T=self.TT3) * self.TT3
-                    - Cp("EXHAUST", fuel=fuel, a_ox=1, T=(T0 + 15)) * (T0 + 15)
-                )
-                + l_stoichiometry(fuel) * (Cp(self.substance, self.TT3)) * self.TT3
-                - Cp(self.substance, (T0 + 15)) * (T0 + 15)
-                + (
-                    Cp(fuel, T=self.T_fuel) * self.T_fuel
-                    - Cp(fuel, T=T0 + 15) * (T0 + 15)
-                )
-            )
-            self.a_ox3 = 1 / g_fuel3 / l_stoichiometry(fuel)
-            if self.a_ox3 < 1:
-                self.warnings[1].add("a_ox < 1! Топливо не сгорает полностью!")
-        elif hasattr(self, "a_ox3"):  # для ФК
-            self.g_fuel = 1 / l_stoichiometry(fuel) / self.a_ox3
-        elif hasattr(self, "g_fuel"):
-            self.a_ox3 = 1 / self.g_fuel / l_stoichiometry(fuel)
+    @property
+    def __x0(self) -> dict[str:float]:
+        """Начальные приближения"""
+        x0 = {
+            "outlet_" + gtep.TT: self.inlet.parameters[gtep.TT],
+            "outlet_" + gtep.PP: self.inlet.parameters[gtep.PP],
+        }
 
-        self.Cp3 = Cp("EXHAUST", T=self.TT3, P=self.PP3, a_ox=self.a_ox3, fuel=fuel)
-        self.k3 = self.Cp3 / (self.Cp3 - self.R_gas3)"""
+        if isnan(self.outlet.parameters[gtep.eo]):
+            x0["outlet_" + gtep.eo] = 2  # TODO: model
+        else:
+            raise "недоопределено"
+
+        return x0
+
+    def equations(self, x0: tuple, args: dict) -> tuple:
+        """Уравнения"""
+        self.outlet.parameters[gtep.TT] = x0[0]
+        self.outlet.parameters[gtep.PP] = x0[1]
+        if gtep.eo not in args:
+            self.outlet.parameters[gtep.eo] = x0[2]
+        elif gtep.eo in args:
+            pass
+
+        mf_i = self.inlet.parameters[gtep.mf]
+        TT_i = self.inlet.parameters[gtep.TT]
+        PP_i = self.inlet.parameters[gtep.PP]
+        f_Cp_i = self.inlet.functions[gtep.Cp]
+        e_i = average_integral(f_Cp_i, (T0, TT_i))
+
+        name_f = self.fuel.name
+        mf_f = self.fuel.parameters[gtep.mf]
+        TT_f = self.fuel.parameters[gtep.TT]
+        f_Cp_f = self.fuel.functions[gtep.Cp]
+        e_f = average_integral(f_Cp_f, (T0, TT_f))
+
+        mf_o = self.outlet.parameters[gtep.mf]
+        f_Cp_o = self.outlet.functions[gtep.Cp]
+
+        return (
+            (mf_o * average_integral(f_Cp_o, (T0, self.outlet.parameters[gtep.TT])))
+            - (mf_i * e_i)
+            - (mf_f * (e_f + self.efficiency_burn * lower_heating_value(name_f))),
+            self.outlet.parameters[gtep.PP] - PP_i * (1 - self.total_pressure_loss),
+            1 - (mf_f / mf_o) * stoichiometry(name_f) * self.outlet.parameters[gtep.eo],
+        )
 
     def calculate(
-        self,
-        substance_inlet: Substance,
-        fuel: Substance,
-        epsrel: float = 0.01,
-        niter: int = 10,
-        **kwargs,
+        self, substance_inlet: Substance, fuel: Substance, x0=None
     ) -> Substance:
         GTENode.validate_substance(self, substance_inlet)
         GTENode.validate_substance(self, fuel)
         self.inlet = deepcopy(substance_inlet)
+        self.fuel = deepcopy(fuel)
         self.outlet = Substance("exhaust") + fuel
 
-        # define functions
         self.outlet.functions[gtep.gc] = lambda excess_oxidizing: gas_const(
             "EXHAUST", excess_oxidizing, fuel.name
         )
-        self.outlet.functions[gtep.Cp] = lambda TT: nan
+        self.outlet.functions[gtep.Cp] = (
+            lambda TT, excess_oxidizing: heat_capacity_at_constant_pressure(
+                "EXHAUST",
+                TT,
+                excess_oxidizing=excess_oxidizing,
+                fuel=fuel.name,
+            )
+        )
+        self.outlet.parameters[gtep.eo] = nan
 
         self.outlet.parameters[gtep.mf] = (
-            self.inlet.parameters[gtep.mf] + fuel.parameters[gtep.mf]
+            self.inlet.parameters[gtep.mf]
+            + self.fuel.parameters[gtep.mf]
+            - self.mass_flow_leak
         )
 
-        if "TT_max" in kwargs:
-            self.outlet.parameters[gtep.TT] = kwargs["TT_max"]
-            assert self.inlet.parameters[gtep.TT] <= self.outlet.parameters[gtep.TT], (
-                ArithmeticError("inlet temperature > outlet temperature")
+        args = {}
+        if not isnan(self.efficiency_burn) and not isnan(self.total_pressure_loss):
+            args.update(
+                {
+                    "efficiency_burn": self.efficiency_burn,
+                    "total_pressure_loss": self.total_pressure_loss,
+                }
             )
-            self.outlet.parameters[gtep.eo] = 1 / (
-                fuel.parameters[gtep.mf]
-                / self.outlet.parameters[gtep.mf]
-                * stoichiometry(fuel.name)
-            )
-        elif gtep.eo in kwargs:
-            self.outlet.parameters[gtep.eo] = kwargs[gtep.eo]
-
         else:
-            raise AssertionError("CombustionChamber must have TT_max")
+            raise
+
+        fsolve(self.equations, tuple(self.__x0.values()), args)
+
+        assert self.inlet.parameters[gtep.TT] <= self.outlet.parameters[gtep.TT], (
+            Exception("inlet temperature > outlet temperature")
+        )
+        assert 0 < self.outlet.parameters[gtep.eo], Exception(f"outlet {gtep.eo} < 0")
 
         self.outlet.parameters[gtep.gc] = self.outlet.functions[gtep.gc](
             self.outlet.parameters[gtep.eo]
@@ -110,6 +145,12 @@ class CombustionChamber(GTENode):
         )
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
             self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
+        )
+        self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](
+            self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.eo]
+        )
+        self.outlet.parameters[gtep.k] = adiabatic_index(
+            self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp]
         )
 
         return self.outlet
@@ -141,15 +182,21 @@ if __name__ == "__main__":
             gtep.PP: 101_325,
             gtep.mf: 1,
         },
-        functions={},
+        functions={
+            gtep.Cp: lambda T: 200,
+        },
     )
 
     cc = CombustionChamber()
-    cc.total_pressure_loss = 0.96
+    cc.summary
+
+    cc.total_pressure_loss = 0.04
     cc.efficiency_burn = 0.99
     cc.mass_flow_leak = 0
 
-    cc.calculate(substance_inlet, fuel, TT_max=1800)
+    cc.calculate(substance_inlet, fuel)
+
+    cc.summary
 
     for k, v in cc.summary.items():
-        print(f"{k:<40}: {v}")
+        print(f"{k:<50}: {v}")
