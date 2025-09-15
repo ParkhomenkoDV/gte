@@ -3,8 +3,15 @@ from copy import deepcopy
 from mathematics import eps
 from node import GTENode
 from numpy import inf, isnan, nan
+from scipy import integrate
 from substance import Substance
-from thermodynamics import Cp, R_gas, g_cool_BMSTU, mixing_param, η_polytropic
+from thermodynamics import (
+    Cp,
+    R_gas,
+    adiabatic_index,
+    mixing_param,
+    η_polytropic,
+)
 
 from config import EPSREL, NITER
 from config import parameters as gtep
@@ -20,23 +27,19 @@ class Turbine:
         self.eff = nan
         self.power = nan
 
-    def get_inlet_parameters(self) -> None:
-        """Расчет параметров перед"""
-
-        if not hasattr(self, "g1"):
-            self.g1 = 1
-        self.R_gas1 = R_gas(
-            self.substance, a_ox=getattr(self, "a_ox1", None), fuel=fuel
+    def equations(self, x, *args: tuple) -> tuple:
+        """Уравнения"""
+        TT_o, PP_o, power, pipi, gc, Cp = x
+        mf_i, TT_i, PP_i, f_gas_const, f_Cp = args
+        effeff = 0.90
+        return (
+            power - mf_i * Cp * (TT_o - TT_i),
+            TT_o - TT_i * (1 + (pipi ** ((k - 1) / k) - 1) / effeff),
+            PP_i - PP_i * pipi,
+            gc - integrate.quad(f_gas_const, TT_i, TT_o)[0],
+            Cp - integrate.quad(f_Cp, TT_i, TT_o)[0],
+            k - adiabatic_index(gc, Cp),
         )
-        self.ρρ1 = self.PP1 / (self.R_gas1 * self.TT1)
-        self.Cp1 = Cp(
-            self.substance,
-            T=self.TT1,
-            P=self.PP1,
-            a_ox=getattr(self, "a_ox1", None),
-            fuel=fuel,
-        )
-        self.k1 = self.Cp1 / (self.Cp1 - self.R_gas1)
 
     def get_outlet_parameters(self, error=0.01, Niter=100, **kwargs):
         """Расчет параметров после"""
@@ -102,68 +105,16 @@ class Turbine:
 
     def calculate(
         self,
+        substance_inlet: Substance,
         epsrel: float = EPSREL,
         niter: int = NITER,
         **kwargs,
     ) -> Substance:
-        self.get_inlet_parameters()
+        GTENode.validate_substance(self, substance_inlet)
+        self.inlet = deepcopy(substance_inlet)
+        self.outlet = deepcopy(self.inlet)
 
-        if self._shafts:
-            m = kwargs.get("m", {})
-            assert m, f"{type(self).__name__} object has no attribute m!"
-            L_C = N = 0
-            η = 1
-            for shaft in self._shafts:
-                for tp, els in shaft.items():
-                    if tp == "-":
-                        for el in els:
-                            if hasattr(el, "L"):
-                                L_C += el.L * m[find_node_in_scheme(scheme, el)[0]]
-                            elif hasattr(el, "N"):
-                                N += shaft[-1].N
-                            else:
-                                raise "!"
-                    elif tp == "0":
-                        for el in els:
-                            if hasattr(el, "η"):
-                                η *= el.η
-                    else:
-                        raise "!"
-            self.L = (
-                L_C / η / self.η_mechanical
-            )  # удельная работа от компрессоров TODO сделать КПД мех атрибутом вала
-            G = kwargs.get("G", inf)
-            if isnan(G) or G != 0:
-                G = inf
-            L_N = (
-                (N / (G / m[find_node_in_scheme(scheme, self)[0]]))
-                / η
-                / self.η_mechanical
-            )  # удельная работа от нагрузок
-            self.L += L_N  # удельная работа от нагрузок
-            assert hasattr(self, "L") or L_N, (
-                f"{type(self).__name__} object has no attributes L and/or N!"
-            )
-            self.L /= m[find_node_in_scheme(scheme, self)[0]]
-        assert hasattr(self, "L") or (hasattr(self, "N") and hasattr(self, "G")), (
-            f"{type(self).__name__} object has no attributes L and/or (N and G)"
-        )
-
-        g_leaks = self.g_leak
-        g_fuels = 0
-        if scheme:
-            for node in range(n):
-                g_leaks += scheme[c][node].g_leak  # суммарные утечки до турбины
-                g_fuels += (
-                    scheme[c][node].g_fuel if hasattr(scheme[c][node], "g_fuel") else 0
-                )
-        assert hasattr(self, "T_lim"), (
-            f"{type(self).__name__} object has no attribute T_lim!"
-        )
-        self.g_cool = g_cool_BMSTU(self.TT1, T_lim=self.T_lim)
-        self.g_cool = self.g_cool * (1 - g_leaks) / (1 + self.g_cool - g_fuels)
-
-        self.get_outlet_parameters(how=how, error=epsrel, Niter=niter)
+        self.outlet.parameters[gtep.PP] = self.inlet.parameters[gtep.PP] / self.pipi
 
 
 if __name__ == "__main__":
@@ -187,8 +138,8 @@ if __name__ == "__main__":
 
     t = Turbine()
 
-    t.L = 250000
-    t.ηη = 0.91
+    t.power = 16_000_000
+    t.eff = 0.91
 
     t.calculate(substance_inlet)
     for k, v in t.__dict__.items():
