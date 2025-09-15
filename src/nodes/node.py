@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from numpy import array, prod
+from numpy import array, isnan, prod
 from substance import Substance
 
 from src.config import parameters as gtep
@@ -25,6 +25,42 @@ class GTENode(ABC):
 
     def __str__(self) -> str:
         return self.name
+
+    def __delattr__(self, name):
+        if name == "name":
+            self.name = self.__class__.__name__
+        elif name == "inlet":
+            self.inlet = Substance("inlet")
+        elif name == "outlet":
+            self.outlet = Substance("outlet")
+        else:
+            return super().__delattr__(name)
+
+    @property
+    # @abstractmethod
+    def variables(self) -> dict[str:float]:
+        return {}
+
+    @property
+    def summary(self) -> dict[str:float]:
+        result = {
+            **{f"{self.name}_{k}": v for k, v in self.__dict__.items()},
+            **{f"{k}_inlet": v for k, v in self.inlet.parameters.items()},
+            **{f"{k}_outlet": v for k, v in self.outlet.parameters.items()},
+        }
+
+        n = 20
+        print("-" * n)
+        for k, v in self.__dict__.items():
+            if k not in ("inlet", "outlet"):
+                print(f"{k}: {v}")
+        for k, v in self.inlet.parameters.items():
+            print(f"{k}_inlet: {v}")
+        for k, v in self.outlet.parameters.items():
+            print(f"{k}_outlet: {v}")
+        print("-" * n)
+
+        return result
 
     def get_variability(self) -> int:
         """Максимальное количество комбинаций варьируемых параметров"""
@@ -88,16 +124,3 @@ class GTENode(ABC):
         # расчет выходных параметров
         # вывод выходных параметров
         pass
-
-    @property
-    def summary(self) -> dict:
-        return {
-            **{f"{self.name}_{k}": v for k, v in self.__dict__.items()},
-            **{f"{k}_inlet": v for k, v in self.inlet.parameters.items()},
-            **{f"{k}_outlet": v for k, v in self.outlet.parameters.items()},
-        }
-
-
-if __name__ == "__main__":
-    n = GTENode()
-    print(n.summary)
