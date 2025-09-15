@@ -6,7 +6,13 @@ import pandas as pd
 from colorama import Fore
 from numpy import cos, inf, linspace, nan, prod, radians, sin, sqrt
 from scipy.optimize import fsolve
-from thermodynamics import R_gas, Substance, atmosphere_standard, gdf, l_stoichiometry
+from thermodynamics import (
+    Substance,
+    atmosphere_standard,
+    gas_const,
+    gdf,
+    stoichiometry,
+)
 from tqdm import tqdm
 
 from src.config import parameters as gtep
@@ -36,10 +42,9 @@ def find_node_in_scheme(scheme, node2find) -> tuple:
                 return contour, i
 
 
-"""
-Порядок расчета ТД параметров:
-R -> T -> P -> ro -> Cp -> k ->
-"""
+# TODO: обучить модели регрессии по предсказанию НУ расчета
+# TODO: gte.describe() # неизвестные параметры и необходимые уравнения
+# TODO: __iter__ вместо gte.generator
 
 
 class Variability:
