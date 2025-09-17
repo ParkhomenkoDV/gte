@@ -14,6 +14,8 @@ from src.errors import EFFICIENCY_ERROR
 from src.nodes.node import GTENode
 from src.utils import check_efficiency
 
+# TODO подправить integral_average так, чтобы считалось
+
 
 def average_integral(f, *borders) -> float:
     """Среднеинтегральное значение"""
@@ -117,7 +119,11 @@ class Compressor(GTENode):
 
     def validate(self, epsrel: float = EPSREL) -> bool:
         """Проверка найденного решения"""
-        x0 = list(self.__x0.values()) + [1]
+        x0 = (
+            self.outlet.parameters[gtep.TT],
+            self.outlet.parameters[gtep.PP],
+            1,
+        )
         args = {gtep.pipi: self.pipi, gtep.effeff: self.effeff, gtep.power: self.power}
 
         for null in self.equations(x0, args):
