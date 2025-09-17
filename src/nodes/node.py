@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from numpy import array, isnan, prod
+from numpy import array, prod
 from substance import Substance
 
 from src.config import parameters as gtep
@@ -26,7 +26,7 @@ class GTENode(ABC):
     def __str__(self) -> str:
         return self.name
 
-    def __delattr__(self, name):
+    def __delattr__(self, name: str):
         if name == "name":
             self.name = self.__class__.__name__
         elif name == "inlet":
@@ -111,13 +111,21 @@ class GTENode(ABC):
         assert substance.parameters.get(gtep.mf), AttributeError(
             SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf)
         )
+        # validate functions
+        for name, function in substance.functions.items():
+            for arg in function.__code__.co_varnames:
+                if arg in ("args", "kwargs"):
+                    continue
+                assert arg in gtep.keys(), NameError(
+                    f"function '{name}' has arg '{arg}' not in {gtep.keys()}"
+                )
 
-    def equations(self, x, *args: tuple) -> tuple:
+    def equations(self, x: tuple, args: dict) -> tuple:
         """Уравнения"""
         pass
 
     @abstractmethod
-    def calculate(self, Niter: int = 10) -> Substance:
+    def calculate(self) -> Substance:
         """Расчет узла"""
         # расчет входных параметров
         # расчет параметров узла
