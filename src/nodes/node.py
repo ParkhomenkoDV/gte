@@ -112,12 +112,14 @@ class GTENode(ABC):
             SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf)
         )
         # validate functions
+        td_keys = gtep.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():
-            for arg in function.__code__.co_varnames:
-                if arg in ("args", "kwargs"):
-                    continue
-                assert arg in gtep.keys(), NameError(
-                    f"function '{name}' has arg '{arg}' not in {gtep.keys()}"
+            assert name in gtep.values(), KeyError(
+                f"function '{name}' not in {td_keys}"
+            )
+            for func_arg in function.__code__.co_varnames:
+                assert func_arg in td_keys, NameError(
+                    f"function '{name}' has arg '{func_arg}' not in {td_keys}"
                 )
 
     def equations(self, x: tuple, args: dict) -> tuple:

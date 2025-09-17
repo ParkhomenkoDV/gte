@@ -162,10 +162,10 @@ class Compressor(GTENode):
         )
 
         self.outlet.parameters[gtep.gc] = self.outlet.functions[gtep.gc](
-            T=self.outlet.parameters[gtep.TT]
+            total_temperature=self.outlet.parameters[gtep.TT]
         )
         self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](
-            T=self.outlet.parameters[gtep.TT]
+            total_temperature=self.outlet.parameters[gtep.TT]
         )
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
             self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
@@ -193,8 +193,8 @@ if __name__ == "__main__":
             gtep.c: 100,
         },
         functions={
-            gtep.gc: lambda T: 287,
-            gtep.Cp: lambda T: 1006,
+            gtep.gc: lambda total_temperature: 287,
+            gtep.Cp: lambda total_temperature: 1006,
         },
     )
 

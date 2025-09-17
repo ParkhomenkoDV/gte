@@ -24,13 +24,20 @@ def average_integral(f, *borders) -> float:
         assert isinstance(border, (tuple, list))
         for b in border:
             assert isinstance(b, (int, float, np.number)), f"{type(b)}"
-
-    if borders[0][0] == borders[0][1]:
-        return f(borders[0][0])
-    else:
-        return integrate.quad(f, borders[0][0], borders[0][1])[0] / (
-            borders[0][1] - borders[0][0]
-        )
+    if len(borders) == 1:
+        if borders[0][0] == borders[0][1]:
+            return f(borders[0][0])
+        else:
+            return integrate.quad(f, borders[0][0], borders[0][1])[0] / (
+                borders[0][1] - borders[0][0]
+            )
+    elif len(borders) == 2:
+        if borders[0][0] == borders[0][1] and borders[1][0] == borders[1][1]:
+            return f(borders[0][0], borders[1][0])
+        elif borders[0][0] != borders[0][1] and borders[1][0] == borders[1][1]:
+            return integrate.quad(
+                lambda TT: f(TT, borders[1][0]), borders[0][0], borders[0][1]
+            )[0] / (borders[0][1] - borders[0][0])
 
 
 class CombustionChamber(GTENode):
@@ -84,7 +91,14 @@ class CombustionChamber(GTENode):
         f_Cp_o = self.outlet.functions[gtep.Cp]
 
         return (
-            (mf_o * average_integral(f_Cp_o, (T0, self.outlet.parameters[gtep.TT])))
+            (
+                mf_o
+                * average_integral(
+                    f_Cp_o,
+                    (T0, self.outlet.parameters[gtep.TT]),
+                    (2, 2),  # TODO
+                )
+            )
             - (mf_i * e_i)
             - (mf_f * (e_f + self.efficiency_burn * lower_heating_value(name_f))),
             self.outlet.parameters[gtep.PP] - PP_i * (1 - self.total_pressure_loss),
