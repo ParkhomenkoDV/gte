@@ -134,3 +134,7 @@ class GTENode(ABC):
         # расчет выходных параметров
         # вывод выходных параметров
         pass
+
+    @abstractmethod
+    def is_real(self) -> bool:
+        """Проверка физичной реальности"""
