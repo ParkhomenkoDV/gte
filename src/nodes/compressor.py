@@ -10,9 +10,8 @@ from thermodynamics import adiabatic_index
 
 from src.config import EPSREL
 from src.config import parameters as gtep
-from src.errors import EFFICIENCY_ERROR
 from src.nodes.node import GTENode
-from src.utils import check_efficiency
+from src.utils import call_with_kwargs, check_efficiency, check_temperature
 
 # TODO подправить integral_average так, чтобы считалось
 
@@ -38,29 +37,9 @@ class Compressor(GTENode):
     def __init__(self, name="Compressor"):
         GTENode.__init__(self, name=name)
 
-        self.pipi = nan
-        self.effeff = nan
-        self.power = nan
-
-        """
         setattr(self, gtep.pipi, nan)
         setattr(self, gtep.effeff, nan)
         setattr(self, gtep.power, nan)
-        """
-
-    """
-    def __setattr__(self, name, value):
-        if name == "pipi":
-            assert isinstance(value, (float, int))
-            assert 1 <= value
-        elif name == gtep.effeff:
-            assert isinstance(value, (float, int))
-            assert check_efficiency(value)
-        elif name == gtep.power:
-            assert isinstance(value, (float, int))
-            assert 0 <= value
-        return super().__setattr__(name, value)
-    """
 
     @property
     def variables(self):
@@ -122,7 +101,7 @@ class Compressor(GTENode):
         x0 = (
             self.outlet.parameters[gtep.TT],
             self.outlet.parameters[gtep.PP],
-            1,
+            1,  #
         )
         args = {gtep.pipi: self.pipi, gtep.effeff: self.effeff, gtep.power: self.power}
 
@@ -157,15 +136,11 @@ class Compressor(GTENode):
 
         fsolve(self.equations, tuple(self.__x0.values()), args)
 
-        assert check_efficiency(self.effeff), AssertionError(
-            EFFICIENCY_ERROR.format(self.effeff)
+        self.outlet.parameters[gtep.gc] = call_with_kwargs(
+            self.outlet.functions[gtep.gc], self.outlet.parameters
         )
-
-        self.outlet.parameters[gtep.gc] = self.outlet.functions[gtep.gc](
-            total_temperature=self.outlet.parameters[gtep.TT]
-        )
-        self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](
-            total_temperature=self.outlet.parameters[gtep.TT]
+        self.outlet.parameters[gtep.Cp] = call_with_kwargs(
+            self.outlet.functions[gtep.Cp], self.outlet.parameters
         )
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
             self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
@@ -175,6 +150,14 @@ class Compressor(GTENode):
         )
 
         return self.outlet
+
+    @property
+    def is_real(self):
+        checks = (
+            check_efficiency(self.effeff),
+            check_temperature(self.outlet.parameters[gtep.TT]),
+        )
+        return all(checks)
 
 
 if __name__ == "__main__":
@@ -210,3 +193,4 @@ if __name__ == "__main__":
     compressor.summary
 
     print(f"{compressor.validate() = }")
+    print(f"{compressor.is_real = }")
