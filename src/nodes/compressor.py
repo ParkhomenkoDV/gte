@@ -24,7 +24,11 @@ class Compressor(GTENode):
 
     @property
     def variables(self):
-        return {gtep.pipi: self.pipi, gtep.effeff: self.effeff, gtep.power: self.power}
+        return {
+            gtep.pipi: getattr(self, gtep.pipi),
+            gtep.effeff: getattr(self, gtep.effeff),
+            gtep.power: getattr(self, gtep.power),
+        }
 
     @property
     def __x0(self) -> dict[str:float]:
@@ -34,13 +38,17 @@ class Compressor(GTENode):
             "outlet_" + gtep.PP: self.inlet.parameters[gtep.PP],
         }
 
-        if isnan(self.power) and not isnan(self.pipi) and not isnan(self.effeff):
+        pipi = getattr(self, gtep.pipi)
+        effeff = getattr(self, gtep.effeff)
+        power = getattr(self, gtep.power)
+
+        if isnan(power) and not isnan(pipi) and not isnan(effeff):
             x0[gtep.power] = 20 * 10**6  # TODO: model
-        elif isnan(self.effeff) and not isnan(self.pipi) and not isnan(self.power):
+        elif isnan(effeff) and not isnan(pipi) and not isnan(power):
             x0[gtep.effeff] = 0.8  # TODO: model
-        elif isnan(self.pipi) and not isnan(self.effeff) and not isnan(self.power):
+        elif isnan(pipi) and not isnan(effeff) and not isnan(power):
             x0[gtep.pipi] = 6  # TODO: model
-        elif not isnan(self.pipi) and not isnan(self.effeff) and not isnan(self.power):
+        elif not isnan(pipi) and not isnan(effeff) and not isnan(power):
             return x0
         else:
             raise "недоопределено"
@@ -52,11 +60,11 @@ class Compressor(GTENode):
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
         if gtep.power not in args:
-            self.power = x[2]
+            setattr(self, gtep.power, x[2])
         elif gtep.effeff not in args:
-            self.effeff = x[2]
+            setattr(self, gtep.effeff, x[2])
         elif gtep.pipi not in args:
-            self.pipi = x[2]
+            setattr(self, gtep.pipi, x[2])
         elif gtep.pipi in args and gtep.effeff in args and gtep.power in args:
             pass
 
@@ -83,10 +91,16 @@ class Compressor(GTENode):
         k = adiabatic_index(gc, Cp)
 
         return (
-            self.power - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
+            getattr(self, gtep.power)
+            - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
             self.outlet.parameters[gtep.TT]
-            - TT_i * (1 + (self.pipi ** ((k - 1) / k) - 1) / self.effeff),
-            self.pipi - self.outlet.parameters[gtep.PP] / PP_i,
+            - TT_i
+            * (
+                1
+                + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1)
+                / getattr(self, gtep.effeff)
+            ),
+            getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / PP_i,
         )
 
     def validate(self, epsrel: float = EPSREL) -> bool:
@@ -96,7 +110,11 @@ class Compressor(GTENode):
             self.outlet.parameters[gtep.PP],
             1,  #
         )
-        args = {gtep.pipi: self.pipi, gtep.effeff: self.effeff, gtep.power: self.power}
+        args = {
+            gtep.pipi: getattr(self, gtep.pipi),
+            gtep.effeff: getattr(self, gtep.effeff),
+            gtep.power: getattr(self, gtep.power),
+        }
 
         for null in self.equations(x0, args):
             print(f"{null:.6f}")
@@ -117,13 +135,17 @@ class Compressor(GTENode):
             self.inlet.parameters[gtep.mf] - self.mass_flow_leak
         )
 
+        pipi = getattr(self, gtep.pipi)
+        effeff = getattr(self, gtep.effeff)
+        power = getattr(self, gtep.power)
+
         args = {}
-        if not isnan(self.effeff) and not isnan(self.pipi) and isnan(self.power):
-            args.update({gtep.effeff: self.effeff, gtep.pipi: self.pipi})
-        elif not isnan(self.pipi) and not isnan(self.power) and isnan(self.effeff):
-            args.update({gtep.pipi: self.pipi, gtep.power: self.power})
-        elif not isnan(self.power) and not isnan(self.effeff) and isnan(self.pipi):
-            args.update({gtep.power: self.power, gtep.effeff: self.effeff})
+        if not isnan(effeff) and not isnan(pipi) and isnan(power):
+            args.update({gtep.effeff: effeff, gtep.pipi: pipi})
+        elif not isnan(pipi) and not isnan(power) and isnan(effeff):
+            args.update({gtep.pipi: pipi, gtep.power: power})
+        elif not isnan(power) and not isnan(effeff) and isnan(pipi):
+            args.update({gtep.power: power, gtep.effeff: effeff})
         else:
             raise f"{x0=}"
 
@@ -147,7 +169,7 @@ class Compressor(GTENode):
     @property
     def is_real(self):
         checks = (
-            check_efficiency(self.effeff),
+            check_efficiency(getattr(self, gtep.effeff)),
             check_temperature(self.outlet.parameters[gtep.TT]),
         )
         return all(checks)
@@ -177,9 +199,11 @@ if __name__ == "__main__":
     compressor = Compressor()
     compressor.summary
 
-    compressor.effeff = 0.87
-    compressor.pipi = 6
+    setattr(compressor, gtep.pipi, 6)
+    setattr(compressor, gtep.effeff, 0.87)
     compressor.mass_flow_leak = 0.03
+
+    compressor.summary
 
     compressor.calculate(substance_inlet)
 
