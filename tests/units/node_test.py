@@ -85,8 +85,8 @@ class TestCompressor:
         "pipi, effeff, power, mf_leak, error, expected",
         [
             (6.0, 0.85, nan, 0, False, [gtep.power, 23_690_849]),
-            (6.0, nan, 24 * 10**6, 0, False, [gtep.effeff, 0.84]),
-            (nan, 0.85, 24 * 10**6, 0, False, [gtep.pipi, 6.1]),
+            (6.0, nan, 24 * 10**6, 0, False, [gtep.effeff, 0.839]),
+            (nan, 0.85, 24 * 10**6, 0, False, [gtep.pipi, 6.11]),
             # error
             (nan, nan, 24 * 10**6, 0, True, []),
             (6.0, nan, nan, 0, True, []),
