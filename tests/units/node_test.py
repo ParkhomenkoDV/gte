@@ -10,7 +10,7 @@ from src.nodes import Compressor
 
 @pytest.fixture
 def substance_air():
-    """Базовое вещество для тестов"""
+    """Воздух для тестов"""
     return Substance(
         "air",
         parameters={
@@ -18,6 +18,48 @@ def substance_air():
             gtep.TT: 300.0,
             gtep.PP: 101325.0,
             gtep.mf: 100.0,
+            gtep.Cp: 1006.0,
+            gtep.k: 1.4,
+            gtep.c: 0.0,
+        },
+        functions={
+            gtep.gc: lambda total_temperature: 287.0,
+            gtep.Cp: lambda total_temperature, total_pressure: 1006.0,
+        },
+    )
+
+
+@pytest.fixture
+def substance_fuel():
+    """Горючее для тестов"""
+    return Substance(
+        "kerosene",
+        parameters={
+            gtep.gc: 287.0,
+            gtep.TT: 300.0,
+            gtep.PP: 101325.0,
+            gtep.mf: 1.0,
+            gtep.Cp: 1006.0,
+            gtep.k: 1.4,
+            gtep.c: 0.0,
+        },
+        functions={
+            gtep.gc: lambda total_temperature: 287.0,
+            gtep.Cp: lambda total_temperature, total_pressure: 1006.0,
+        },
+    )
+
+
+@pytest.fixture
+def substance_exhaust():
+    """Выхлопные газы для тестов"""
+    return Substance(
+        "exhaust",
+        parameters={
+            gtep.gc: 287.0,
+            gtep.TT: 300.0,
+            gtep.PP: 101325.0,
+            gtep.mf: 1.0,
             gtep.Cp: 1006.0,
             gtep.k: 1.4,
             gtep.c: 0.0,
@@ -93,9 +135,7 @@ class TestCompressor:
             (nan, nan, nan * 10**6, 0, True, []),
         ],
     )
-    def test_calculate_integration(
-        self, compressor, substance_air, pipi, effeff, power, mf_leak, error, expected
-    ):
+    def test_calculate_integration(self, compressor, substance_air, pipi, effeff, power, mf_leak, error, expected):
         """Интеграционный тест расчета"""
         setattr(compressor, gtep.pipi, pipi)
         setattr(compressor, gtep.effeff, effeff)
@@ -114,9 +154,7 @@ class TestCompressor:
             assert gtep.TT in outlet.parameters
             assert gtep.PP in outlet.parameters
 
-            assert getattr(compressor, expected[0]) == pytest.approx(
-                expected[1], rel=EPSREL
-            )
+            assert getattr(compressor, expected[0]) == pytest.approx(expected[1], rel=EPSREL)
 
     @pytest.mark.parametrize(
         "effeff, TT, expected",

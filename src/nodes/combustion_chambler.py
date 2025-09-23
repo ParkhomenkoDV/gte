@@ -1,8 +1,6 @@
 from copy import deepcopy
 
-import numpy as np
 from numpy import isnan, nan
-from scipy import integrate
 from scipy.optimize import fsolve
 from substance import Substance
 from thermodynamics import (
@@ -14,30 +12,10 @@ from thermodynamics import (
     stoichiometry,
 )
 
+from src.checks import check_efficiency, check_temperature
 from src.config import parameters as gtep
 from src.nodes import GTENode
-
-
-def average_integral(f, *borders) -> float:
-    """Среднеинтегральное значение"""
-    for border in borders:
-        assert isinstance(border, (tuple, list))
-        for b in border:
-            assert isinstance(b, (int, float, np.number)), f"{type(b)}"
-    if len(borders) == 1:
-        if borders[0][0] == borders[0][1]:
-            return f(borders[0][0])
-        else:
-            return integrate.quad(f, borders[0][0], borders[0][1])[0] / (
-                borders[0][1] - borders[0][0]
-            )
-    elif len(borders) == 2:
-        if borders[0][0] == borders[0][1] and borders[1][0] == borders[1][1]:
-            return f(borders[0][0], borders[1][0])
-        elif borders[0][0] != borders[0][1] and borders[1][0] == borders[1][1]:
-            return integrate.quad(
-                lambda TT: f(TT, borders[1][0]), borders[0][0], borders[0][1]
-            )[0] / (borders[0][1] - borders[0][0])
+from src.utils import integral_average
 
 
 class CombustionChamber(GTENode):
@@ -79,13 +57,13 @@ class CombustionChamber(GTENode):
         TT_i = self.inlet.parameters[gtep.TT]
         PP_i = self.inlet.parameters[gtep.PP]
         f_Cp_i = self.inlet.functions[gtep.Cp]
-        e_i = average_integral(f_Cp_i, (T0, TT_i))
+        e_i = integral_average(f_Cp_i, (T0, TT_i))
 
         name_f = self.fuel.name
         mf_f = self.fuel.parameters[gtep.mf]
         TT_f = self.fuel.parameters[gtep.TT]
         f_Cp_f = self.fuel.functions[gtep.Cp]
-        e_f = average_integral(f_Cp_f, (T0, TT_f))
+        e_f = integral_average(f_Cp_f, (T0, TT_f))
 
         mf_o = self.outlet.parameters[gtep.mf]
         f_Cp_o = self.outlet.functions[gtep.Cp]
@@ -93,7 +71,7 @@ class CombustionChamber(GTENode):
         return (
             (
                 mf_o
-                * average_integral(
+                * integral_average(
                     f_Cp_o,
                     (T0, self.outlet.parameters[gtep.TT]),
                     (2, 2),  # TODO
@@ -169,6 +147,14 @@ class CombustionChamber(GTENode):
 
         return self.outlet
 
+    @property
+    def is_real(self):
+        checks = (
+            check_efficiency(getattr(self, gtep.effeff)),
+            check_temperature(self.outlet.parameters[gtep.TT]),
+        )
+        return all(checks)
+
 
 if __name__ == "__main__":
     for k, v in gtep.items():
@@ -180,12 +166,14 @@ if __name__ == "__main__":
             gtep.gc: 287,
             gtep.TT: 300 * 2,
             gtep.PP: 101_325 * 6,
-            gtep.mf: 50,
+            gtep.mf: 100,
             gtep.Cp: 1006,
             gtep.k: 1.4,
+            gtep.c: 100,
         },
         functions={
-            gtep.Cp: lambda T: 1006,
+            gtep.gc: lambda total_temperature: 287,
+            gtep.Cp: lambda total_temperature: 1006,
         },
     )
 
@@ -212,5 +200,5 @@ if __name__ == "__main__":
 
     cc.summary
 
-    for k, v in cc.summary.items():
-        print(f"{k:<50}: {v}")
+    print(f"{сс.validate() = }")
+    print(f"{сс.is_real = }")

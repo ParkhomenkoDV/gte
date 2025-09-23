@@ -91,15 +91,8 @@ class Compressor(GTENode):
         k = adiabatic_index(gc, Cp)
 
         return (
-            getattr(self, gtep.power)
-            - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
-            self.outlet.parameters[gtep.TT]
-            - TT_i
-            * (
-                1
-                + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1)
-                / getattr(self, gtep.effeff)
-            ),
+            getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
+            self.outlet.parameters[gtep.TT] - TT_i * (1 + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1) / getattr(self, gtep.effeff)),
             getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / PP_i,
         )
 
@@ -131,9 +124,7 @@ class Compressor(GTENode):
         self.inlet = deepcopy(substance_inlet)
         self.outlet = deepcopy(self.inlet)
 
-        self.outlet.parameters[gtep.mf] = (
-            self.inlet.parameters[gtep.mf] - self.mass_flow_leak
-        )
+        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] - self.mass_flow_leak
 
         pipi = getattr(self, gtep.pipi)
         effeff = getattr(self, gtep.effeff)
@@ -151,18 +142,10 @@ class Compressor(GTENode):
 
         fsolve(self.equations, tuple(self.__x0.values()), args)
 
-        self.outlet.parameters[gtep.gc] = call_with_kwargs(
-            self.outlet.functions[gtep.gc], self.outlet.parameters
-        )
-        self.outlet.parameters[gtep.Cp] = call_with_kwargs(
-            self.outlet.functions[gtep.Cp], self.outlet.parameters
-        )
-        self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
-            self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
-        )
-        self.outlet.parameters[gtep.k] = adiabatic_index(
-            self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp]
-        )
+        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
+        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
+        self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
+        self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
 
         return self.outlet
 
@@ -188,7 +171,7 @@ if __name__ == "__main__":
             gtep.mf: 100,
             gtep.Cp: 1006,
             gtep.k: 1.4,
-            gtep.c: 100,
+            gtep.c: 0,
         },
         functions={
             gtep.gc: lambda total_temperature: 287,
@@ -202,8 +185,6 @@ if __name__ == "__main__":
     setattr(compressor, gtep.pipi, 6)
     setattr(compressor, gtep.effeff, 0.87)
     compressor.mass_flow_leak = 0.03
-
-    compressor.summary
 
     compressor.calculate(substance_inlet)
 
