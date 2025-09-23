@@ -1,21 +1,23 @@
 from copy import deepcopy
 
 import numpy as np
-from mathematics import integral_average
 from numpy import isclose, isnan, nan
 from scipy import integrate
 from scipy.optimize import fsolve
 from substance import Substance
 from thermodynamics import adiabatic_index
 
+from src.checks import check_efficiency, check_temperature
 from src.config import EPSREL
 from src.config import parameters as gtep
 from src.nodes.node import GTENode
-from src.utils import call_with_kwargs, check_efficiency, check_temperature
+from src.utils import call_with_kwargs
+from src.utils import (
+    integral_average_kwargs as i_avegage,
+)
+
 
 # TODO подправить integral_average так, чтобы считалось
-
-
 def average_integral(f, *borders) -> float:
     """Среднеинтегральное значение"""
     for border in borders:
@@ -85,8 +87,8 @@ class Compressor(GTENode):
         f_Cp = self.inlet.functions[gtep.Cp]
 
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
-        gc = average_integral(f_gc, (TT_i, self.outlet.parameters[gtep.TT]))
-        Cp = average_integral(f_Cp, (TT_i, self.outlet.parameters[gtep.TT]))
+        gc = i_avegage(f_gc, {gtep.TT: (TT_i, self.outlet.parameters[gtep.TT])})[0]
+        Cp = i_avegage(f_Cp, {gtep.TT: (TT_i, self.outlet.parameters[gtep.TT])})[0]
         k = adiabatic_index(gc, Cp)
 
         return (
