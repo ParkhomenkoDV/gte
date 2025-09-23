@@ -1,8 +1,6 @@
 from copy import deepcopy
 
-import numpy as np
 from numpy import isclose, isnan, nan
-from scipy import integrate
 from scipy.optimize import fsolve
 from substance import Substance
 from thermodynamics import adiabatic_index
@@ -11,26 +9,7 @@ from src.checks import check_efficiency, check_temperature
 from src.config import EPSREL
 from src.config import parameters as gtep
 from src.nodes.node import GTENode
-from src.utils import call_with_kwargs
-from src.utils import (
-    integral_average_kwargs as i_avegage,
-)
-
-
-# TODO подправить integral_average так, чтобы считалось
-def average_integral(f, *borders) -> float:
-    """Среднеинтегральное значение"""
-    for border in borders:
-        assert isinstance(border, (tuple, list))
-        for b in border:
-            assert isinstance(b, (int, float, np.number)), f"{type(b)}"
-
-    if borders[0][0] == borders[0][1]:
-        return f(borders[0][0])
-    else:
-        return integrate.quad(f, borders[0][0], borders[0][1])[0] / (
-            borders[0][1] - borders[0][0]
-        )
+from src.utils import call_with_kwargs, integral_average
 
 
 class Compressor(GTENode):
@@ -87,8 +66,20 @@ class Compressor(GTENode):
         f_Cp = self.inlet.functions[gtep.Cp]
 
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
-        gc = i_avegage(f_gc, {gtep.TT: (TT_i, self.outlet.parameters[gtep.TT])})[0]
-        Cp = i_avegage(f_Cp, {gtep.TT: (TT_i, self.outlet.parameters[gtep.TT])})[0]
+        gc = integral_average(
+            f_gc,
+            **{
+                gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
+                gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
+            },
+        )[0]
+        Cp = integral_average(
+            f_Cp,
+            **{
+                gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
+                gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
+            },
+        )[0]
         k = adiabatic_index(gc, Cp)
 
         return (
