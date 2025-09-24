@@ -14,7 +14,7 @@ from thermodynamics import (
 
 from src.checks import check_efficiency, check_temperature
 from src.config import parameters as gtep
-from src.nodes import GTENode
+from src.nodes.node import GTENode
 from src.utils import integral_average
 
 
@@ -83,33 +83,23 @@ class CombustionChamber(GTENode):
             1 - (mf_f / mf_o) * stoichiometry(name_f) * self.outlet.parameters[gtep.eo],
         )
 
-    def calculate(
-        self, substance_inlet: Substance, fuel: Substance, x0=None
-    ) -> Substance:
+    def calculate(self, substance_inlet: Substance, fuel: Substance, x0=None) -> Substance:
         GTENode.validate_substance(self, substance_inlet)
         GTENode.validate_substance(self, fuel)
         self.inlet = deepcopy(substance_inlet)
         self.fuel = deepcopy(fuel)
         self.outlet = Substance("exhaust") + fuel
 
-        self.outlet.functions[gtep.gc] = lambda excess_oxidizing: gas_const(
-            "EXHAUST", excess_oxidizing, fuel.name
-        )
-        self.outlet.functions[gtep.Cp] = (
-            lambda TT, excess_oxidizing: heat_capacity_at_constant_pressure(
-                "EXHAUST",
-                TT,
-                excess_oxidizing=excess_oxidizing,
-                fuel=fuel.name,
-            )
+        self.outlet.functions[gtep.gc] = lambda excess_oxidizing: gas_const("EXHAUST", excess_oxidizing, fuel.name)
+        self.outlet.functions[gtep.Cp] = lambda TT, excess_oxidizing: heat_capacity_at_constant_pressure(
+            "EXHAUST",
+            TT,
+            excess_oxidizing=excess_oxidizing,
+            fuel=fuel.name,
         )
         self.outlet.parameters[gtep.eo] = nan
 
-        self.outlet.parameters[gtep.mf] = (
-            self.inlet.parameters[gtep.mf]
-            + self.fuel.parameters[gtep.mf]
-            - self.mass_flow_leak
-        )
+        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
 
         args = {}
         if not isnan(self.efficiency_burn) and not isnan(self.total_pressure_loss):
@@ -124,26 +114,14 @@ class CombustionChamber(GTENode):
 
         fsolve(self.equations, tuple(self.__x0.values()), args)
 
-        assert self.inlet.parameters[gtep.TT] <= self.outlet.parameters[gtep.TT], (
-            Exception("inlet temperature > outlet temperature")
-        )
+        assert self.inlet.parameters[gtep.TT] <= self.outlet.parameters[gtep.TT], Exception("inlet temperature > outlet temperature")
         assert 0 < self.outlet.parameters[gtep.eo], Exception(f"outlet {gtep.eo} < 0")
 
-        self.outlet.parameters[gtep.gc] = self.outlet.functions[gtep.gc](
-            self.outlet.parameters[gtep.eo]
-        )
-        self.outlet.parameters[gtep.PP] = (
-            self.inlet.parameters[gtep.PP] * self.total_pressure_loss
-        )
-        self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (
-            self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT]
-        )
-        self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](
-            self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.eo]
-        )
-        self.outlet.parameters[gtep.k] = adiabatic_index(
-            self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp]
-        )
+        self.outlet.parameters[gtep.gc] = self.outlet.functions[gtep.gc](self.outlet.parameters[gtep.eo])
+        self.outlet.parameters[gtep.PP] = self.inlet.parameters[gtep.PP] * self.total_pressure_loss
+        self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
+        self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.eo])
+        self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
 
         return self.outlet
 
@@ -185,7 +163,7 @@ if __name__ == "__main__":
             gtep.mf: 1,
         },
         functions={
-            gtep.Cp: lambda T: 200,
+            gtep.Cp: lambda total_temperature: 200,
         },
     )
 
@@ -200,5 +178,5 @@ if __name__ == "__main__":
 
     cc.summary
 
-    print(f"{сс.validate() = }")
-    print(f"{сс.is_real = }")
+    print(f"{cc.validate() = }")
+    print(f"{cc.is_real = }")

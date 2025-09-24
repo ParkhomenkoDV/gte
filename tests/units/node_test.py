@@ -7,7 +7,7 @@ from substance import Substance
 
 from src.config import EPSREL
 from src.config import parameters as gtep
-from src.nodes import Compressor
+from src.nodes import CombustionChamber, Compressor
 
 
 @pytest.fixture
@@ -78,6 +78,11 @@ class TestNode:
     def test_init(self, Node):
         node = Node()
         assert isinstance(node, Node)
+        assert getattr(node, "mass_flow_leak") == 0
+        assert hasattr(node, "inlet")
+        assert hasattr(node, "outlet")
+        assert isinstance(node.inlet, Substance)
+        assert isinstance(node.outlet, Substance)
 
     @pytest.mark.parametrize("Node", [Compressor])
     def test_name(self, Node):
@@ -98,7 +103,7 @@ def compressor():
 class TestCompressor:
     """Тесты для класса Compressor"""
 
-    def test_initialization(self, compressor):
+    def test_init(self, compressor):
         """Тест инициализации компрессора"""
         assert compressor.name == "TestCompressor"
         assert isnan(getattr(compressor, gtep.pipi))
@@ -186,3 +191,23 @@ class TestCompressor:
         invalid_substance = Substance("invalid", parameters={}, functions={})
         with pytest.raises(Exception):
             compressor.calculate(invalid_substance)
+
+
+@pytest.fixture
+def cc():
+    """Создает экземпляр камеры сгорания"""
+    return CombustionChamber("TestCombustionChamber")
+
+
+class TestCombustionChamber:
+    """Тесты для класса CombustionChamber"""
+
+    def test_init(self, cc):
+        """Тест инициализации камеры сгорания"""
+        assert cc.name == "TestCombustionChamber"
+        assert isnan(getattr(cc, "efficiency_burn"))
+        assert getattr(cc, "total_pressure_loss") == 0
+        assert cc.mass_flow_leak == 0.0
+
+        assert hasattr(cc, "fuel")
+        assert isinstance(cc.fuel, Substance)

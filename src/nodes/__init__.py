@@ -1,4 +1,4 @@
-# from src.nodes.combustion_chambler import CombustionChamber
+from src.nodes.combustion_chambler import CombustionChamber
 from src.nodes.compressor import Compressor
 
 # from src.nodes.inlet import Inlet
