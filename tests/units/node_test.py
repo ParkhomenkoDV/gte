@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 import numpy as np
 import pytest
 from numpy import isnan, nan
@@ -123,16 +125,18 @@ class TestCompressor:
         count = sum(1 if np.isnan(v) else 0 for v in compressor.variables.values())
         assert count == expected_count
 
+    expected = namedtuple("expected", ["key", "value"])
+
     @pytest.mark.parametrize(
         "pipi, effeff, power, mf_leak, error, expected",
         [
-            (6.0, 0.85, nan, 0, False, [gtep.power, 23_690_849]),
-            (6.0, nan, 24 * 10**6, 0, False, [gtep.effeff, 0.839]),
-            (nan, 0.85, 24 * 10**6, 0, False, [gtep.pipi, 6.11]),
+            (6.0, 0.85, nan, 0, False, expected(gtep.power, 23_690_849)),
+            (6.0, nan, 24 * 10**6, 0, False, expected(gtep.effeff, 0.839)),
+            (nan, 0.85, 24 * 10**6, 0, False, expected(gtep.pipi, 6.11)),
             # error
-            (nan, nan, 24 * 10**6, 0, True, []),
-            (6.0, nan, nan, 0, True, []),
-            (nan, nan, nan * 10**6, 0, True, []),
+            (nan, nan, 24 * 10**6, 0, True, expected("", 0)),
+            (6.0, nan, nan, 0, True, expected("", 0)),
+            (nan, nan, nan * 10**6, 0, True, expected("", 0)),
         ],
     )
     def test_calculate_integration(self, compressor, substance_air, pipi, effeff, power, mf_leak, error, expected):
@@ -154,7 +158,7 @@ class TestCompressor:
             assert gtep.TT in outlet.parameters
             assert gtep.PP in outlet.parameters
 
-            assert getattr(compressor, expected[0]) == pytest.approx(expected[1], rel=EPSREL)
+            assert getattr(compressor, expected.key) == pytest.approx(expected.value, rel=EPSREL)
 
     @pytest.mark.parametrize(
         "effeff, TT, expected",
