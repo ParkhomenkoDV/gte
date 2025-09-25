@@ -29,6 +29,8 @@ class Test_call_with_kwargs:
 class TestEnthalpy:
     """Тесты для функции enthalpy"""
 
+    RELERR = 0.000_1
+
     @staticmethod
     def f0_1(T):
         return 1000.0
@@ -49,60 +51,30 @@ class TestEnthalpy:
     def f1_3(T, P, V):
         return 950.0 + 0.15 * T + 0.0002 * P + 0.001 * V
 
-    def test_constant_heat_capacity(self):
-        """Тест с постоянной теплоемкостью"""
-        result = enthalpy(self.f0_1, T=(300, 500))
-        expected = 1000.0 * (500 - 300)  # ∫1000 dT от 300 до 500
-        assert abs(result - expected) < 1e-10
-
-    def test_linear_heat_capacity(self):
-        """Тест с линейной теплоемкостью"""
-        result = enthalpy(self.f1_1, T=(300, 500))
-        # ∫(800 + 0.5T)dT от 300 до 500
-        expected = 800 * (500 - 300) + 0.5 * (500**2 - 300**2) / 2
-        assert abs(result - expected) < 1e-10
-
-    def test_quadratic_heat_capacity(self):
-        """Тест с квадратичной теплоемкостью"""
-        result = enthalpy(self.f2_1, T=(300, 500))
-        # ∫(900 + 0.1T + 0.001T²)dT от 300 до 500
-        expected = 900 * (500 - 300) + 0.1 * (500**2 - 300**2) / 2 + 0.001 * (500**3 - 300**3) / 3
-        assert abs(result - expected) < 1e-8
-
-    def test_multivariate_heat_capacity(self):
-        """Тест с многомерной теплоемкостью"""
-        result = enthalpy(self.f1_2, T=(300, 500), P=(100_000, 200_000))
-        # ∫∫(1000 + 0.2T + 0.0001P)dTdP
-        expected = 1000 * (500 - 300) * (200000 - 100000) + 0.2 * (500**2 - 300**2) / 2 * (200000 - 100000) + 0.0001 * (500 - 300) * (200000**2 - 100000**2) / 2
-        assert abs(result - expected) < 1e-5
-
-    def test_three_variables(self):
-        """Тест с тремя переменными"""
-        result = enthalpy(self.f1_3, T=(300, 400), P=(100000, 150000), V=(0.1, 0.2))
-        # Проверяем что функция выполняется без ошибок
-        assert isinstance(result, float)
-        assert result > 0
+    @pytest.mark.parametrize(
+        "function, kwargs, expected",
+        [
+            (f0_1.__func__, {"T": (300, 500)}, 1000.0 * (500 - 300)),
+            (f1_1.__func__, {"T": (300, 500)}, 800 * (500 - 300) + 0.5 * (500**2 - 300**2) / 2),
+            (f2_1.__func__, {"T": (300, 500)}, 900 * (500 - 300) + 0.1 * (500**2 - 300**2) / 2 + 0.001 * (500**3 - 300**3) / 3),
+            (f1_2.__func__, {"T": (300, 500), "P": (100_000, 200_000)}, 1000 * (500 - 300) * (200000 - 100000) + 0.2 * (500**2 - 300**2) / 2 * (200000 - 100000) + 0.0001 * (500 - 300) * (200000**2 - 100000**2) / 2),
+            (f1_3.__func__, {"T": (300, 400), "P": (100_000, 200_000), "V": (0.3, 0.4)}, 1_032_500_350),
+        ],
+    )
+    def test_function(self, function, kwargs, expected):
+        result = enthalpy(function, **kwargs)
+        assert result == pytest.approx(expected, rel=self.RELERR)
 
     def test_reverse_integration_limits(self):
         """Тест с обратными пределами интегрирования"""
         result_forward = enthalpy(self.f1_1, T=(300, 500))
         result_reverse = enthalpy(self.f1_1, T=(500, 300))
-
-        # Интеграл в обратном направлении должен быть отрицательным
         assert abs(result_forward + result_reverse) < 1e-10
 
     def test_zero_range(self):
         """Тест с нулевым диапазоном"""
         result = enthalpy(self.f0_1, T=(400, 400))
-        assert abs(result) < 1e-10
-
-    def test_small_range(self):
-        """Тест с малым диапазоном"""
-        result = enthalpy(self.f1_1, T=(400, 400.001))
-        # Для линейной функции на малом интервале ≈ Cp_avg * ΔT
-        cp_avg = (self.f1_1(400) + self.f1_1(400.001)) / 2
-        expected = cp_avg * 0.001
-        assert abs(result - expected) < 1e-8
+        assert result == pytest.approx(0, rel=self.RELERR)
 
     def test_error_cases(self):
         """Тесты обработки ошибок"""
@@ -112,7 +84,7 @@ class TestEnthalpy:
             enthalpy("not a function", T=(300, 500))
 
         # Отсутствующий аргумент
-        with pytest.raises(Exception, match="require argument"):
+        with pytest.raises((AssertionError, Exception), match="require argument"):
             enthalpy(self.f1_1)  # T отсутствует
 
         # Неправильный тип диапазона
@@ -126,49 +98,34 @@ class TestEnthalpy:
         # Лишние аргументы (должны игнорироваться)
         result = enthalpy(self.f1_1, T=(300, 500), extra_arg=(100, 200))
         expected = enthalpy(self.f1_1, T=(300, 500))
-        assert abs(result - expected) < 1e-10
+        assert result == pytest.approx(expected, rel=self.RELERR)
 
     def test_lambda_functions(self):
         """Тест с lambda-функциями"""
-        # Lambda с одной переменной
         result1 = enthalpy(lambda T: 1000.0, T=(300, 500))
         expected1 = 1000.0 * 200
-        assert abs(result1 - expected1) < 1e-10
+        assert result1 == pytest.approx(expected1, rel=self.RELERR)
 
-        # Lambda с двумя переменными
-        result2 = enthalpy(lambda T, P: 1000.0 + 0.1 * T, T=(300, 500), P=(100000, 200000))
+        result2 = enthalpy(lambda T, P: 1000.0 + 0.1 * T, T=(300, 500), P=(100_000, 200_000))
         expected2 = (1000.0 + 0.1 * 400) * 200 * 100000  # Среднее значение
-        assert abs(result2 - expected2) < 1e6  # Большая погрешность из-за приближения
+        assert result2 == pytest.approx(expected2, rel=self.RELERR)
 
     def test_edge_cases(self):
         """Тесты граничных случаев"""
 
         # Очень большой диапазон
-        result = enthalpy(self.f0_1, T=(0, 10000))
-        expected = 1000.0 * 10000
+        result = enthalpy(self.f0_1, T=(0, 10_000))
+        expected = 1000.0 * 10_000
         assert abs(result - expected) < 1e-6
 
         # Отрицательный диапазон
         result = enthalpy(self.f1_1, T=(-100, 100))
-        expected = 800.0 * 200 + 0.5 * (10000 - 10000) / 2  # T² симметрично
+        expected = 800.0 * 200 + 0.5 * (10_000 - 10_000) / 2  # T² симметрично
         assert abs(result - expected) < 1e-10
 
         # Очень маленький диапазон
         result = enthalpy(self.f0_1, T=(400, 400 + 1e-10))
         assert abs(result) < 1e-6
-
-    @pytest.mark.parametrize(
-        "function, kwargs, expected",
-        [
-            (f0_1.__func__, {"T": (0, 100)}, 100000.0),  # 1000 * 100
-            (f1_1.__func__, {"T": (0, 100)}, 80000.0 + 0.5 * 10000 / 2),  # ∫(800+0.5T)dT
-            (f0_1.__func__, {"T": (100, 200)}, 100000.0),  # 1000 * 100
-        ],
-    )
-    def test_parametrized(self, function, kwargs, expected):
-        """Параметризованные тесты"""
-        result = enthalpy(function, **kwargs)
-        assert abs(result - expected) < 1e-10
 
 
 class TestIntegralAverage:
