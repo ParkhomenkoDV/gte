@@ -16,6 +16,24 @@ def call_with_kwargs(function, kwargs: dict):
     return function(**arguments)
 
 
+def enthalpy(heat_capacity_at_constant_pressure, **kwargs) -> float:
+    """Энтальпия"""
+    assert callable(heat_capacity_at_constant_pressure), TypeError(f"{heat_capacity_at_constant_pressure} must be callable")
+
+    ranges = []
+    arg_names = heat_capacity_at_constant_pressure.__code__.co_varnames[: heat_capacity_at_constant_pressure.__code__.co_argcount]
+    for arg_name in arg_names:
+        rang = kwargs.get(arg_name)
+        assert rang is not None, Exception(f"function {heat_capacity_at_constant_pressure} require argument {arg_name}")
+        assert isinstance(rang, (tuple, list, np.ndarray)), TypeError(f"type of range must be tuple, but has {type(rang)}")
+        assert len(rang) == 2, ValueError(f"integral has 2 ranges, but has {len(rang)}")
+        ranges.append(tuple(rang))
+
+    result, _ = nquad(heat_capacity_at_constant_pressure, ranges)
+
+    return result
+
+
 def integral_average(function, **kwargs) -> tuple[float, float]:
     """Среднее интегральное"""
     assert callable(function), TypeError(f"{function} must be callable")
@@ -24,12 +42,8 @@ def integral_average(function, **kwargs) -> tuple[float, float]:
     arg_names = function.__code__.co_varnames[: function.__code__.co_argcount]
     for arg_name in arg_names:
         rang = kwargs.get(arg_name)
-        assert rang is not None, Exception(
-            f"function {function} require argument {arg_name}"
-        )
-        assert isinstance(rang, (tuple, list, np.ndarray)), TypeError(
-            f"type of range must be tuple, but has {type(rang)}"
-        )
+        assert rang is not None, Exception(f"function {function} require argument {arg_name}")
+        assert isinstance(rang, (tuple, list, np.ndarray)), TypeError(f"type of range must be tuple, but has {type(rang)}")
         assert len(rang) == 2, ValueError(f"integral has 2 ranges, but has {len(rang)}")
 
         if rang[0] == rang[1]:
@@ -61,7 +75,11 @@ def integral_average(function, **kwargs) -> tuple[float, float]:
 
 if __name__ == "__main__":
 
-    def test_func(temperature, y):
-        return temperature * y
+    def cp(temperature, eo):
+        return temperature + eo
 
-    print(integral_average(test_func, temperature=(300, 600), y=(1, 1)))
+    print(integral_average(cp, temperature=(300, 600), eo=(0, 1)), (600**2 - 300**2) / 2 / (600 - 300) + (1**2 - 0**2) / 2 / (1 - 0))
+    print(integral_average(cp, temperature=(300, 600), eo=(1, 1)), (600**2 - 300**2) / 2 / (600 - 300) + 1)
+
+    print(enthalpy(cp, temperature=(300, 600), eo=(2, 3)), (600**2 - 300**2) / 2 + (3**2 - 2**2) / 2)
+    print(enthalpy(cp, temperature=(300, 600), eo=(2, 2)), (600**2 - 300**2) / 2 + (2**2 - 2**2) / 2)
