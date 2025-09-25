@@ -1,9 +1,10 @@
 from copy import deepcopy
 
-from numpy import isclose, isnan, nan
+from mathematics import eps
+from numpy import isinf, isnan, nan
 from scipy.optimize import fsolve
 from substance import Substance
-from thermodynamics import adiabatic_index
+from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
 
 from src.checks import check_efficiency, check_temperature
 from src.config import EPSREL
@@ -23,7 +24,7 @@ class Compressor(GTENode):
         setattr(self, gtep.power, nan)
 
     @property
-    def variables(self):
+    def variables(self) -> dict:
         return {
             gtep.pipi: getattr(self, gtep.pipi),
             gtep.effeff: getattr(self, gtep.effeff),
@@ -31,58 +32,46 @@ class Compressor(GTENode):
         }
 
     @property
-    def __x0(self) -> dict[str:float]:
+    def _x0(self) -> dict[str:float]:
         """Начальные приближения"""
         x0 = {
-            "outlet_" + gtep.TT: self.inlet.parameters[gtep.TT],
-            "outlet_" + gtep.PP: self.inlet.parameters[gtep.PP],
+            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
+            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
         }
-
-        pipi = getattr(self, gtep.pipi)
-        effeff = getattr(self, gtep.effeff)
-        power = getattr(self, gtep.power)
-
-        if isnan(power) and not isnan(pipi) and not isnan(effeff):
-            x0[gtep.power] = 20 * 10**6  # TODO: model
-        elif isnan(effeff) and not isnan(pipi) and not isnan(power):
-            x0[gtep.effeff] = 0.8  # TODO: model
-        elif isnan(pipi) and not isnan(effeff) and not isnan(power):
-            x0[gtep.pipi] = 6  # TODO: model
-        elif not isnan(pipi) and not isnan(effeff) and not isnan(power):
-            return x0
-        else:
-            raise "недоопределено"
-
+        for k, v in self.variables.items():
+            if not isnan(v):
+                continue
+            if k == gtep.pipi:
+                x0[k] = 6  # TODO: model or formula
+            elif k == gtep.effeff:
+                x0[k] = 1.0
+            elif k == gtep.power:
+                x0[k] = 20 * 10**6  # TODO: model or formula
         return x0
 
     def equations(self, x: tuple, args: dict) -> tuple:
-        """Уравнения"""  # вызыввается в цикле!
+        """Уравнения"""
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
-        if gtep.power not in args:
-            setattr(self, gtep.power, x[2])
-        elif gtep.effeff not in args:
-            setattr(self, gtep.effeff, x[2])
-        elif gtep.pipi not in args:
-            setattr(self, gtep.pipi, x[2])
-        elif gtep.pipi in args and gtep.effeff in args and gtep.power in args:
-            pass
+        idx = 2
+        for k in self.variables:
+            if k not in args:
+                setattr(self, k, x[idx])
+                idx += 1
 
         TT_i = self.inlet.parameters[gtep.TT]
         PP_i = self.inlet.parameters[gtep.PP]
-        f_gc = self.inlet.functions[gtep.gc]
-        f_Cp = self.inlet.functions[gtep.Cp]
 
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
         gc = integral_average(
-            f_gc,
+            self.inlet.functions[gtep.gc],
             **{
                 gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
                 gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
             },
         )[0]
         Cp = integral_average(
-            f_Cp,
+            self.inlet.functions[gtep.Cp],
             **{
                 gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
                 gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
@@ -96,51 +85,25 @@ class Compressor(GTENode):
             getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / PP_i,
         )
 
-    def validate(self, epsrel: float = EPSREL) -> bool:
-        """Проверка найденного решения"""
-        x0 = (
-            self.outlet.parameters[gtep.TT],
-            self.outlet.parameters[gtep.PP],
-            1,  #
-        )
-        args = {
-            gtep.pipi: getattr(self, gtep.pipi),
-            gtep.effeff: getattr(self, gtep.effeff),
-            gtep.power: getattr(self, gtep.power),
-        }
-
-        for null in self.equations(x0, args):
-            print(f"{null:.6f}")
-        return all(isclose(null, 0, rtol=epsrel) for null in self.equations(x0, args))
-
     def calculate(self, substance_inlet: Substance, x0=None) -> Substance:
-        count_variables = sum((1 if isnan(v) else 0 for v in self.variables.values()))
-        if count_variables < 1:
-            raise ArithmeticError("система переопределена")
-        elif count_variables > 1:
-            raise ArithmeticError("система недоопределена")
-
         GTENode.validate_substance(self, substance_inlet)
         self.inlet = deepcopy(substance_inlet)
-        self.outlet = deepcopy(self.inlet)
+        self.outlet.name = self.inlet.name
+        self.outlet.functions = self.inlet.functions
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] - self.mass_flow_leak
 
-        pipi = getattr(self, gtep.pipi)
-        effeff = getattr(self, gtep.effeff)
-        power = getattr(self, gtep.power)
+        x0 = tuple(self._x0.values())
+        args = {k: v for k, v in self.variables.items() if not isnan(v)}
+        count_variables = sum(1 if k not in args else 0 for k in self.variables)
+        count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
 
-        args = {}
-        if not isnan(effeff) and not isnan(pipi) and isnan(power):
-            args.update({gtep.effeff: effeff, gtep.pipi: pipi})
-        elif not isnan(pipi) and not isnan(power) and isnan(effeff):
-            args.update({gtep.pipi: pipi, gtep.power: power})
-        elif not isnan(power) and not isnan(effeff) and isnan(pipi):
-            args.update({gtep.power: power, gtep.effeff: effeff})
-        else:
-            raise f"{x0=}"
+        if count_variables < count_equations:
+            raise ArithmeticError(f"{count_variables=} < {count_equations=}")
+        elif count_variables > count_equations:
+            raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
-        fsolve(self.equations, tuple(self.__x0.values()), args)
+        fsolve(self.equations, x0, args)
 
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
         self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
@@ -148,6 +111,23 @@ class Compressor(GTENode):
         self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
 
         return self.outlet
+
+    def validate(self, epsrel: float = EPSREL) -> bool:
+        """Проверка найденного решения"""
+        x0 = (
+            self.outlet.parameters[gtep.TT],
+            self.outlet.parameters[gtep.PP],
+        )
+        args = {k: v for k, v in self.variables.items() if not isnan(v)}
+
+        result = True
+        for i, null in enumerate(self.equations(x0, args)):
+            epsilon = eps("rel", null, 0)
+            if epsilon > epsrel and not isinf(epsilon):
+                result = False
+                print(f"{i}: {null:.6f}")
+
+        return result
 
     @property
     def is_real(self):
@@ -165,7 +145,7 @@ if __name__ == "__main__":
     substance_inlet = Substance(
         "air",
         parameters={
-            gtep.gc: 287,
+            gtep.gc: 287.14,
             gtep.TT: 300,
             gtep.PP: 101_325,
             gtep.mf: 100,
@@ -174,21 +154,31 @@ if __name__ == "__main__":
             gtep.c: 0,
         },
         functions={
-            gtep.gc: lambda total_temperature: 287,
-            gtep.Cp: lambda total_temperature: 1006,
+            gtep.gc: lambda total_temperature: gas_const("AIR"),
+            gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("AIR", total_temperature),
         },
     )
 
-    compressor = Compressor()
-    compressor.summary
+    test_cases = (
+        {"name": "1", "compressor": {gtep.pipi: 6, gtep.effeff: 0.85, "mass_flow_leak": 0.03}, "outlet": {}},
+        {"name": "2", "compressor": {gtep.pipi: 6, gtep.power: 23 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
+        {"name": "3", "compressor": {gtep.effeff: 0.85, gtep.power: 23 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
+    )
 
-    setattr(compressor, gtep.pipi, 6)
-    setattr(compressor, gtep.effeff, 0.87)
-    compressor.mass_flow_leak = 0.03
+    for test_case in test_cases:
+        compressor = Compressor(test_case["name"])
+        compressor.summary
 
-    compressor.calculate(substance_inlet)
+        for k, v in test_case["compressor"].items():
+            setattr(compressor, k, v)
+        for k, v in test_case["outlet"].items():
+            compressor.outlet.parameters[k] = v
 
-    compressor.summary
+        compressor.calculate(substance_inlet)
 
-    print(f"{compressor.validate() = }")
-    print(f"{compressor.is_real = }")
+        compressor.summary
+
+        print(f"{compressor.validate() = }")
+        print(f"{compressor.is_real = }")
+
+        print()

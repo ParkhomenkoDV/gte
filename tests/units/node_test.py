@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from numpy import isnan, nan
 from substance import Substance
+from thermodynamics import gas_const, heat_capacity_at_constant_pressure
 
 from src.config import EPSREL
 from src.config import parameters as gtep
@@ -16,7 +17,7 @@ def substance_air():
     return Substance(
         "air",
         parameters={
-            gtep.gc: 287.0,
+            gtep.gc: 287.14,
             gtep.TT: 300.0,
             gtep.PP: 101325.0,
             gtep.mf: 100.0,
@@ -25,8 +26,8 @@ def substance_air():
             gtep.c: 0.0,
         },
         functions={
-            gtep.gc: lambda total_temperature: 287.0,
-            gtep.Cp: lambda total_temperature, total_pressure: 1006.0,
+            gtep.gc: lambda total_temperature: gas_const("air"),
+            gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("air", total_temperature),
         },
     )
 
@@ -67,14 +68,14 @@ def substance_exhaust():
             gtep.c: 0.0,
         },
         functions={
-            gtep.gc: lambda total_temperature: 287.0,
-            gtep.Cp: lambda total_temperature, total_pressure: 1006.0,
+            gtep.gc: lambda excess_oxidizing: gas_const("air", excess_oxidizing, fuel="kerosene"),
+            gtep.Cp: lambda total_temperature, excess_oxidizing: heat_capacity_at_constant_pressure("exhaust", total_temperature, excess_oxidizing),
         },
     )
 
 
 class TestNode:
-    @pytest.mark.parametrize("Node", [Compressor])
+    @pytest.mark.parametrize("Node", [Compressor, CombustionChamber])
     def test_init(self, Node):
         node = Node()
         assert isinstance(node, Node)
@@ -84,7 +85,7 @@ class TestNode:
         assert isinstance(node.inlet, Substance)
         assert isinstance(node.outlet, Substance)
 
-    @pytest.mark.parametrize("Node", [Compressor])
+    @pytest.mark.parametrize("Node", [Compressor, CombustionChamber])
     def test_name(self, Node):
         node = Node()
         assert node.name == Node.__name__
@@ -135,9 +136,9 @@ class TestCompressor:
     @pytest.mark.parametrize(
         "pipi, effeff, power, mf_leak, error, expected",
         [
-            (6.0, 0.85, nan, 0, False, expected(gtep.power, 23_690_849)),
-            (6.0, nan, 24 * 10**6, 0, False, expected(gtep.effeff, 0.839)),
-            (nan, 0.85, 24 * 10**6, 0, False, expected(gtep.pipi, 6.11)),
+            (6.0, 0.85, nan, 0, False, expected(gtep.power, 23_632_485)),
+            (6.0, nan, 24 * 10**6, 0, False, expected(gtep.effeff, 0.8369)),
+            (nan, 0.85, 24 * 10**6, 0, False, expected(gtep.pipi, 6.1329)),
             # error
             (nan, nan, 24 * 10**6, 0, True, expected("", 0)),
             (6.0, nan, nan, 0, True, expected("", 0)),
@@ -181,7 +182,7 @@ class TestCompressor:
 
         assert compressor.is_real == expected
 
-    def test_error_handling(self, compressor):
+    def test_error(self, compressor):
         """Тест обработки ошибок"""
         # Тест с некорректным веществом
         with pytest.raises(Exception):

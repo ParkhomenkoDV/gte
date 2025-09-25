@@ -16,6 +16,7 @@ class GTENode(ABC):
     """Абстрактный базовый класс узла ГТД"""
 
     def __init__(self, name: str = "node") -> None:
+        assert isinstance(name, str), TypeError(f"type name must be str, but has {type(name)}")
         self.name: str = name
 
         self.inlet = Substance("inlet")
@@ -37,8 +38,15 @@ class GTENode(ABC):
             return super().__delattr__(name)
 
     @property
-    # @abstractmethod
+    @abstractmethod
     def variables(self) -> dict[str:float]:
+        """Переменные параметры"""
+        return {}
+
+    @property
+    @abstractmethod
+    def _x0(self) -> dict:
+        """Начальные приближения"""
         return {}
 
     @property
@@ -64,23 +72,11 @@ class GTENode(ABC):
 
     def get_variability(self) -> int:
         """Максимальное количество комбинаций варьируемых параметров"""
-        return prod(
-            [
-                len(value)
-                for key, value in self.__dict__.items()
-                if isinstance(value, (list, tuple, array))
-                and len(value)
-                and not key.startswith("_")
-            ]
-        )
+        return prod([len(value) for key, value in self.__dict__.items() if isinstance(value, (list, tuple, array)) and len(value) and not key.startswith("_")])
 
     def set_combination(self, combination: int, main_node) -> None:
         """Установка комбинации"""
-        varible_params = [
-            key
-            for key, value in main_node.__dict__.items()
-            if type(value) is list and len(value) and not key.startswith("_")
-        ]
+        varible_params = [key for key, value in main_node.__dict__.items() if type(value) is list and len(value) and not key.startswith("_")]
         positions = [0] * len(varible_params)
 
         for i in range(combination):
@@ -99,28 +95,16 @@ class GTENode(ABC):
 
     def validate_substance(self, substance: Substance) -> None:
         """Проверка параметров рабочего тела на входе"""
-        assert isinstance(substance, Substance), TypeError(
-            "type substance must be Substance"
-        )
-        assert substance.parameters.get(gtep.TT), AttributeError(
-            SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT)
-        )
-        assert substance.parameters.get(gtep.PP), AttributeError(
-            SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP)
-        )
-        assert substance.parameters.get(gtep.mf), AttributeError(
-            SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf)
-        )
+        assert isinstance(substance, Substance), TypeError("type substance must be Substance")
+        assert substance.parameters.get(gtep.TT), AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
+        assert substance.parameters.get(gtep.PP), AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
+        assert substance.parameters.get(gtep.mf), AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf))
         # validate functions
         td_keys = gtep.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():
-            assert name in gtep.values(), KeyError(
-                f"function '{name}' not in {td_keys}"
-            )
+            assert name in gtep.values(), KeyError(f"function '{name}' not in {td_keys}")
             for func_arg in function.__code__.co_varnames:
-                assert func_arg in td_keys, NameError(
-                    f"function '{name}' has arg '{func_arg}' not in {td_keys}"
-                )
+                assert func_arg in td_keys, NameError(f"function '{name}' has arg '{func_arg}' not in {td_keys}")
 
     def equations(self, x: tuple, args: dict) -> tuple:
         """Уравнения"""
