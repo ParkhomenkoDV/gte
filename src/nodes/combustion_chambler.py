@@ -15,7 +15,7 @@ from thermodynamics import (
 from src.checks import check_efficiency, check_temperature
 from src.config import parameters as gtep
 from src.nodes.node import GTENode
-from src.utils import integral_average
+from src.utils import enthalpy, integral_average
 
 
 class CombustionChamber(GTENode):
@@ -33,8 +33,8 @@ class CombustionChamber(GTENode):
     def __x0(self) -> dict[str:float]:
         """Начальные приближения"""
         x0 = {
-            "outlet_" + gtep.TT: self.inlet.parameters[gtep.TT],
-            "outlet_" + gtep.PP: self.inlet.parameters[gtep.PP],
+            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
+            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
         }
 
         if isnan(self.outlet.parameters[gtep.eo]):
@@ -57,13 +57,13 @@ class CombustionChamber(GTENode):
         TT_i = self.inlet.parameters[gtep.TT]
         PP_i = self.inlet.parameters[gtep.PP]
         f_Cp_i = self.inlet.functions[gtep.Cp]
-        e_i = integral_average(f_Cp_i, (T0, TT_i))
+        e_i = enthalpy(f_Cp_i, **{gtep.TT: (T0, TT_i)})
 
         name_f = self.fuel.name
         mf_f = self.fuel.parameters[gtep.mf]
         TT_f = self.fuel.parameters[gtep.TT]
         f_Cp_f = self.fuel.functions[gtep.Cp]
-        e_f = integral_average(f_Cp_f, (T0, TT_f))
+        e_f = enthalpy(f_Cp_f, **{gtep.TT: (T0, TT_f)})
 
         mf_o = self.outlet.parameters[gtep.mf]
         f_Cp_o = self.outlet.functions[gtep.Cp]
@@ -71,10 +71,12 @@ class CombustionChamber(GTENode):
         return (
             (
                 mf_o
-                * integral_average(
+                * enthalpy(
                     f_Cp_o,
-                    (T0, self.outlet.parameters[gtep.TT]),
-                    (2, 2),  # TODO
+                    **{
+                        gtep.TT: (0, self.outlet.parameters[gtep.TT]),
+                        gtep.eo: (0, self.outlet.parameters[gtep.eo]),  # TODO
+                    },
                 )
             )
             - (mf_i * e_i)
@@ -91,9 +93,9 @@ class CombustionChamber(GTENode):
         self.outlet = Substance("exhaust") + fuel
 
         self.outlet.functions[gtep.gc] = lambda excess_oxidizing: gas_const("EXHAUST", excess_oxidizing, fuel.name)
-        self.outlet.functions[gtep.Cp] = lambda TT, excess_oxidizing: heat_capacity_at_constant_pressure(
+        self.outlet.functions[gtep.Cp] = lambda total_temperature, excess_oxidizing: heat_capacity_at_constant_pressure(
             "EXHAUST",
-            TT,
+            total_temperature,
             excess_oxidizing=excess_oxidizing,
             fuel=fuel.name,
         )
