@@ -8,7 +8,7 @@ VENV_DIR = .venv
 VENV_ACTIVATE = $(VENV_DIR)/bin/activate
 PYTHON_PATH = $(VENV_DIR)/bin/python
 PIP_PATH = $(VENV_DIR)/bin/pip
-TEST_DIR = tests
+TEST_DIR = tests/unit
 BENCH_DIR = tests/benchmarks
 SRC_DIR = gte
 REQUIREMENTS = requirements.txt
@@ -58,7 +58,7 @@ test:
 
 bench:
 	@echo "$(BLUE)Running benchmarks...$(RESET)"
-	$(PYTHON_PATH) -m pytest $(BENCH_DIR)
+	$(PYTHON_PATH) -m pytest $(BENCH_DIR) -v -s --benchmark-only --benchmark-min-rounds=10
 
 lint:
 	@echo "$(BLUE)Running linters...$(RESET)"
