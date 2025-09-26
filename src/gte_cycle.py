@@ -6,7 +6,7 @@ import colorama
 import matplotlib.pyplot as plt
 import pandas as pd
 import tqdm
-from colorama import Back, Fore, Style
+from colorama import Fore
 from numpy import linspace
 from thermodynamics import *
 from tools import eps, export2file, isnum, rounding, run_thread_tasks_in_parallel

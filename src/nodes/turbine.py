@@ -175,9 +175,9 @@ if __name__ == "__main__":
     setattr(t, gtep.power, 25 * 10**6)
     setattr(t, gtep.effeff, 0.9)
 
-    t.summary
-
     t.calculate(substance_inlet)
 
-    for k, v in t.__dict__.items():
-        print(k, "=", v)
+    t.summary
+
+    print(f"{t.validate() = }")
+    print(f"{t.is_real = }")
