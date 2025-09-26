@@ -12,7 +12,7 @@ from src.nodes import CombustionChamber, Compressor
 
 
 @pytest.fixture
-def substance_air():
+def air():
     """Воздух для тестов"""
     return Substance(
         "air",
@@ -33,7 +33,7 @@ def substance_air():
 
 
 @pytest.fixture
-def substance_fuel():
+def fuel():
     """Горючее для тестов"""
     return Substance(
         "kerosene",
@@ -54,7 +54,7 @@ def substance_fuel():
 
 
 @pytest.fixture
-def substance_exhaust():
+def exhaust():
     """Выхлопные газы для тестов"""
     return Substance(
         "exhaust",
@@ -145,7 +145,7 @@ class TestCompressor:
             (nan, nan, nan * 10**6, 0, True, expected("", 0)),
         ],
     )
-    def test_calculate_integration(self, compressor, substance_air, pipi, effeff, power, mf_leak, error, expected):
+    def test_calculate_integration(self, compressor, air, pipi, effeff, power, mf_leak, error, expected):
         """Интеграционный тест расчета"""
         setattr(compressor, gtep.pipi, pipi)
         setattr(compressor, gtep.effeff, effeff)
@@ -154,9 +154,9 @@ class TestCompressor:
 
         if error:
             with pytest.raises(Exception):
-                compressor.calculate(substance_air)
+                compressor.calculate(air)
         else:
-            outlet = compressor.calculate(substance_air)
+            outlet = compressor.calculate(air)
 
             assert isinstance(outlet, Substance)
             # Проверяем основные параметры

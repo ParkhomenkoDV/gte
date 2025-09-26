@@ -9,9 +9,9 @@ VENV_ACTIVATE = $(VENV_DIR)/bin/activate
 PYTHON_PATH = $(VENV_DIR)/bin/python
 PIP_PATH = $(VENV_DIR)/bin/pip
 TEST_DIR = tests
+BENCH_DIR = tests/benchmarks
 SRC_DIR = gte
 REQUIREMENTS = requirements.txt
-DEV_REQUIREMENTS = requirements-dev.txt
 
 # Colors
 RED    = \033[0;31m
@@ -50,15 +50,15 @@ activate:
 install:
 	@echo "$(BLUE)Installing production dependencies...$(RESET)"
 	$(PIP_PATH) install --upgrade -r $(REQUIREMENTS)
-
-install-dev: install
-	@echo "$(BLUE)Installing development dependencies...$(RESET)"
-	$(PIP_PATH) install --upgrade -r $(DEV_REQUIREMENTS)
-	$(PIP_PATH) install --upgrade black flake8 pylint isort pytest
+	$(PIP_PATH) install --upgrade black flake8 pylint isort pytest pytest-benchmark
 
 test:
 	@echo "$(BLUE)Running tests...$(RESET)"
 	$(PYTHON_PATH) -m pytest $(TEST_DIR) -v -s
+
+bench:
+	@echo "$(BLUE)Running benchmarks...$(RESET)"
+	$(PYTHON_PATH) -m pytest $(BENCH_DIR)
 
 lint:
 	@echo "$(BLUE)Running linters...$(RESET)"
