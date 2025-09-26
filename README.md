@@ -37,7 +37,7 @@ See tutorial in gte/examples/
 ```
 gte/
 |--- examples/  # tutorial
-|--- images/  # docs images
+|--- assets/images/  # docs images
 |--- src/  # source code gte
 |--- src/nodes/  # source code gte nodes
 |--- tests
