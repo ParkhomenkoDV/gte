@@ -114,10 +114,7 @@ class Compressor(GTENode):
 
     def validate(self, epsrel: float = EPSREL) -> bool:
         """Проверка найденного решения"""
-        x0 = (
-            self.outlet.parameters[gtep.TT],
-            self.outlet.parameters[gtep.PP],
-        )
+        x0 = (self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.PP])
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
 
         result = True
@@ -168,6 +165,8 @@ if __name__ == "__main__":
     for test_case in test_cases:
         compressor = Compressor(test_case["name"])
         compressor.summary
+
+        compressor.auyf = 5
 
         for k, v in test_case["compressor"].items():
             setattr(compressor, k, v)

@@ -60,7 +60,7 @@ class GTENode(ABC):
         n = 20
         print("-" * n)
         for k, v in self.__dict__.items():
-            if k not in ("inlet", "outlet"):
+            if not isinstance(v, Substance):
                 print(f"{k}: {v}")
         for k, v in self.inlet.parameters.items():
             print(f"{k}_inlet: {v}")

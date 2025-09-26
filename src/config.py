@@ -32,7 +32,9 @@ parameters = Constants(
     mach="mach_number",  # число Маха
     Nu="nusselt_number",  # число Нуссельта
     # КПД
-    effeff="efficiency",  # полный кпд
+    efficiency="efficiency",  # КПД
+    effeff="total_efficiency",  # полный кпд
+    peff="pressure_efficiency",  # коэф. сохранения давления
     power="power",  # мощность
 )
 
