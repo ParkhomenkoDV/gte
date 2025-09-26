@@ -113,7 +113,7 @@ class TestCompressor:
         assert compressor.mass_flow_leak == 0.0
 
     @pytest.mark.parametrize(
-        "pipi,effeff,power,expected_count",
+        "pipi, effeff, power, expected_count",
         [
             (nan, 0.8, nan, 2),  # недоопределено
             (6.0, 0.8, nan, 1),  # определяется power

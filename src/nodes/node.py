@@ -96,9 +96,9 @@ class GTENode(ABC):
     def validate_substance(self, substance: Substance) -> None:
         """Проверка параметров рабочего тела на входе"""
         assert isinstance(substance, Substance), TypeError("type substance must be Substance")
-        assert substance.parameters.get(gtep.TT), AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
-        assert substance.parameters.get(gtep.PP), AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
-        assert substance.parameters.get(gtep.mf), AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf))
+        assert substance.parameters.get(gtep.mf) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.mf))
+        assert substance.parameters.get(gtep.TT) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
+        assert substance.parameters.get(gtep.PP) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
         # validate functions
         td_keys = gtep.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():
@@ -111,7 +111,7 @@ class GTENode(ABC):
         pass
 
     @abstractmethod
-    def calculate(self) -> Substance:
+    def calculate(self, x0: dict = None) -> Substance:
         """Расчет узла"""
         # расчет входных параметров
         # расчет параметров узла

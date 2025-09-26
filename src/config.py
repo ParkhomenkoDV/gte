@@ -1,4 +1,5 @@
 from mathematics import Constants
+from substance import Substance
 
 # термодинамические параметры
 parameters = Constants(
@@ -40,3 +41,13 @@ parameters = Constants(
 
 EPSREL = 0.001  # относительная ошибка
 NITER = 25  # количество итераций
+
+
+substance_mixing = Substance(
+    "MIXING",
+    parameters={
+        parameters.mf: 0,
+        parameters.TT: 0,
+        parameters.PP: 0,
+    },
+)

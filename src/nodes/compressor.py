@@ -24,7 +24,7 @@ class Compressor(GTENode):
         setattr(self, gtep.power, nan)
 
     @property
-    def variables(self) -> dict:
+    def variables(self) -> dict[str:float]:
         return {
             gtep.pipi: getattr(self, gtep.pipi),
             gtep.effeff: getattr(self, gtep.effeff),
@@ -63,29 +63,29 @@ class Compressor(GTENode):
         PP_i = self.inlet.parameters[gtep.PP]
 
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
-        gc = integral_average(
+        gc, _ = integral_average(
             self.inlet.functions[gtep.gc],
             **{
                 gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
                 gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
             },
-        )[0]
-        Cp = integral_average(
+        )
+        Cp, _ = integral_average(
             self.inlet.functions[gtep.Cp],
             **{
                 gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
                 gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
             },
-        )[0]
+        )
         k = adiabatic_index(gc, Cp)
 
-        return (
+        return (  # TODO: F
             getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
             self.outlet.parameters[gtep.TT] - TT_i * (1 + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1) / getattr(self, gtep.effeff)),
             getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / PP_i,
         )
 
-    def calculate(self, substance_inlet: Substance, x0=None) -> Substance:
+    def calculate(self, substance_inlet: Substance, x0: dict = None) -> Substance:
         GTENode.validate_substance(self, substance_inlet)
         self.inlet = deepcopy(substance_inlet)
         self.outlet.name = self.inlet.name
@@ -93,7 +93,13 @@ class Compressor(GTENode):
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] - self.mass_flow_leak
 
-        x0 = tuple(self._x0.values())
+        if x0 is None:
+            x0 = tuple(self._x0.values())
+        else:
+            assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
+            for k, v in self._x0.items():
+                if k not in x0:
+                    x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
         count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
@@ -163,21 +169,19 @@ if __name__ == "__main__":
     )
 
     for test_case in test_cases:
-        compressor = Compressor(test_case["name"])
-        compressor.summary
-
-        compressor.auyf = 5
+        c = Compressor(test_case["name"])
+        c.summary
 
         for k, v in test_case["compressor"].items():
-            setattr(compressor, k, v)
+            setattr(c, k, v)
         for k, v in test_case["outlet"].items():
-            compressor.outlet.parameters[k] = v
+            c.outlet.parameters[k] = v
 
-        compressor.calculate(substance_inlet)
+        c.calculate(substance_inlet)
 
-        compressor.summary
+        c.summary
 
-        print(f"{compressor.validate() = }")
-        print(f"{compressor.is_real = }")
+        print(f"{c.validate() = }")
+        print(f"{c.is_real = }")
 
         print()

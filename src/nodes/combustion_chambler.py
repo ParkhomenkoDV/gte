@@ -109,7 +109,8 @@ class CombustionChamber(GTENode):
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
         self.outlet.parameters[gtep.eo] = 1
 
-        x0 = tuple(self._x0.values())
+        if x0 is None:
+            x0 = tuple(self._x0.values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
         count_equations = len(self.equations(x0, args)) - 3  # outlet_TT, outlet_PP, outlet_eo
