@@ -22,14 +22,13 @@ RESET  = \033[0m
 
 
 # Targets
-.PHONY: help venv venv-activate install install-dev test lint format clean run
+.PHONY: help venv venv-activate install test lint format clean run
 
 help:
 	@echo "Available commands:"
 	@echo "  make venv           - Create virtual environment"
 	@echo "  make activate       - Activate virtual environment (prints command)"
 	@echo "  make install        - Install production dependeRESETies"
-	@echo "  make install-dev    - Install development dependeRESETies"
 	@echo "  make test           - Run tests"
 	@echo "  make lint           - Run linters (flake8, pylint)"
 	@echo "  make format         - Format code (black, isort)"

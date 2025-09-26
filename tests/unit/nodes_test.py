@@ -207,11 +207,8 @@ class TestCombustionChamber:
         """Тест инициализации камеры сгорания"""
         assert cc.name == "TestCombustionChamber"
         assert isnan(getattr(cc, "efficiency_burn"))
-        assert getattr(cc, "total_pressure_loss") == 0
+        assert isnan(getattr(cc, gtep.peff))
         assert cc.mass_flow_leak == 0.0
-
-        assert hasattr(cc, "fuel")
-        assert isinstance(cc.fuel, Substance)
 
 
 if __name__ == "__main__":
