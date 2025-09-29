@@ -1,7 +1,6 @@
 from copy import deepcopy
 
-from mathematics import eps
-from numpy import isinf, isnan, nan
+from numpy import isnan, nan
 from scipy.optimize import fsolve
 from substance import Substance
 from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
@@ -125,8 +124,7 @@ class Compressor(GTENode):
 
         result = True
         for i, null in enumerate(self.equations(x0, args)):
-            epsilon = eps("rel", null, 0)
-            if epsilon > epsrel and not isinf(epsilon):
+            if abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
 
@@ -151,7 +149,7 @@ if __name__ == "__main__":
             gtep.gc: 287.14,
             gtep.TT: 300,
             gtep.PP: 101_325,
-            gtep.mf: 100,
+            gtep.mf: 50,
             gtep.Cp: 1006,
             gtep.k: 1.4,
             gtep.c: 0,

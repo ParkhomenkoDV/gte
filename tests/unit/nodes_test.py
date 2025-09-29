@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from numpy import isnan, nan
 from substance import Substance
-from thermodynamics import gas_const, heat_capacity_at_constant_pressure
+from thermodynamics import T0, gas_const, heat_capacity_at_constant_pressure
 
 from src.config import EPSREL
 from src.config import parameters as gtep
@@ -17,10 +17,10 @@ def air():
     return Substance(
         "air",
         parameters={
+            gtep.mf: 50.0,
             gtep.gc: 287.14,
             gtep.TT: 300.0,
             gtep.PP: 101325.0,
-            gtep.mf: 100.0,
             gtep.Cp: 1006.0,
             gtep.k: 1.4,
             gtep.c: 0.0,
@@ -38,17 +38,12 @@ def fuel():
     return Substance(
         "kerosene",
         parameters={
-            gtep.gc: 287.0,
-            gtep.TT: 300.0,
+            gtep.mf: 3.0,
+            gtep.TT: 40 + T0,
             gtep.PP: 101325.0,
-            gtep.mf: 1.0,
-            gtep.Cp: 1006.0,
-            gtep.k: 1.4,
-            gtep.c: 0.0,
         },
         functions={
-            gtep.gc: lambda total_temperature: 287.0,
-            gtep.Cp: lambda total_temperature, total_pressure: 1006.0,
+            gtep.Cp: lambda total_temperature: 200,
         },
     )
 
@@ -62,7 +57,7 @@ def exhaust():
             gtep.gc: 287.0,
             gtep.TT: 300.0,
             gtep.PP: 101325.0,
-            gtep.mf: 1.0,
+            gtep.mf: 51,
             gtep.Cp: 1006.0,
             gtep.k: 1.4,
             gtep.c: 0.0,
@@ -136,13 +131,13 @@ class TestCompressor:
     @pytest.mark.parametrize(
         "pipi, effeff, power, mf_leak, error, expected",
         [
-            (6.0, 0.85, nan, 0, False, expected(gtep.power, 23_632_485)),
-            (6.0, nan, 24 * 10**6, 0, False, expected(gtep.effeff, 0.8369)),
-            (nan, 0.85, 24 * 10**6, 0, False, expected(gtep.pipi, 6.1329)),
+            (6.0, 0.85, nan, 0, False, expected(gtep.power, 11_816_242)),
+            (6.0, nan, 12 * 10**6, 0, False, expected(gtep.effeff, 0.8369)),
+            (nan, 0.85, 12 * 10**6, 0, False, expected(gtep.pipi, 6.1329)),
             # error
             (nan, nan, 24 * 10**6, 0, True, expected("", 0)),
             (6.0, nan, nan, 0, True, expected("", 0)),
-            (nan, nan, nan * 10**6, 0, True, expected("", 0)),
+            (nan, nan, nan, 0, True, expected("", 0)),
         ],
     )
     def test_calculate_integration(self, compressor, air, pipi, effeff, power, mf_leak, error, expected):
@@ -209,6 +204,37 @@ class TestCombustionChamber:
         assert isnan(getattr(cc, "efficiency_burn"))
         assert isnan(getattr(cc, gtep.peff))
         assert cc.mass_flow_leak == 0.0
+
+    @pytest.mark.parametrize(
+        "peff, efficiency_burn, mf_leak, error, expected",
+        [
+            (0.95, 0.98, 0, False, {gtep.TT: 1868}),
+            # error
+            (nan, nan, 0, True, {}),
+            (6.0, nan, 0, True, {}),
+            (nan, nan, 0, True, {}),
+        ],
+    )
+    def test_calculate_integration(self, cc, air, fuel, peff, efficiency_burn, mf_leak, error, expected):
+        """Интеграционный тест расчета"""
+        setattr(cc, gtep.peff, peff)
+        setattr(cc, "efficiency_burn", efficiency_burn)
+        cc.mass_flow_leak = mf_leak
+
+        if error:
+            with pytest.raises(Exception):
+                cc.calculate(air, fuel)
+        else:
+            outlet = cc.calculate(air, fuel)
+
+            assert isinstance(outlet, Substance)
+            # Проверяем основные параметры
+            assert gtep.mf in outlet.parameters
+            assert gtep.TT in outlet.parameters
+            assert gtep.PP in outlet.parameters
+
+            for k, v in expected.items():
+                assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL)
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ class CombustionChamber(GTENode):
         x0 = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
             f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
-            f"outlet_{gtep.eo}": 1,
+            f"outlet_{gtep.eo}": 3,  # 1 == clean_exhaust => prohibited
         }
         for k, v in self.variables.items():
             if not isnan(v):
@@ -57,7 +57,8 @@ class CombustionChamber(GTENode):
         """Уравнения"""
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
-        idx = 2
+        self.outlet.parameters[gtep.eo] = x[2]
+        idx = 3
         for k in self.variables:
             if k not in args:
                 setattr(self, k, x[idx])
@@ -107,7 +108,6 @@ class CombustionChamber(GTENode):
         )
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
-        self.outlet.parameters[gtep.eo] = 1
 
         if x0 is None:
             x0 = tuple(self._x0.values())
@@ -121,9 +121,6 @@ class CombustionChamber(GTENode):
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
         fsolve(self.equations, x0, args)
-
-        assert self.inlet.parameters[gtep.TT] <= self.outlet.parameters[gtep.TT], Exception("inlet temperature > outlet temperature")
-        assert 0 < self.outlet.parameters[gtep.eo], Exception(f"outlet {gtep.eo} < 0")
 
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
         self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.eo])
@@ -151,6 +148,8 @@ class CombustionChamber(GTENode):
         checks = (
             check_efficiency(getattr(self, "efficiency_burn")),
             check_temperature(self.outlet.parameters[gtep.TT]),
+            self.inlet.parameters[gtep.TT] <= self.outlet.parameters[gtep.TT],
+            0 <= self.outlet.parameters[gtep.eo],
         )
         return all(checks)
 
@@ -162,10 +161,10 @@ if __name__ == "__main__":
     substance_inlet = Substance(
         "air",
         parameters={
+            gtep.mf: 50,
             gtep.gc: 287.14,
-            gtep.TT: 300 * 2,
-            gtep.PP: 101_325 * 6,
-            gtep.mf: 100,
+            gtep.TT: 500,
+            gtep.PP: 101_325 * 23,
             gtep.Cp: 1006,
             gtep.k: 1.4,
             gtep.c: 0,
@@ -179,9 +178,9 @@ if __name__ == "__main__":
     fuel = Substance(
         "kerosene",
         parameters={
+            gtep.mf: 3,
             gtep.TT: 40 + T0,
             gtep.PP: 101_325,
-            gtep.mf: 1,
         },
         functions={
             gtep.Cp: lambda total_temperature: 200,
