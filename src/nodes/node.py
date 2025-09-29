@@ -8,7 +8,7 @@ from src.errors import SUBSTANCE_ATTRIBUTE_ERROR
 
 """
 Порядок расчета ТД параметров:
-excess_oxidizing -> gas_const -> G -> T -> P -> D -> Cp -> k ->
+G -> excess_oxidizing -> gas_const -> T -> P -> D -> Cp -> k -> c
 """
 
 
