@@ -1,7 +1,6 @@
 from copy import deepcopy
 
-from mathematics import eps
-from numpy import isinf, isnan, nan
+from numpy import isnan, nan
 from scipy.optimize import fsolve
 from substance import Substance
 from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
@@ -35,18 +34,18 @@ class Turbine(GTENode):
     def _x0(self) -> dict[str:float]:
         """Начальные приближения"""
         x0 = {
-            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
-            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
+            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT] * 0.7,
+            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP] / 2.5,
         }
         for k, v in self.variables.items():
             if not isnan(v):
                 continue
             if k == gtep.pipi:
-                x0[k] = 4  # TODO: model or formula
+                x0[k] = 3  # TODO: model or formula
             elif k == gtep.effeff:
                 x0[k] = 1.0
             elif k == gtep.power:
-                x0[k] = 20 * 10**6  # TODO: model or formula
+                x0[k] = 24 * 10**6  # TODO: model or formula
         return x0
 
     def equations(self, x, args: dict) -> tuple:
@@ -83,8 +82,8 @@ class Turbine(GTENode):
         k = adiabatic_index(gc, Cp)
 
         return (
-            getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
-            self.outlet.parameters[gtep.TT] - TT_i * (1 - (1 - getattr(self, gtep.pipi) ** ((1 - k) / k) - 1) * getattr(self, gtep.effeff)),
+            getattr(self, gtep.power) - mf * Cp * (TT_i - self.outlet.parameters[gtep.TT]),
+            self.outlet.parameters[gtep.TT] - TT_i * (1 - getattr(self, gtep.effeff) * (1 - getattr(self, gtep.pipi) ** ((1 - k) / k))),
             getattr(self, gtep.pipi) - PP_i / self.outlet.parameters[gtep.PP],
         )
 
@@ -97,7 +96,7 @@ class Turbine(GTENode):
         self.outlet.functions = self.inlet.functions
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.mixing.parameters[gtep.mf] - self.mass_flow_leak
-        self.outlet.parameters[gtep.eo] = 1
+        self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]
 
         if x0 is None:
             x0 = tuple(self._x0.values())
@@ -131,8 +130,7 @@ class Turbine(GTENode):
 
         result = True
         for i, null in enumerate(self.equations(x0, args)):
-            epsilon = eps("rel", null, 0)
-            if epsilon > epsrel and not isinf(epsilon):
+            if abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
 
@@ -155,29 +153,29 @@ if __name__ == "__main__":
         "exhaust",
         parameters={
             gtep.mf: 51,
-            gtep.eo: 1.4,
+            gtep.eo: 3,
             gtep.gc: 287,
-            gtep.TT: 1700,
-            gtep.PP: 101_325 * 5,
+            gtep.TT: 1600,
+            gtep.PP: 101_325 * 23,
             gtep.Cp: 1206,
             gtep.k: 1.33,
             gtep.c: 100,
         },
         functions={
             gtep.gc: lambda excess_oxidizing: gas_const("EXHAUST", excess_oxidizing, fuel="kerosene"),
-            gtep.Cp: lambda total_temperature, excess_oxidizing: heat_capacity_at_constant_pressure("AIR", total_temperature, excess_oxidizing, fuel="kerosene"),
+            gtep.Cp: lambda total_temperature, excess_oxidizing: heat_capacity_at_constant_pressure("EXHAUST", total_temperature, excess_oxidizing, fuel="kerosene"),
         },
     )
 
     t = Turbine()
     t.summary
 
-    setattr(t, gtep.power, 25 * 10**6)
+    setattr(t, gtep.power, 32 * 10**6)
     setattr(t, gtep.effeff, 0.9)
 
     t.calculate(substance_inlet)
 
     t.summary
 
-    print(f"{t.validate() = }")
+    print(f"{t.validate(0.0001) = }")
     print(f"{t.is_real = }")
