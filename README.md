@@ -8,6 +8,17 @@ Library for thermodynamic calculation of the cycle of a gas turbine engine of **
 - apply boundary conditions
 - calculate engine cycle by `calculate()` method 
 
+```
+            fuel
+              |
+              v
+          ---------
+         |         |
+inlet -> |   gte   | -> outlet
+         |         |
+          ---------
+```
+
 
 ## Installation
 ```python
