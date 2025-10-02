@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from numpy import isnan, nan
-from scipy.optimize import fsolve
+from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
 
@@ -108,7 +108,7 @@ class Compressor(GTENode):
         elif count_variables > count_equations:
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
-        fsolve(self.equations, x0, args)
+        root(self.equations, x0, args, method="lm")
 
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
         self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
