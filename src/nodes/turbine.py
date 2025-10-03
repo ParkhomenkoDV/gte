@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from numpy import isnan, nan
-from scipy.optimize import fsolve
+from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
 
@@ -58,25 +58,27 @@ class Turbine(GTENode):
                 setattr(self, k, x[idx])
                 idx += 1
 
+        eo_i = self.inlet.parameters[gtep.eo]
         TT_i = self.inlet.parameters[gtep.TT]
         PP_i = self.inlet.parameters[gtep.PP]
-        eo_i = self.inlet.parameters[gtep.eo]
+
+        eo_o = self.outlet.parameters[gtep.eo]
 
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
         gc, _ = integral_average(
             self.inlet.functions[gtep.gc],
             **{
+                gtep.eo: (eo_i, eo_o),
                 gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
                 gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
-                gtep.eo: (eo_i, self.outlet.parameters[gtep.eo]),
             },
         )
         Cp, _ = integral_average(
             self.inlet.functions[gtep.Cp],
             **{
+                gtep.eo: (eo_i, eo_o),
                 gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
                 gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
-                gtep.eo: (eo_i, self.outlet.parameters[gtep.eo]),
             },
         )
         k = adiabatic_index(gc, Cp)
@@ -96,7 +98,7 @@ class Turbine(GTENode):
         self.outlet.functions = self.inlet.functions
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.mixing.parameters[gtep.mf] - self.mass_flow_leak
-        self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]
+        self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]  # TODO посчитать через массу!
 
         if x0 is None:
             x0 = tuple(self._x0.values())
@@ -114,7 +116,7 @@ class Turbine(GTENode):
         elif count_variables > count_equations:
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
-        fsolve(self.equations, x0, args)
+        root(self.equations, x0, args, method="lm")
 
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
         self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
