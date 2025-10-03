@@ -1,15 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from combustion_chambler import CombustionChamber
+from compressor import Compressor
 from config import parameters as gtep
-from nodes import CombustionChamber
-from nodes.compressor import Compressor
-from nodes.turbine import Turbine
 from numpy import cos, linspace, nan, prod, radians, sin
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import T0, atmosphere_standard, gas_const, gdf, heat_capacity_at_constant_pressure, stoichiometry
 from tqdm import tqdm
+from turbine import Turbine
 
 
 def find_node_in_scheme(scheme, node2find) -> tuple:

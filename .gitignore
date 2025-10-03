@@ -6,9 +6,6 @@ __pycache__
 venv/
 
 
-src/exports/
-
-
 *.html
 *.mp4
 *.bak

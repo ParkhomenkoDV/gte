@@ -19,6 +19,8 @@ G -> excess_oxidizing -> gas_const -> T -> P -> D -> Cp -> k -> c
 class GTENode(ABC):
     """Абстрактный базовый класс узла ГТД"""
 
+    __slots__ = ("name", "inlet", "outlet", "mass_flow_leak")
+
     def __init__(self, name: str = "node") -> None:
         assert isinstance(name, str), TypeError(f"type name must be str, but has {type(name)}")
         self.name: str = name
@@ -56,16 +58,16 @@ class GTENode(ABC):
     @property
     def summary(self) -> dict[str:float]:
         result = {
-            **{f"{self.name}_{k}": v for k, v in self.__dict__.items()},
+            # **{f"{self.name}_{k}": v for k, v in self.__slots__.items()},
             **{f"{k}_inlet": v for k, v in self.inlet.parameters.items()},
             **{f"{k}_outlet": v for k, v in self.outlet.parameters.items()},
         }
 
         n = 20
         print("-" * n)
-        for k, v in self.__dict__.items():
+        """for k, v in self.__dict__.items():
             if not isinstance(v, Substance):
-                print(f"{k}: {v}")
+                print(f"{k}: {v}")"""
         for k, v in self.inlet.parameters.items():
             print(f"{k}_inlet: {v}")
         for k, v in self.outlet.parameters.items():

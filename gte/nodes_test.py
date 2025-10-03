@@ -2,13 +2,13 @@ from collections import namedtuple
 
 import numpy as np
 import pytest
+from combustion_chambler import CombustionChamber
+from compressor import Compressor
+from config import EPSREL
+from config import parameters as gtep
 from numpy import isnan, nan
 from substance import Substance
 from thermodynamics import T0, gas_const, heat_capacity_at_constant_pressure
-
-from src.config import EPSREL
-from src.config import parameters as gtep
-from src.nodes import CombustionChamber, Compressor
 
 
 @pytest.fixture

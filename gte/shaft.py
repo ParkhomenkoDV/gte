@@ -1,6 +1,9 @@
-from nodes.compressor import Compressor
-from nodes.node import GTENode
-from nodes.turbine import Turbine
+try:
+    from .compressor import Compressor
+    from .turbine import Turbine
+except ImportError:
+    from compressor import Compressor
+    from turbine import Turbine
 
 
 class Shaft:
@@ -14,7 +17,7 @@ class Shaft:
 
         assert isinstance(nodes, (tuple, list)), TypeError("type nodes must be tuple")
         for node in nodes:
-            assert isinstance(node, GTENode), TypeError(f"type node must be {type(GTENode)}")
+            assert isinstance(node, (Compressor, Turbine)), TypeError(f"type node must be {type(Compressor), type(Turbine)}")
         self.nodes: tuple = nodes
 
 

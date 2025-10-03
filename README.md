@@ -29,8 +29,7 @@ pip install --upgrade git+https://github.com/ParkhomenkoDV/gte.git@master
 
 ## Usage
 ```python
-from gte import GTE
-from gte.nodes import Compressor, CombustionChamber, Turbine, Outlet
+from gte import GTE, Compressor, CombustionChamber, Turbine, Outlet
 
 gte = GTE("GE-90")
 

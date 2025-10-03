@@ -1,7 +1,12 @@
+import os
+import sys
+
 import numpy as np
 import pytest
 
-from src.utils import call_with_kwargs, enthalpy, integral_average
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from utils import call_with_kwargs, enthalpy, integral_average
 
 
 class Test_call_with_kwargs:

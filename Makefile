@@ -8,8 +8,8 @@ VENV_DIR = .venv
 VENV_ACTIVATE = $(VENV_DIR)/bin/activate
 PYTHON_PATH = $(VENV_DIR)/bin/python
 PIP_PATH = $(VENV_DIR)/bin/pip
-TEST_DIR = tests/unit
-BENCH_DIR = tests/benchmarks
+TEST_DIR = gte
+BENCH_DIR = gte
 SRC_DIR = gte
 REQUIREMENTS = requirements.txt
 

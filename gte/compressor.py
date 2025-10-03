@@ -22,6 +22,8 @@ except ImportError:
 class Compressor(GTENode):
     """Компрессор"""
 
+    __slots__ = (gtep.pipi, gtep.effeff, gtep.power)
+
     def __init__(self, name="Compressor"):
         GTENode.__init__(self, name=name)
 

@@ -30,6 +30,8 @@ except ImportError:
 class CombustionChamber(GTENode):
     """Камера сгорания"""
 
+    __slots__ = (gtep.effburn, gtep.peff, "fuel")
+
     def __init__(self, name="CombustionChamber"):
         GTENode.__init__(self, name=name)
 
