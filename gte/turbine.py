@@ -5,11 +5,18 @@ from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
 
-from src.checks import check_efficiency, check_temperature
-from src.config import EPSREL, substance_mixing
-from src.config import parameters as gtep
-from src.nodes.node import GTENode
-from src.utils import call_with_kwargs, integral_average
+try:
+    from .checks import check_efficiency, check_temperature
+    from .config import EPSREL, substance_mixing
+    from .config import parameters as gtep
+    from .node import GTENode
+    from .utils import call_with_kwargs, integral_average
+except ImportError:
+    from checks import check_efficiency, check_temperature
+    from config import EPSREL, substance_mixing
+    from config import parameters as gtep
+    from node import GTENode
+    from utils import call_with_kwargs, integral_average
 
 
 class Turbine(GTENode):

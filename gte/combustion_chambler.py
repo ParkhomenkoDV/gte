@@ -2,7 +2,7 @@ from copy import deepcopy
 
 from mathematics import eps
 from numpy import isinf, isnan, nan
-from scipy.optimize import fsolve
+from scipy.optimize import root
 from substance import Substance
 from thermodynamics import (
     T0,
@@ -13,11 +13,18 @@ from thermodynamics import (
     stoichiometry,
 )
 
-from src.checks import check_efficiency, check_temperature
-from src.config import EPSREL
-from src.config import parameters as gtep
-from src.nodes.node import GTENode
-from src.utils import call_with_kwargs, enthalpy
+try:
+    from .checks import check_efficiency, check_temperature
+    from .config import EPSREL
+    from .config import parameters as gtep
+    from .node import GTENode
+    from .utils import call_with_kwargs, enthalpy
+except ImportError:
+    from checks import check_efficiency, check_temperature
+    from config import EPSREL
+    from config import parameters as gtep
+    from node import GTENode
+    from utils import call_with_kwargs, enthalpy
 
 
 class CombustionChamber(GTENode):
@@ -26,13 +33,13 @@ class CombustionChamber(GTENode):
     def __init__(self, name="CombustionChamber"):
         GTENode.__init__(self, name=name)
 
-        self.efficiency_burn = nan
+        setattr(self, gtep.effburn, nan)
         setattr(self, gtep.peff, nan)
 
     @property
     def variables(self) -> dict:
         return {
-            "efficiency_burn": self.efficiency_burn,
+            gtep.effburn: getattr(self, gtep.effburn),
             gtep.peff: getattr(self, gtep.peff),
         }
 
@@ -65,14 +72,9 @@ class CombustionChamber(GTENode):
                 idx += 1
 
         mf_i = self.inlet.parameters[gtep.mf]
-        TT_i = self.inlet.parameters[gtep.TT]
         PP_i = self.inlet.parameters[gtep.PP]
-        e_i = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (0, TT_i), gtep.PP: (0, PP_i)})
 
         mf_f = self.fuel.parameters[gtep.mf]
-        TT_f = self.fuel.parameters[gtep.TT]
-        e_f = enthalpy(self.fuel.functions[gtep.Cp], **{gtep.TT: (0, TT_f)})
-
         mf_o = self.outlet.parameters[gtep.mf]
 
         return (
@@ -81,13 +83,14 @@ class CombustionChamber(GTENode):
                 * enthalpy(
                     self.outlet.functions[gtep.Cp],
                     **{
-                        gtep.TT: (0, self.outlet.parameters[gtep.TT]),
-                        gtep.eo: (0, self.outlet.parameters[gtep.eo]),
+                        gtep.TT: (T0, self.outlet.parameters[gtep.TT]),
+                        gtep.PP: (101325, self.outlet.parameters[gtep.PP]),
+                        gtep.eo: (1, self.outlet.parameters[gtep.eo]),
                     },
                 )
             )
-            - (mf_i * e_i)
-            - (mf_f * (e_f + self.efficiency_burn * lower_heating_value(self.fuel.name))),
+            - (mf_i * self.e_i)
+            - (mf_f * (self.e_f + self.efficiency_burn * lower_heating_value(self.fuel.name))),
             self.outlet.parameters[gtep.PP] - PP_i * getattr(self, gtep.peff),
             1 - (mf_f / mf_o) * stoichiometry(self.fuel.name) * self.outlet.parameters[gtep.eo],
         )
@@ -109,6 +112,9 @@ class CombustionChamber(GTENode):
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
 
+        self.e_i = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (T0, self.inlet.parameters[gtep.TT]), gtep.PP: (101325, self.inlet.parameters[gtep.PP])})
+        self.e_f = enthalpy(self.fuel.functions[gtep.Cp], **{gtep.TT: (T0, self.fuel.parameters[gtep.TT])})
+
         if x0 is None:
             x0 = tuple(self._x0.values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
@@ -120,7 +126,7 @@ class CombustionChamber(GTENode):
         elif count_variables > count_equations:
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
-        fsolve(self.equations, x0, args)
+        root(self.equations, x0, args, method="lm")
 
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
         self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.eo])
@@ -167,7 +173,7 @@ if __name__ == "__main__":
             gtep.PP: 101_325 * 23,
             gtep.Cp: 1006,
             gtep.k: 1.4,
-            gtep.c: 0,
+            gtep.c: 50,
         },
         functions={
             gtep.gc: lambda total_temperature: gas_const("AIR"),

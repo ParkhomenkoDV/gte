@@ -5,11 +5,18 @@ from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
 
-from src.checks import check_efficiency, check_temperature
-from src.config import EPSREL
-from src.config import parameters as gtep
-from src.nodes.node import GTENode
-from src.utils import call_with_kwargs, integral_average
+try:
+    from .checks import check_efficiency, check_temperature
+    from .config import EPSREL
+    from .config import parameters as gtep
+    from .node import GTENode
+    from .utils import call_with_kwargs, integral_average
+except ImportError:
+    from checks import check_efficiency, check_temperature
+    from config import EPSREL
+    from config import parameters as gtep
+    from node import GTENode
+    from utils import call_with_kwargs, integral_average
 
 
 class Compressor(GTENode):
@@ -58,30 +65,27 @@ class Compressor(GTENode):
                 setattr(self, k, x[idx])
                 idx += 1
 
-        TT_i = self.inlet.parameters[gtep.TT]
-        PP_i = self.inlet.parameters[gtep.PP]
-
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
         gc, _ = integral_average(
             self.inlet.functions[gtep.gc],
             **{
-                gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
-                gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
+                gtep.TT: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
+                gtep.PP: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
             },
         )
         Cp, _ = integral_average(
             self.inlet.functions[gtep.Cp],
             **{
-                gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
-                gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
+                gtep.TT: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
+                gtep.PP: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
             },
         )
         k = adiabatic_index(gc, Cp)
 
         return (  # TODO: F
-            getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - TT_i),
-            self.outlet.parameters[gtep.TT] - TT_i * (1 + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1) / getattr(self, gtep.effeff)),
-            getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / PP_i,
+            getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT]),
+            self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT] * (1 + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1) / getattr(self, gtep.effeff)),
+            getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / self.inlet.parameters[gtep.PP],
         )
 
     def calculate(self, substance_inlet: Substance, x0: dict = None) -> Substance:

@@ -1,21 +1,19 @@
-from numpy import nan
-from thermodynamics import T0, Cp, R_gas, η_polytropic
-from tools import isnum, eps
-
 from combustion_chambler import CombustionChamber  # камера сгорания
+from numpy import nan
+from thermodynamics import gas_const, heat_capacity_at_constant_pressure
 
 
-def find_node_in_scheme(scheme, node2find) -> tuple:
-    """Поиск положения узла в схеме"""
-    for contour in scheme:
-        for i, node in enumerate(scheme[contour]):
-            if scheme[contour][i] is node2find: return contour, i
+def heat_exchanger(coolant, TT1=nan, PP1=nan, τ=nan, σ=nan) -> dict:
+    """Теплообменный аппарат"""
+    TT3 = TT1 * τ
+    PP3 = PP1 * σ
+    return {"T*1": TT1, "T*3": TT3, "P*1": PP1, "P*3": PP3}
 
 
 class HeatExchanger:
     """Теплообменный аппарат"""
 
-    def __init__(self, name='HeatExchanger'):
+    def __init__(self, name="HeatExchanger"):
         self.name = name
         self.TT1 = nan  # полная температура перед
         self.TT3 = nan  # полная температура после
@@ -53,11 +51,12 @@ class HeatExchanger:
     def get_variability(self):
         result = 1
         for attr in (self.τ, self.σ, self.g_leak):
-            if type(attr) is list: result *= len(attr)
+            if type(attr) is list:
+                result *= len(attr)
         return result
 
     def set_combination(self, combination, heatexchanger_main):
-        varible_params = ('τ', 'σ', 'g_leak')
+        varible_params = ("τ", "σ", "g_leak")
         positions = [0] * len(varible_params)
 
         for i in range(combination):
@@ -74,10 +73,10 @@ class HeatExchanger:
         pass
 
     def solve(self, **kwargs):
-        substance = kwargs.get('substance', '')  # рабочее тело
-        fuel = kwargs.get('fuel', '')  # горючее
+        substance = kwargs.get("substance", "")  # рабочее тело
+        fuel = kwargs.get("fuel", "")  # горючее
 
-        scheme = kwargs.get('scheme', {})
+        scheme = kwargs.get("scheme", {})
         if scheme:
             c, n = find_node_in_scheme(scheme, self)
             self.a_ox = scheme[c][n - 1].a_ox3
@@ -86,20 +85,20 @@ class HeatExchanger:
             self.g1 = scheme[c][n - 1].g3 - self.g_leak
             for node in scheme[c][:n]:
                 self.g1 -= node.g_leak
-                self.g1 += node.g_fuel if hasattr(node, 'g_fuel') else 0
+                self.g1 += node.g_fuel if hasattr(node, "g_fuel") else 0
                 self.g3 -= node.g_leak
-                self.g3 += node.g_fuel if hasattr(node, 'g_fuel') else 0
+                self.g3 += node.g_fuel if hasattr(node, "g_fuel") else 0
 
-            substance = 'AIR'
+            substance = "AIR"
             for node in scheme[c][:n]:
                 if type(node) is CombustionChamber:
-                    substance = 'EXHAUST'
+                    substance = "EXHAUST"
                     break
 
-        self.a_ox = kwargs.get('a_ox', nan) if self.a_ox is nan else self.a_ox  # коэффициент избытка окислителя
+        self.a_ox = kwargs.get("a_ox", nan) if self.a_ox is nan else self.a_ox  # коэффициент избытка окислителя
         self.R_gas1 = R_gas(substance, a_ox=self.a_ox, fuel=fuel)
-        self.TT1 = kwargs.get('TT3', nan) if self.TT1 is nan else self.TT1
-        self.PP1 = kwargs.get('PP3', nan) if self.PP1 is nan else self.PP1
+        self.TT1 = kwargs.get("TT3", nan) if self.TT1 is nan else self.TT1
+        self.PP1 = kwargs.get("PP3", nan) if self.PP1 is nan else self.PP1
         self.ρρ1 = self.PP1 / (self.R_gas1 * self.TT1)
         self.Cp1 = Cp(substance, T=self.TT1, P=self.PP1, a_ox=self.a_ox, fuel=fuel)
         self.k1 = self.Cp1 / (self.Cp1 - self.R_gas1)
@@ -112,9 +111,9 @@ class HeatExchanger:
         self.k3 = self.Cp3 / (self.Cp3 - self.R_gas3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     he = HeatExchanger()
     he.τ = 0.67
     he.σ = 0.98
     he.g_leak = 0
-    print(he.solve(substance='EXHAUST', fuel='КЕРОСИН', TT3=1550, PP3=600_000, a_ox=3))
+    print(he.solve(substance="EXHAUST", fuel="КЕРОСИН", TT3=1550, PP3=600_000, a_ox=3))

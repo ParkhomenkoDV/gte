@@ -1,6 +1,6 @@
-from src.nodes.compressor import Compressor
-from src.nodes.node import GTENode
-from src.nodes.turbine import Turbine
+from nodes.compressor import Compressor
+from nodes.node import GTENode
+from nodes.turbine import Turbine
 
 
 class Shaft:

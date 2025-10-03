@@ -3,8 +3,12 @@ from abc import ABC, abstractmethod
 from numpy import array, prod
 from substance import Substance
 
-from src.config import parameters as gtep
-from src.errors import SUBSTANCE_ATTRIBUTE_ERROR
+try:  # Попытка относительного импорта
+    from .config import parameters as gtep
+    from .errors import SUBSTANCE_ATTRIBUTE_ERROR
+except ImportError:  # Резервный абсолютный импорт
+    from config import parameters as gtep
+    from errors import SUBSTANCE_ATTRIBUTE_ERROR
 
 """
 Порядок расчета ТД параметров:

@@ -1,6 +1,9 @@
 from substance import Substance
 
-from src.config import parameters as params
+try:
+    from .config import parameters as params
+except ImportError:
+    from config import parameters as params
 
 
 class Mixing:

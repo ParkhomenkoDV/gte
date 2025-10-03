@@ -1,12 +1,9 @@
-import sys
 from copy import deepcopy
 
 import pandas as pd
 from colorama import Fore
-from numpy import arange, cos, inf, isnan, linspace, nan, prod, radians, sin
+from numpy import inf, isnan, linspace, nan, prod
 from tqdm import tqdm
-
-sys.path.append("D:/Programming/Python/")
 
 # from thermodynamics import FUELS, OXIDIZERS, Cp, R_gas
 # from tools import eps, export2, isiter, isnum, to_roman
