@@ -38,6 +38,8 @@ class CombustionChamber(GTENode):
         setattr(self, gtep.effburn, nan)
         setattr(self, gtep.peff, nan)
 
+        self.fuel = Substance("fuel")
+
     @property
     def variables(self) -> dict:
         return {
@@ -75,8 +77,11 @@ class CombustionChamber(GTENode):
 
         mf_i = self.inlet.parameters[gtep.mf]
         PP_i = self.inlet.parameters[gtep.PP]
+        e_i = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (T0, self.inlet.parameters[gtep.TT]), gtep.PP: (101325, self.inlet.parameters[gtep.PP])})
 
         mf_f = self.fuel.parameters[gtep.mf]
+        e_f = enthalpy(self.fuel.functions[gtep.Cp], **{gtep.TT: (T0, self.fuel.parameters[gtep.TT])})
+
         mf_o = self.outlet.parameters[gtep.mf]
 
         return (
@@ -91,8 +96,8 @@ class CombustionChamber(GTENode):
                     },
                 )
             )
-            - (mf_i * self.e_i)
-            - (mf_f * (self.e_f + self.efficiency_burn * lower_heating_value(self.fuel.name))),
+            - (mf_i * e_i)
+            - (mf_f * (e_f + self.efficiency_burn * lower_heating_value(self.fuel.name))),
             self.outlet.parameters[gtep.PP] - PP_i * getattr(self, gtep.peff),
             1 - (mf_f / mf_o) * stoichiometry(self.fuel.name) * self.outlet.parameters[gtep.eo],
         )
@@ -113,9 +118,6 @@ class CombustionChamber(GTENode):
         )
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
-
-        self.e_i = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (T0, self.inlet.parameters[gtep.TT]), gtep.PP: (101325, self.inlet.parameters[gtep.PP])})
-        self.e_f = enthalpy(self.fuel.functions[gtep.Cp], **{gtep.TT: (T0, self.fuel.parameters[gtep.TT])})
 
         if x0 is None:
             x0 = tuple(self._x0.values())

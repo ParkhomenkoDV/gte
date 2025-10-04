@@ -33,7 +33,7 @@ class GTENode(ABC):
     def __str__(self) -> str:
         return self.name
 
-    def __delattr__(self, name: str):
+    def __delattr__(self, name: str) -> None:
         if name == "name":
             self.name = self.__class__.__name__
         elif name == "inlet":
@@ -58,16 +58,16 @@ class GTENode(ABC):
     @property
     def summary(self) -> dict[str:float]:
         result = {
-            # **{f"{self.name}_{k}": v for k, v in self.__slots__.items()},
+            **{k: getattr(self, k) for k in self.__slots__ if not isinstance(getattr(self, k), Substance)},
             **{f"{k}_inlet": v for k, v in self.inlet.parameters.items()},
             **{f"{k}_outlet": v for k, v in self.outlet.parameters.items()},
         }
 
         n = 20
         print("-" * n)
-        """for k, v in self.__dict__.items():
-            if not isinstance(v, Substance):
-                print(f"{k}: {v}")"""
+        for k in self.__slots__:
+            if not k.endswith("let"):
+                print(f"{k}: {getattr(self, k)}")
         for k, v in self.inlet.parameters.items():
             print(f"{k}_inlet: {v}")
         for k, v in self.outlet.parameters.items():
