@@ -1,7 +1,5 @@
 from mathematics import Constants
 from matplotlib import pyplot as plt
-from numpy import linspace
-from substance import Substance
 
 # термодинамические параметры
 parameters = Constants(
@@ -22,6 +20,8 @@ parameters = Constants(
     m="mass",  # масса
     v="volume",  # объем
     # скорости
+    a="sound_speed",  # скорость звука
+    a_critical="critical_sound_speed",  # критическая скорость звука
     c="absolute_velocity",  # абсолютная скорость
     u="portable_velocity",  # переносная скорость
     w="relative_velocity",  # относительная скорость
@@ -44,55 +44,6 @@ parameters = Constants(
 
 EPSREL = 0.001  # относительная ошибка
 NITER = 25  # количество итераций
-
-
-substance_mixing = Substance(
-    "MIXING",
-    parameters={
-        parameters.mf: 0,
-        parameters.TT: 0,
-        parameters.PP: 0,
-    },
-)
-
-
-def rng(rang: list) -> list:
-    """Умный диапазон"""
-    if len(rang) == 1:
-        return [rang[0]]
-    elif len(rang) == 2:
-        if rang[0] == rang[1]:
-            return [rang[0]]
-        else:
-            return list(linspace(rang[0], rang[1], 100))
-    elif len(rang) == 3:
-        if rang[0] == rang[1]:
-            return [rang[0]]
-        else:
-            return list(linspace(rang[0], rang[1], rang[2]))
-    else:
-        print("Ошибка в def rng")
-        if len(rang) > 3:
-            print("len(l) > 3")
-        exit()
-
-
-def generate_combinations(lst):
-    """Генератор комбинаций"""
-    if not lst:
-        yield []
-    else:
-        for value in rng(lst[0]):
-            for combo in generate_combinations(lst[1:]):
-                yield [value] + combo
-
-
-def get_combinations(dct):
-    all_comb = []
-    keys, values = list(dct.keys()), list(dct.values())
-    for combo in generate_combinations(values):
-        all_comb.append(dict(zip(keys, combo)))
-    return all_comb
 
 
 def show():

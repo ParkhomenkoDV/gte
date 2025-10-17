@@ -3,7 +3,7 @@ from copy import deepcopy
 from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
+from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure, сritical_sonic_velocity
 
 try:
     from .checks import check_efficiency, check_temperature
@@ -120,6 +120,7 @@ class Compressor(GTENode):
         self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
         self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
+        self.outlet.parameters[gtep.a_critical] = сritical_sonic_velocity(self.outlet.parameters[gtep.k], self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.TT])
 
         return self.outlet
 
