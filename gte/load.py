@@ -1,27 +1,35 @@
 from numpy import nan
 
+try:
+    from .checks import check_efficiency
+    from .config import parameters as gtep
+
+
+except ImportError:
+    from checks import check_efficiency
+    from config import parameters as gtep
+
 
 class Load:
     """Нагрузка"""
 
+    __slots__ = (gtep.efficiency, gtep.power)
+
     def __init__(self):
-        self.N = nan  # мощность
+        setattr(self, gtep.efficiency, nan)
+        setattr(self, gtep.power, nan)
 
-        self.warnings = set()  # предупреждения
+    @property
+    def is_real(self):
+        checks = (check_efficiency(getattr(self, gtep.efficiency)),)
+        return all(checks)
 
-    def get_variability(self):
-        return len(self.N) if type(self.N) is list and len(self.N) else 1
 
-    def set_combination(self, combination, load_main):
-        positions = [0]
-        for i in range(combination):
-            if positions[0] == len(load_main.N) - 1:
-                positions[0] = 0
-            else:
-                positions[0] += 1
-                continue
+if __name__ == "__main__":
+    from colorama import Fore
 
-        self.N = load_main.N[positions[0]]
+    load = Load()
+    setattr(load, gtep.efficiency, 0.98)
+    setattr(load, gtep.power, 32 * 10**6)
 
-    def solve(self, **kwargs):
-        pass
+    print(Fore.GREEN + f"{load.is_real = }" + Fore.RESET)
