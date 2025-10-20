@@ -154,9 +154,9 @@ if __name__ == "__main__":
         print(f"{k:<10}: {v}")
 
     test_cases = (
-        {"name": "1", "compressor": {gtep.pipi: 6, gtep.effeff: 0.85, "mass_flow_leak": 0.03}, "outlet": {}},
-        {"name": "2", "compressor": {gtep.pipi: 6, gtep.power: 12 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
-        {"name": "3", "compressor": {gtep.effeff: 0.85, gtep.power: 12 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
+        {"name": "1", "compressor": {gtep.pipi: 6, gtep.effeff: 0.85, "mass_flow_leak": 0.03}},
+        {"name": "2", "compressor": {gtep.pipi: 6, gtep.power: 12 * 10**6, "mass_flow_leak": 0.03}},
+        {"name": "3", "compressor": {gtep.effeff: 0.85, gtep.power: 12 * 10**6, "mass_flow_leak": 0.03}},
     )
 
     for test_case in test_cases:
@@ -165,8 +165,6 @@ if __name__ == "__main__":
 
         for k, v in test_case["compressor"].items():
             setattr(c, k, v)
-        for k, v in test_case["outlet"].items():
-            c.outlet.parameters[k] = v
 
         c.calculate(air)
 
@@ -174,5 +172,4 @@ if __name__ == "__main__":
 
         print(Fore.GREEN + f"{c.validate() = }" + Fore.RESET)
         print(Fore.GREEN + f"{c.is_real = }" + Fore.RESET)
-
         print()
