@@ -1,7 +1,6 @@
 from copy import deepcopy
 
-from mathematics import eps
-from numpy import isinf, isnan, nan
+from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import T0, adiabatic_index, сritical_sonic_velocity
@@ -46,7 +45,6 @@ class CombustionChamber(GTENode):
         x0 = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
             f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
-            f"outlet_{gtep.eo}": 3,  # 1 == clean_exhaust => prohibited
         }
         for k, v in self.variables.items():
             if not isnan(v):
@@ -61,38 +59,30 @@ class CombustionChamber(GTENode):
         """Уравнения"""
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
-        self.outlet.parameters[gtep.eo] = x[2]
-        idx = 3
+        idx = 2
         for k in self.variables:
             if k not in args:
                 setattr(self, k, x[idx])
                 idx += 1
 
-        mf_i = self.inlet.parameters[gtep.mf]
-        PP_i = self.inlet.parameters[gtep.PP]
-        e_i = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (T0 + 15, self.inlet.parameters[gtep.TT]), gtep.PP: (101325, self.inlet.parameters[gtep.PP])})
-
-        mf_f = self.fuel.parameters[gtep.mf]
-        e_f = enthalpy(self.fuel.functions[gtep.C], **{gtep.TT: (T0 + 15, self.fuel.parameters[gtep.TT])})
-
-        mf_o = self.outlet.parameters[gtep.mf]
-
         return (
+            # (mf_i * enthalpy_i) + mf_f * (Q*eff + enthalpy_f) = (mf_i + mf_f) * enthalpy_o
+            # (eo * stoichiometry * enthalpy_i) + (Q*eff + enthalpy_f) = (eo + stoichiometry + 1) * enthalpy_o
+            # (eo * stoichiometry * enthalpy_i) + (Q*eff + enthalpy_f) = (eo + stoichiometry + 1) * enthalpy_o
             (
-                mf_o
+                self.outlet.parameters[gtep.mf]
                 * enthalpy(
                     self.outlet.functions[gtep.Cp],
                     **{
                         gtep.TT: (T0 + 15, self.outlet.parameters[gtep.TT]),
                         gtep.PP: (101325, self.outlet.parameters[gtep.PP]),
-                        gtep.eo: (1, self.outlet.parameters[gtep.eo]),
+                        gtep.eo: (self.outlet.parameters[gtep.eo], self.outlet.parameters[gtep.eo]),
                     },
                 )
             )
-            - (mf_i * e_i)
-            - (mf_f * (e_f + self.efficiency_burn * self.fuel.parameters.get("lower_heating_value", nan))),
-            self.outlet.parameters[gtep.PP] - PP_i * getattr(self, gtep.peff),
-            1 - (mf_f / mf_o) * self.fuel.parameters.get("stoichiometry", nan) * self.outlet.parameters[gtep.eo],
+            - (self.inlet.parameters[gtep.mf] * args.get("inlet_enthalpy", nan))
+            - self.fuel.parameters[gtep.mf] * (args.get("fuel_enthalpy", nan) + self.efficiency_burn * self.fuel.parameters.get("lower_heating_value", nan)),
+            self.outlet.parameters[gtep.PP] - self.inlet.parameters[gtep.PP] * getattr(self, gtep.peff),
         )
 
     def calculate(self, substance_inlet: Substance, fuel: Substance, x0=None) -> Substance:
@@ -106,27 +96,31 @@ class CombustionChamber(GTENode):
 
         self.inlet = deepcopy(substance_inlet)
         self.fuel = deepcopy(fuel)
-        self.outlet = Substance("exhaust") + fuel
+        self.outlet = Substance(self.inlet.name) + fuel
 
         self.outlet.functions[gtep.gc], self.outlet.functions[gtep.Cp] = self.fuel.functions[gtep.gc], self.fuel.functions[gtep.Cp]
 
         self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
+        self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.mf] / self.fuel.parameters[gtep.mf] / self.fuel.parameters["stoichiometry"]
 
         if x0 is None:
             x0 = tuple(self._x0.values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
-        count_equations = len(self.equations(x0, args)) - 3  # outlet_TT, outlet_PP, outlet_eo
+        count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
 
         if count_variables < count_equations:
             raise ArithmeticError(f"{count_variables=} < {count_equations=}")
         elif count_variables > count_equations:
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
+        args["inlet_enthalpy"] = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (T0 + 15, self.inlet.parameters[gtep.TT]), gtep.PP: (101325, self.inlet.parameters[gtep.PP])})
+        args["fuel_enthalpy"] = enthalpy(self.fuel.functions[gtep.C], **{gtep.TT: (T0 + 15, self.fuel.parameters[gtep.TT])})
+
         root(self.equations, x0, args, method="lm")
 
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
-        self.outlet.parameters[gtep.Cp] = self.outlet.functions[gtep.Cp](self.outlet.parameters[gtep.TT])
+        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
         self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
         self.outlet.parameters[gtep.a_critical] = сritical_sonic_velocity(self.outlet.parameters[gtep.k], self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.TT])
@@ -135,13 +129,12 @@ class CombustionChamber(GTENode):
 
     def validate(self, epsrel: float = EPSREL) -> bool:
         """Проверка найденного решения"""
-        x0 = (self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.PP], self.outlet.parameters[gtep.eo])
+        x0 = (self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.PP])
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
 
         result = True
         for i, null in enumerate(self.equations(x0, args)):
-            epsilon = eps("rel", null, 0)
-            if epsilon > epsrel and not isinf(epsilon):
+            if abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
 
