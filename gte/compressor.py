@@ -3,7 +3,7 @@ from copy import deepcopy
 from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure, сritical_sonic_velocity
+from thermodynamics import adiabatic_index, сritical_sonic_velocity
 
 try:
     from .checks import check_efficiency, check_temperature
@@ -84,7 +84,7 @@ class Compressor(GTENode):
         )
         k = adiabatic_index(gc, Cp)
 
-        return (  # TODO: F
+        return (
             getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT]),
             self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT] * (1 + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1) / getattr(self, gtep.effeff)),
             getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / self.inlet.parameters[gtep.PP],
@@ -147,30 +147,16 @@ class Compressor(GTENode):
 
 
 if __name__ == "__main__":
+    from colorama import Fore
+    from fixtures import air
+
     for k, v in gtep.items():
         print(f"{k:<10}: {v}")
 
-    substance_inlet = Substance(
-        "air",
-        parameters={
-            gtep.gc: 287.14,
-            gtep.TT: 300,
-            gtep.PP: 101_325,
-            gtep.mf: 50,
-            gtep.Cp: 1006,
-            gtep.k: 1.4,
-            gtep.c: 0,
-        },
-        functions={
-            gtep.gc: lambda total_temperature: gas_const("AIR"),
-            gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("AIR", total_temperature),
-        },
-    )
-
     test_cases = (
         {"name": "1", "compressor": {gtep.pipi: 6, gtep.effeff: 0.85, "mass_flow_leak": 0.03}, "outlet": {}},
-        {"name": "2", "compressor": {gtep.pipi: 6, gtep.power: 23 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
-        {"name": "3", "compressor": {gtep.effeff: 0.85, gtep.power: 23 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
+        {"name": "2", "compressor": {gtep.pipi: 6, gtep.power: 12 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
+        {"name": "3", "compressor": {gtep.effeff: 0.85, gtep.power: 12 * 10**6, "mass_flow_leak": 0.03}, "outlet": {}},
     )
 
     for test_case in test_cases:
@@ -182,11 +168,11 @@ if __name__ == "__main__":
         for k, v in test_case["outlet"].items():
             c.outlet.parameters[k] = v
 
-        c.calculate(substance_inlet)
+        c.calculate(air)
 
         c.summary
 
-        print(f"{c.validate() = }")
-        print(f"{c.is_real = }")
+        print(Fore.GREEN + f"{c.validate() = }" + Fore.RESET)
+        print(Fore.GREEN + f"{c.is_real = }" + Fore.RESET)
 
         print()
