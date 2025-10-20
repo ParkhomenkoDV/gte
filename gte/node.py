@@ -12,7 +12,7 @@ except ImportError:  # Резервный абсолютный импорт
 
 """
 Порядок расчета ТД параметров:
-G -> excess_oxidizing -> gas_const -> T -> P -> D -> Cp -> k -> a* -> c
+G -> excess_oxidizing -> gas_const -> T* -> P* -> D* -> Cp -> k -> a* -> c
 """
 
 
