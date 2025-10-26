@@ -22,7 +22,7 @@ RESET  = \033[0m
 
 
 # Targets
-.PHONY: help venv venv-activate install test lint format clean run
+.PHONY: help venv venv-activate install test bench lint format clean run
 
 help:
 	@echo "Available commands:"
