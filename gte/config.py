@@ -42,5 +42,5 @@ parameters = Constants(
     power="power",  # мощность
 )
 
-EPSREL = 0.001  # относительная ошибка
+EPSREL = 0.01  # относительная ошибка
 NITER = 25  # количество итераций
