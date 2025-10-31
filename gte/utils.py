@@ -10,7 +10,7 @@ def call_with_kwargs(function, kwargs: dict):
     arguments = {}
     for arg in function.__code__.co_varnames:
         value = kwargs.get(arg)
-        assert value is not None, ValueError(f"value {value} must be not None")
+        assert value is not None, ValueError(f"arg '{arg}' {value = } must be not None")
         arguments[arg] = value
 
     return function(**arguments)
