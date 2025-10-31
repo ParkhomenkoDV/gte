@@ -4,8 +4,8 @@ from mathematics import Constants
 parameters = Constants(
     l="thermal_conductivity",  # теплопроводность
     C="heat_capacity",  # теплоемкость
-    Cp="heat_capacity_at_constant_pressure",  # теплокмкость при постоянном давлении
-    Cv="heat_capacity_at_constant_volume",  # теплокмкость при постоянном объеме
+    Cp="heat_capacity_pressure",  # теплокмкость при постоянном давлении
+    Cv="heat_capacity_volume",  # теплокмкость при постоянном объеме
     k="adiabatic_index",  # показатель адиабаты
     gc="gas_const",  # газовая постоянная
     eo="excess_oxidizing",  # коэффициент избытка окислителя
