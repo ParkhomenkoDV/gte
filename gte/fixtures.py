@@ -1,0 +1,65 @@
+from config import parameters as gtep
+from substance import Substance
+from thermodynamics import T0, gas_const, gas_const_exhaust_fuel, heat_capacity_p, heat_capacity_p_exhaust, lower_heat, stoichiometry
+
+air = Substance(
+    "air",
+    composition={"N2": 0.78, "O2": 0.21, "Ar": 0.009, "CO2": 0.0004},
+    parameters={
+        gtep.mf: 50.0,
+        gtep.gc: 287.14,
+        gtep.TT: 300.0,
+        gtep.PP: 101325.0,
+        gtep.Cp: 1006.0,
+        gtep.k: 1.4,
+        gtep.c: 0.0,
+    },
+    functions={
+        gtep.gc: lambda temperature: gas_const("air"),
+        gtep.Cp: lambda temperature: heat_capacity_p("air", temperature),
+    },
+)
+
+
+def hcp_exhaust(temperature, excess_oxidizing, stoichiometry, composition):
+    H2O = composition.get("H2O", 0)  # массовая доля волы в смеси
+    result = (1 - H2O) * (heat_capacity_p_exhaust(temperature, composition) + heat_capacity_p("air", temperature) * excess_oxidizing * stoichiometry)
+    result += H2O * excess_oxidizing * stoichiometry * heat_capacity_p("H2O", temperature)
+    result /= 1 - H2O + excess_oxidizing * stoichiometry
+    return result
+
+
+kerosene = Substance(
+    "kerosene",
+    composition={"C": 0.85, "H": 0.15},
+    parameters={
+        gtep.mf: 3,
+        gtep.TT: 40 + T0,
+        gtep.PP: 101_325,
+        "stoichiometry": stoichiometry("kerosene"),
+        "lower_heat": lower_heat("kerosene"),
+    },
+    functions={
+        gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
+        gtep.Cp: lambda temperature, excess_oxidizing: hcp_exhaust(temperature, excess_oxidizing, stoichiometry("kerosene"), {"C": 0.85, "H": 0.15}),
+        gtep.hc: lambda temperature: 200,
+    },
+)
+
+
+exhaust = Substance(
+    "exhaust",
+    parameters={
+        gtep.gc: 287.0,
+        gtep.TT: 300.0,
+        gtep.PP: 101325.0,
+        gtep.mf: 51,
+        gtep.Cp: 1006.0,
+        gtep.k: 1.4,
+        gtep.c: 0.0,
+    },
+    functions={
+        gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
+        gtep.Cp: lambda temperature, excess_oxidizing: hcp_exhaust(temperature, excess_oxidizing, stoichiometry("kerosene"), {"C": 0.85, "H": 0.15}),
+    },
+)

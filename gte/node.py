@@ -80,7 +80,7 @@ class GTENode(ABC):
     def validate_substance(self, substance: Substance) -> None:
         """Проверка параметров рабочего тела на входе"""
         assert isinstance(substance, Substance), TypeError("type substance must be Substance")
-        assert substance.parameters.get(gtep.m) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.m))
+        assert substance.parameters.get(gtep.mf) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.m))
         assert substance.parameters.get(gtep.TT) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
         assert substance.parameters.get(gtep.PP) is not None, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
         # validate functions

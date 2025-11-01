@@ -11,15 +11,6 @@ from thermodynamics import T0, atmosphere_standard, gas_const, gdf, heat_capacit
 from tqdm import tqdm
 from turbine import Turbine
 
-
-def find_node_in_scheme(scheme, node2find) -> tuple:
-    """Поиск положения узла в схеме"""
-    for contour in scheme:
-        for i, node in enumerate(scheme[contour]):
-            if scheme[contour][i] is node2find:
-                return contour, i
-
-
 # TODO: обучить модели регрессии по предсказанию НУ расчета
 # TODO: gte.describe() # неизвестные параметры и необходимые уравнения
 # TODO: __iter__ вместо gte.generator

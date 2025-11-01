@@ -1,9 +1,13 @@
+import os
+import pickle
 from copy import deepcopy
+from typing import Any, Dict, Tuple
 
 from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import T0, adiabatic_index, сritical_sonic_velocity
+from thermodynamics import T0, adiabatic_index, heat_capacity_p, heat_capacity_p_exhaust, сritical_sonic_velocity
+from thermodynamics import parameters as tdp
 
 try:
     from .checks import check_efficiency, check_temperature
@@ -18,9 +22,19 @@ except ImportError:
     from node import GTENode
     from utils import call_with_kwargs, enthalpy
 
+models = {}
+for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
+    path = f"models/compressor_{model}.pickle"
+    if os.path.exists(path):
+        models[model] = pickle.load(path)
+    else:
+        print(f"'{path}' not found!")
+
 
 class CombustionChamber(GTENode):
     """Камера сгорания"""
+
+    models: Dict[str, Any] = models
 
     __slots__ = (gtep.effburn, gtep.peff, "fuel")
 
@@ -33,14 +47,14 @@ class CombustionChamber(GTENode):
         self.fuel = Substance("fuel")
 
     @property
-    def variables(self) -> dict:
+    def variables(self) -> Dict[str, float]:
         return {
             gtep.effburn: getattr(self, gtep.effburn),
             gtep.peff: getattr(self, gtep.peff),
         }
 
     @property
-    def _x0(self) -> dict[str:float]:
+    def x0(self) -> Dict[str, float]:
         """Начальные приближения"""
         x0 = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
@@ -55,7 +69,7 @@ class CombustionChamber(GTENode):
                 x0[k] = 0.95  # TODO: model or formula
         return x0
 
-    def equations(self, x: tuple, args: dict) -> tuple:
+    def equations(self, x: Tuple, args: Dict) -> Tuple:
         """Уравнения"""
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
@@ -67,44 +81,58 @@ class CombustionChamber(GTENode):
 
         return (
             # (mf_i * enthalpy_i) + mf_f * (Q*eff + enthalpy_f) = (mf_i + mf_f) * enthalpy_o
-            # (eo * stoichiometry * enthalpy_i) + (Q*eff + enthalpy_f) = (eo + stoichiometry + 1) * enthalpy_o
-            # (eo * stoichiometry * enthalpy_i) + (Q*eff + enthalpy_f) = (eo + stoichiometry + 1) * enthalpy_o
             (
                 self.outlet.parameters[gtep.mf]
                 * enthalpy(
                     self.outlet.functions[gtep.Cp],
                     **{
-                        gtep.TT: (T0 + 15, self.outlet.parameters[gtep.TT]),
-                        gtep.PP: (101325, self.outlet.parameters[gtep.PP]),
-                        gtep.eo: (self.outlet.parameters[gtep.eo], self.outlet.parameters[gtep.eo]),
+                        tdp.t: (T0 + 15, self.outlet.parameters[gtep.TT]),
+                        tdp.p: (101325, self.outlet.parameters[gtep.PP]),
+                        tdp.eo: (self.outlet.parameters[gtep.eo], self.outlet.parameters[gtep.eo]),
                     },
                 )
             )
-            - (self.inlet.parameters[gtep.mf] * args.get("inlet_enthalpy", nan))
-            - self.fuel.parameters[gtep.mf] * (args.get("fuel_enthalpy", nan) + self.efficiency_burn * self.fuel.parameters.get("lower_heating_value", nan)),
+            - (self.inlet.parameters[gtep.mf] * self.inlet.parameters.get("enthalpy", nan))
+            - self.fuel.parameters[gtep.mf] * (self.fuel.parameters.get("enthalpy", nan) + self.efficiency_burn * self.fuel.parameters.get("lower_heat", nan)),
             self.outlet.parameters[gtep.PP] - self.inlet.parameters[gtep.PP] * getattr(self, gtep.peff),
         )
+
+    def __validate_fuel(self, fuel: Substance) -> None:
+        """Проверка параметров горючего"""
+        assert len(fuel.composition) > 0, ValueError(f"{fuel.composition = }")
+
+        stoichiometry = fuel.parameters.get("stoichiometry")
+        assert stoichiometry is not None, KeyError("fuel has not parameter 'stoichiometry'")
+        assert isinstance(stoichiometry, (int, float)), TypeError(f"type fuel stoichiometry must be numeric, but has {type(stoichiometry)}")
+
+        lower_heat = fuel.parameters.get("lower_heat")
+        assert lower_heat is not None, KeyError("fuel has not parameter 'lower_heat'")
+        assert isinstance(lower_heat, (int, float)), TypeError(f"type fuel lower_heat must be numeric, but has {type(lower_heat)}")
+
+        assert fuel.functions.get(gtep.gc) is not None, KeyError(f"fuel has not function '{gtep.gc}'")
 
     def calculate(self, substance_inlet: Substance, fuel: Substance, x0=None) -> Substance:
         GTENode.validate_substance(self, substance_inlet)
         GTENode.validate_substance(self, fuel)
-        assert fuel.parameters.get("stoichiometry") is not None, KeyError("fuel has not parameter 'stoichiometry'")
-        assert isinstance(fuel.parameters["stoichiometry"], (int, float)), TypeError(f"type fuel stoichiometry must be numeric, but has {type(fuel.parameters['stoichiometry'])}")
-        assert fuel.parameters.get("lower_heating_value") is not None, KeyError("fuel has not parameter 'lower_heating_value'")
-        assert isinstance(fuel.parameters["lower_heating_value"], (int, float)), TypeError(f"type fuel lower_heating_value must be numeric, but has {type(fuel.parameters['lower_heating_value'])}")
-        assert fuel.functions.get(gtep.gc) is not None, KeyError(f"fuel has not function '{gtep.gc}'")
+        self.__validate_fuel(fuel)
 
         self.inlet = deepcopy(substance_inlet)
         self.fuel = deepcopy(fuel)
-        self.outlet = Substance(self.inlet.name) + fuel
+        self.outlet = Substance("exhaust")
 
-        self.outlet.functions[gtep.gc], self.outlet.functions[gtep.Cp] = self.fuel.functions[gtep.gc], self.fuel.functions[gtep.Cp]
+        self.outlet.functions[gtep.gc] = self.fuel.functions[gtep.gc]
 
-        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.mass_flow_leak
+        stoichiometry = fuel.parameters["stoichiometry"]
+        H2O = self.fuel.composition.get("H2O", 0)  # массовая доля волы в смеси
+        self.outlet.functions[gtep.Cp] = lambda temperature, excess_oxidizing: (
+            (1 - H2O) * (heat_capacity_p_exhaust(temperature, fuel.composition) + self.inlet.functions[gtep.Cp](temperature) * excess_oxidizing * stoichiometry) + H2O * excess_oxidizing * stoichiometry * heat_capacity_p("H2O", temperature)
+        ) / (1 - H2O + excess_oxidizing * stoichiometry)
+
+        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.fuel.parameters[gtep.mf] - self.leak
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.mf] / self.fuel.parameters[gtep.mf] / self.fuel.parameters["stoichiometry"]
 
         if x0 is None:
-            x0 = tuple(self._x0.values())
+            x0 = tuple(self.x0.values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
         count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
@@ -114,13 +142,14 @@ class CombustionChamber(GTENode):
         elif count_variables > count_equations:
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
-        args["inlet_enthalpy"] = enthalpy(self.inlet.functions[gtep.Cp], **{gtep.TT: (T0 + 15, self.inlet.parameters[gtep.TT]), gtep.PP: (101325, self.inlet.parameters[gtep.PP])})
-        args["fuel_enthalpy"] = enthalpy(self.fuel.functions[gtep.C], **{gtep.TT: (T0 + 15, self.fuel.parameters[gtep.TT])})
+        self.inlet.parameters["enthalpy"] = enthalpy(self.inlet.functions[gtep.Cp], **{tdp.t: (T0 + 15, self.inlet.parameters[gtep.TT]), tdp.p: (101325, self.inlet.parameters[gtep.PP])})
+        self.fuel.parameters["enthalpy"] = enthalpy(self.fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, self.fuel.parameters[gtep.TT])})
 
         root(self.equations, x0, args, method="lm")
 
-        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
-        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
+        outlet_parameters = {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)}
+        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], outlet_parameters)
+        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], outlet_parameters)
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
         self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
         self.outlet.parameters[gtep.a_critical] = сritical_sonic_velocity(self.outlet.parameters[gtep.k], self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.TT])
@@ -134,7 +163,7 @@ class CombustionChamber(GTENode):
 
         result = True
         for i, null in enumerate(self.equations(x0, args)):
-            if abs(null) > epsrel:
+            if isnan(null) or abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
 
@@ -166,7 +195,7 @@ if __name__ == "__main__":
 
     cc.efficiency_burn = 0.99
     setattr(cc, gtep.peff, 0.95)
-    cc.mass_flow_leak = 0
+    cc.leak = 0
 
     cc.calculate(air, kerosene)
 

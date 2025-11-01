@@ -38,7 +38,7 @@ class Turbine(GTENode):
         }
 
     @property
-    def _x0(self) -> dict[str:float]:
+    def x0(self) -> dict[str:float]:
         """Начальные приближения"""
         x0 = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT] * 0.7,
@@ -104,14 +104,14 @@ class Turbine(GTENode):
         self.outlet.name = self.inlet.name
         self.outlet.functions = self.inlet.functions
 
-        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.mixing.parameters[gtep.mf] - self.mass_flow_leak
+        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.mixing.parameters[gtep.mf] - self.leak
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]  # TODO посчитать через массу!
 
         if x0 is None:
-            x0 = tuple(self._x0.values())
+            x0 = tuple(self.x0.values())
         else:
             assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self._x0.items():
+            for k, v in self.x0.items():
                 if k not in x0:
                     x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}

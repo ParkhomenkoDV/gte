@@ -6,67 +6,9 @@ from combustion_chambler import CombustionChamber
 from compressor import Compressor
 from config import EPSREL
 from config import parameters as gtep
+from fixtures import air, exhaust, kerosene
 from numpy import isnan, nan
 from substance import Substance
-from thermodynamics import T0, gas_const, heat_capacity_at_constant_pressure
-
-
-@pytest.fixture
-def air():
-    """Воздух для тестов"""
-    return Substance(
-        "air",
-        parameters={
-            gtep.mf: 50.0,
-            gtep.gc: 287.14,
-            gtep.TT: 300.0,
-            gtep.PP: 101325.0,
-            gtep.Cp: 1006.0,
-            gtep.k: 1.4,
-            gtep.c: 0.0,
-        },
-        functions={
-            gtep.gc: lambda total_temperature: gas_const("air"),
-            gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("air", total_temperature),
-        },
-    )
-
-
-@pytest.fixture
-def fuel():
-    """Горючее для тестов"""
-    return Substance(
-        "kerosene",
-        parameters={
-            gtep.mf: 3.0,
-            gtep.TT: 40 + T0,
-            gtep.PP: 101325.0,
-        },
-        functions={
-            gtep.Cp: lambda total_temperature: 200,
-        },
-    )
-
-
-@pytest.fixture
-def exhaust():
-    """Выхлопные газы для тестов"""
-    return Substance(
-        "exhaust",
-        parameters={
-            gtep.gc: 287.0,
-            gtep.TT: 300.0,
-            gtep.PP: 101325.0,
-            gtep.mf: 51,
-            gtep.Cp: 1006.0,
-            gtep.k: 1.4,
-            gtep.c: 0.0,
-        },
-        functions={
-            gtep.gc: lambda excess_oxidizing: gas_const("air", excess_oxidizing, fuel="kerosene"),
-            gtep.Cp: lambda total_temperature, excess_oxidizing: heat_capacity_at_constant_pressure("exhaust", total_temperature, excess_oxidizing),
-        },
-    )
 
 
 class TestNode:
@@ -140,7 +82,7 @@ class TestCompressor:
             (nan, nan, nan, 0, True, expected("", 0)),
         ],
     )
-    def test_calculate_integration(self, compressor, air, pipi, effeff, power, mf_leak, error, expected):
+    def test_calculate_integration(self, compressor, pipi, effeff, power, mf_leak, error, expected):
         """Интеграционный тест расчета"""
         setattr(compressor, gtep.pipi, pipi)
         setattr(compressor, gtep.effeff, effeff)
@@ -208,7 +150,7 @@ class TestCombustionChamber:
     @pytest.mark.parametrize(
         "peff, efficiency_burn, mf_leak, error, expected",
         [
-            (0.95, 0.98, 0, False, {gtep.TT: 1868}),
+            (0.95, 0.98, 0, False, {gtep.TT: 1167}),
             # error
             (nan, nan, 0, True, {}),
             (6.0, nan, 0, True, {}),

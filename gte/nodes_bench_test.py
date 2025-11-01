@@ -3,83 +3,59 @@ import pytest
 from combustion_chambler import CombustionChamber
 from compressor import Compressor
 from config import parameters as gtep
-from substance import Substance
-from thermodynamics import T0, gas_const, heat_capacity_at_constant_pressure
-
-
-@pytest.fixture
-def air():
-    """Воздух для тестов"""
-    return Substance(
-        "air",
-        parameters={
-            gtep.mf: 100.0,
-            gtep.gc: 287.14,
-            gtep.TT: 300.0,
-            gtep.PP: 101325.0,
-            gtep.Cp: 1006.0,
-            gtep.k: 1.4,
-            gtep.c: 0.0,
-        },
-        functions={
-            gtep.gc: lambda total_temperature: gas_const("air"),
-            gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("air", total_temperature),
-        },
-    )
-
-
-@pytest.fixture
-def fuel():
-    """Горючее для тестов"""
-    return Substance(
-        "kerosene",
-        parameters={
-            gtep.mf: 1.0,
-            gtep.gc: 287.0,
-            gtep.TT: T0 + 40,
-            gtep.PP: 101325.0,
-            gtep.Cp: 1006.0,
-            gtep.k: 1.4,
-            gtep.c: 0.0,
-        },
-        functions={
-            gtep.Cp: lambda total_temperature: 200,
-        },
-    )
+from fixtures import air, kerosene
 
 
 @pytest.mark.benchmark
-class TestNodes:
-    """Бенчмарки производительности компрессора"""
+class TestCompressor:
+    """Бенчмарки Compressor"""
 
-    @pytest.mark.parametrize(
-        "Node, name",
-        [
-            # Compressor
-            (Compressor, ""),
-            (Compressor, "test"),
-            # CombustionChamber
-            (CombustionChamber, ""),
-            (CombustionChamber, "test"),
-        ],
-    )
-    def test_init(self, benchmark, Node, name):
-        def benchfunc(name):
-            return Node(name)
+    def test_init(self, benchmark):
+        def benchfunc():
+            return Compressor()
 
-        node = benchmark(benchfunc, name)
-        assert isinstance(node, Node)
+        node = benchmark(benchfunc)
+        assert isinstance(node, Compressor)
         assert hasattr(node, "inlet")
         assert hasattr(node, "outlet")
 
     @pytest.mark.parametrize(
         "node, kwargs",
         [
-            # Compressor
             (Compressor(), {gtep.pipi: 6.0, gtep.effeff: 0.85}),
             (Compressor(), {gtep.effeff: 0.85, gtep.power: 24 * 10**6}),
             (Compressor(), {gtep.pipi: 6.0, gtep.power: 24 * 10**6}),
-            # CombustionChamber
+        ],
+    )
+    def test_calculate(self, benchmark, node, kwargs, air):
+        def benchfunc(node, kwargs):
+            for k, v in kwargs.items():
+                setattr(node, k, v)
+
+            node.calculate(air)
+
+            for k in node.variables:
+                setattr(node, k, np.nan)
+
+        benchmark(benchfunc, node, kwargs)
+
+
+@pytest.mark.benchmark
+class TestCombustionChamber:
+    """Бенчмарки CombustionChamber"""
+
+    def test_init(self, benchmark):
+        def benchfunc():
+            return CombustionChamber()
+
+        node = benchmark(benchfunc)
+        assert isinstance(node, CombustionChamber)
+        assert hasattr(node, "inlet")
+        assert hasattr(node, "outlet")
+
+    @pytest.mark.parametrize(
+        "node, kwargs",
+        [
             (CombustionChamber(), {gtep.peff: 0.95, "efficiency_burn": 0.99}),
         ],
     )
@@ -88,10 +64,7 @@ class TestNodes:
             for k, v in kwargs.items():
                 setattr(node, k, v)
 
-            if isinstance(node, CombustionChamber):
-                node.calculate(air, fuel)
-            else:
-                node.calculate(air)
+            node.calculate(air, fuel, 0)
 
             for k in node.variables:
                 setattr(node, k, np.nan)
