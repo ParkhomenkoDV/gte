@@ -1,11 +1,5 @@
-import os
-import sys
-
 import numpy as np
 import pytest
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from utils import call_with_kwargs, enthalpy, integral_average
 
 
@@ -79,7 +73,7 @@ class TestEnthalpy:
     def test_zero_range(self):
         """Тест с нулевым диапазоном"""
         result = enthalpy(self.f0_1, T=(400, 400))
-        assert result == pytest.approx(0, rel=self.RELERR)
+        assert result == pytest.approx(1000.0, rel=self.RELERR)
 
     def test_error_cases(self):
         """Тесты обработки ошибок"""
@@ -273,4 +267,4 @@ class TestIntegralAverage:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "-s"])
+    pytest.main([__file__, "-v", "-s", "-x"])

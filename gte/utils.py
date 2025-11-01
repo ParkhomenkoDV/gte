@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any, Callable, Dict, Sequence, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import numpy as np
 from scipy.integrate import nquad
@@ -10,7 +10,7 @@ def get_co_varnames(function):
     return function.__code__.co_varnames
 
 
-def call_with_kwargs(function, kwargs: Dict[str, Any]):
+def call_with_kwargs(function: Callable, kwargs: Dict[str, Any]):
     """Вызов функции через kwargs"""
     assert callable(function), TypeError(f"{function} must be callable")
     assert isinstance(kwargs, dict), TypeError(f"type {kwargs} must be dict")
@@ -24,7 +24,7 @@ def call_with_kwargs(function, kwargs: Dict[str, Any]):
     return function(**arguments)
 
 
-def enthalpy(heat_capacity, **kwargs) -> float:
+def enthalpy(heat_capacity: Callable, **kwargs) -> float:
     """Энтальпия"""
     assert callable(heat_capacity), TypeError(f"{heat_capacity} must be callable")
 
@@ -54,7 +54,7 @@ def enthalpy(heat_capacity, **kwargs) -> float:
         return heat_capacity(*sorted_args)
 
     if not other_args:
-        return heat_capacity(**partial_args), 0.0
+        return heat_capacity(**partial_args)
 
     ranges = tuple(other_args.values())
     result, _ = nquad(partial, ranges)
