@@ -50,12 +50,13 @@ kerosene = Substance(
 exhaust = Substance(
     "exhaust",
     parameters={
-        gtep.gc: 287.0,
-        gtep.TT: 300.0,
-        gtep.PP: 101325.0,
         gtep.mf: 51,
-        gtep.Cp: 1006.0,
-        gtep.k: 1.4,
+        gtep.eo: 3,
+        gtep.gc: 287.0,
+        gtep.TT: 1500.0,
+        gtep.PP: 101325.0 * 12,
+        gtep.Cp: 1300.0,
+        gtep.k: 1.33,
         gtep.c: 0.0,
     },
     functions={
