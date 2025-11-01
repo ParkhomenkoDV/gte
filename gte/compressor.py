@@ -82,23 +82,14 @@ class Compressor(GTENode):
                 setattr(self, k, x[idx])
                 idx += 1
 
-        m = (self.inlet.parameters[gtep.m] + self.outlet.parameters[gtep.m]) / 2
-        gc, _ = integral_average(
-            self.inlet.functions[gtep.gc],
-            **{
-                tdp.t: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
-                tdp.p: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
-                tdp.eo: (self.inlet.parameters.get(gtep.eo), self.outlet.parameters.get(gtep.eo)),
-            },
-        )
-        Cp, _ = integral_average(
-            self.inlet.functions[gtep.Cp],
-            **{
-                tdp.t: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
-                tdp.p: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
-                tdp.eo: (self.inlet.parameters.get(gtep.eo), self.outlet.parameters.get(gtep.eo)),
-            },
-        )
+        m = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
+        ranges = {
+            tdp.t: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
+            tdp.p: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
+            tdp.eo: (self.inlet.parameters.get(gtep.eo), self.outlet.parameters.get(gtep.eo)),
+        }
+        gc, _ = integral_average(self.inlet.functions[gtep.gc], **ranges)
+        Cp, _ = integral_average(self.inlet.functions[gtep.Cp], **ranges)
         k = adiabatic_index(gc, Cp)
 
         return (
@@ -113,7 +104,7 @@ class Compressor(GTENode):
         self.outlet = Substance(
             self.inlet.name,
             self.inlet.composition,
-            parameters={gtep.m: self.inlet.parameters[gtep.m] - self.leak},
+            parameters={gtep.mf: self.inlet.parameters[gtep.mf] - self.leak},
             functions=self.inlet.functions,
         )
 
@@ -135,14 +126,9 @@ class Compressor(GTENode):
 
         root(self.equations, x0, args, method="lm")
 
-        self.outlet.parameters[gtep.gc] = call_with_kwargs(
-            self.outlet.functions[gtep.gc],
-            {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)},
-        )
-        self.outlet.parameters[gtep.Cp] = call_with_kwargs(
-            self.outlet.functions[gtep.Cp],
-            {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)},
-        )
+        outlet_parameters = {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)}
+        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], outlet_parameters)
+        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], outlet_parameters)
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
         self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
         self.outlet.parameters[gtep.a_critical] = сritical_sonic_velocity(self.outlet.parameters[gtep.k], self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.TT])
@@ -156,7 +142,7 @@ class Compressor(GTENode):
 
         result = True
         for i, null in enumerate(self.equations(x0, args)):
-            if abs(null) > epsrel:
+            if isnan(null) or abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
 
