@@ -50,7 +50,7 @@ class GTENode(ABC):
 
     @property
     @abstractmethod
-    def x0(self) -> Dict[str, float]:
+    def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
         return {}
 
