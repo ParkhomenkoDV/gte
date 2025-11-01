@@ -10,13 +10,13 @@ from thermodynamics import adiabatic_index, сritical_sonic_velocity
 from thermodynamics import parameters as tdp
 
 try:
-    from .checks import check_efficiency, check_temperature
+    from .checks import check_efficiency, check_pressure_ratio, check_temperature
     from .config import EPSREL
     from .config import parameters as gtep
     from .node import GTENode
     from .utils import call_with_kwargs, integral_average
 except ImportError:
-    from checks import check_efficiency, check_temperature
+    from checks import check_efficiency, check_pressure_ratio, check_temperature
     from config import EPSREL
     from config import parameters as gtep
     from node import GTENode
@@ -54,9 +54,8 @@ class Compressor(GTENode):
         }
 
     @property
-    def x0(self) -> Dict[str, float]:
+    def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
-
         x0 = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],  # TODO model
             f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],  # TODO model
@@ -82,7 +81,7 @@ class Compressor(GTENode):
                 setattr(self, k, x[idx])
                 idx += 1
 
-        m = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
+        mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
         ranges = {
             tdp.t: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
             tdp.p: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
@@ -93,7 +92,7 @@ class Compressor(GTENode):
         k = adiabatic_index(gc, Cp)
 
         return (
-            getattr(self, gtep.power) - m * Cp * (self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT]),
+            getattr(self, gtep.power) - mf * Cp * (self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT]),
             self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT] * (1 + (getattr(self, gtep.pipi) ** ((k - 1) / k) - 1) / getattr(self, gtep.effeff)),
             getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / self.inlet.parameters[gtep.PP],
         )
@@ -109,10 +108,10 @@ class Compressor(GTENode):
         )
 
         if x0 is None:
-            x0 = tuple(self.x0.values())
+            x0 = tuple(self.predict.values())
         else:
             assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self.x0.items():
+            for k, v in self.predict.items():
                 if k not in x0:
                     x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
@@ -153,6 +152,7 @@ class Compressor(GTENode):
         checks = (
             check_efficiency(getattr(self, gtep.effeff)),
             check_temperature(self.outlet.parameters[gtep.TT]),
+            check_pressure_ratio(getattr(self, gtep.pipi)),
         )
         return all(checks)
 

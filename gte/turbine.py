@@ -1,28 +1,44 @@
+import os
+import pickle
 from copy import deepcopy
+from typing import Any, Dict, Tuple
 
 from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import adiabatic_index, gas_const, heat_capacity_at_constant_pressure
+from thermodynamics import adiabatic_index
+from thermodynamics import parameters as tdp
 
 try:
-    from .checks import check_efficiency, check_temperature
-    from .config import EPSREL, substance_mixing
+    from .checks import check_efficiency, check_pressure_ratio, check_temperature
+    from .config import EPSREL
     from .config import parameters as gtep
     from .node import GTENode
     from .utils import call_with_kwargs, integral_average
 except ImportError:
-    from checks import check_efficiency, check_temperature
-    from config import EPSREL, substance_mixing
+    from checks import check_efficiency, check_pressure_ratio, check_temperature
+    from config import EPSREL
     from config import parameters as gtep
     from node import GTENode
     from utils import call_with_kwargs, integral_average
+
+models = {}
+for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
+    path = f"models/compressor_{model}.pickle"
+    if os.path.exists(path):
+        models[model] = pickle.load(path)
+    else:
+        print(f"'{path}' not found!")
 
 
 class Turbine(GTENode):
     """Турбина"""
 
-    def __init__(self, name="Turbine"):
+    models: Dict[str, Any] = models
+
+    __slots__ = (gtep.pipi, gtep.effeff, gtep.power)
+
+    def __init__(self, name: str = "Turbine"):
         GTENode.__init__(self, name=name)
 
         setattr(self, gtep.pipi, nan)
@@ -30,7 +46,7 @@ class Turbine(GTENode):
         setattr(self, gtep.power, nan)
 
     @property
-    def variables(self) -> dict[str:float]:
+    def variables(self) -> Dict[str, float]:
         return {
             gtep.pipi: getattr(self, gtep.pipi),
             gtep.effeff: getattr(self, gtep.effeff),
@@ -38,11 +54,11 @@ class Turbine(GTENode):
         }
 
     @property
-    def x0(self) -> dict[str:float]:
+    def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
         x0 = {
-            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT] * 0.7,
-            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP] / 2.5,
+            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT] * 0.7,  # TODO model
+            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP] / 2,  # TODO model
         }
         for k, v in self.variables.items():
             if not isnan(v):
@@ -55,7 +71,7 @@ class Turbine(GTENode):
                 x0[k] = 24 * 10**6  # TODO: model or formula
         return x0
 
-    def equations(self, x, args: dict) -> tuple:
+    def equations(self, x, args: Dict) -> Tuple:
         """Уравнения"""
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
@@ -65,53 +81,39 @@ class Turbine(GTENode):
                 setattr(self, k, x[idx])
                 idx += 1
 
-        eo_i = self.inlet.parameters[gtep.eo]
-        TT_i = self.inlet.parameters[gtep.TT]
-        PP_i = self.inlet.parameters[gtep.PP]
-
-        eo_o = self.outlet.parameters[gtep.eo]
-
         mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
-        gc, _ = integral_average(
-            self.inlet.functions[gtep.gc],
-            **{
-                gtep.eo: (eo_i, eo_o),
-                gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
-                gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
-            },
-        )
-        Cp, _ = integral_average(
-            self.inlet.functions[gtep.Cp],
-            **{
-                gtep.eo: (eo_i, eo_o),
-                gtep.TT: (TT_i, self.outlet.parameters[gtep.TT]),
-                gtep.PP: (PP_i, self.outlet.parameters[gtep.PP]),
-            },
-        )
+        ranges = {
+            tdp.t: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
+            tdp.p: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
+            tdp.eo: (self.inlet.parameters.get(gtep.eo), self.outlet.parameters.get(gtep.eo)),
+        }
+        gc, _ = integral_average(self.inlet.functions[gtep.gc], **ranges)
+        Cp, _ = integral_average(self.inlet.functions[gtep.Cp], **ranges)
         k = adiabatic_index(gc, Cp)
 
         return (
-            getattr(self, gtep.power) - mf * Cp * (TT_i - self.outlet.parameters[gtep.TT]),
-            self.outlet.parameters[gtep.TT] - TT_i * (1 - getattr(self, gtep.effeff) * (1 - getattr(self, gtep.pipi) ** ((1 - k) / k))),
-            getattr(self, gtep.pipi) - PP_i / self.outlet.parameters[gtep.PP],
+            getattr(self, gtep.power) - mf * Cp * (self.inlet.parameters[gtep.TT] - self.outlet.parameters[gtep.TT]),
+            self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT] * (1 - getattr(self, gtep.effeff) * (1 - getattr(self, gtep.pipi) ** ((1 - k) / k))),
+            getattr(self, gtep.pipi) - self.inlet.parameters[gtep.PP] / self.outlet.parameters[gtep.PP],
         )
 
-    def calculate(self, substance_inlet: Substance, substance_mixing: Substance = substance_mixing, x0: dict = None) -> Substance:
+    def calculate(self, substance_inlet: Substance, x0: Dict = None) -> Substance:  # TODO *inlet_substances
         GTENode.validate_substance(self, substance_inlet)
         self.inlet = deepcopy(substance_inlet)
-        GTENode.validate_substance(self, substance_mixing)
-        self.mixing = deepcopy(substance_mixing)
-        self.outlet.name = self.inlet.name
-        self.outlet.functions = self.inlet.functions
+        self.outlet = Substance(
+            self.inlet.name,
+            self.inlet.composition,
+            parameters={gtep.mf: self.inlet.parameters[gtep.mf] - self.leak},
+            functions=self.inlet.functions,
+        )
 
-        self.outlet.parameters[gtep.mf] = self.inlet.parameters[gtep.mf] + self.mixing.parameters[gtep.mf] - self.leak
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]  # TODO посчитать через массу!
 
         if x0 is None:
-            x0 = tuple(self.x0.values())
+            x0 = tuple(self.predict.values())
         else:
             assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self.x0.items():
+            for k, v in self.predict.items():
                 if k not in x0:
                     x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
@@ -125,8 +127,9 @@ class Turbine(GTENode):
 
         root(self.equations, x0, args, method="lm")
 
-        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], self.outlet.parameters)
-        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], self.outlet.parameters)
+        outlet_parameters = {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)}
+        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], outlet_parameters)
+        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], outlet_parameters)
         self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
         self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
 
@@ -139,7 +142,7 @@ class Turbine(GTENode):
 
         result = True
         for i, null in enumerate(self.equations(x0, args)):
-            if abs(null) > epsrel:
+            if isnan(null) or abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
 
@@ -150,41 +153,35 @@ class Turbine(GTENode):
         checks = (
             check_efficiency(getattr(self, gtep.effeff)),
             check_temperature(self.outlet.parameters[gtep.TT]),
+            check_pressure_ratio(getattr(self, gtep.pipi)),
         )
         return all(checks)
 
 
 if __name__ == "__main__":
+    from colorama import Fore
+    from fixtures import exhaust
+
     for k, v in gtep.items():
         print(f"{k:<10}: {v}")
 
-    substance_inlet = Substance(
-        "exhaust",
-        parameters={
-            gtep.mf: 51,
-            gtep.eo: 3,
-            gtep.gc: 287,
-            gtep.TT: 1600,
-            gtep.PP: 101_325 * 23,
-            gtep.Cp: 1206,
-            gtep.k: 1.33,
-            gtep.c: 100,
-        },
-        functions={
-            gtep.gc: lambda excess_oxidizing: gas_const("EXHAUST", excess_oxidizing, fuel="kerosene"),
-            gtep.Cp: lambda total_temperature, excess_oxidizing: heat_capacity_at_constant_pressure("EXHAUST", total_temperature, excess_oxidizing, fuel="kerosene"),
-        },
+    test_cases = (
+        {"name": "1", "turbine": {gtep.pipi: 3, gtep.effeff: 0.9, "leak": 0.03}},
+        {"name": "2", "turbine": {gtep.pipi: 3, gtep.power: 12 * 10**6, "leak": 0.03}},
+        {"name": "3", "turbine": {gtep.effeff: 0.9, gtep.power: 12 * 10**6, "leak": 0.03}},
     )
 
-    t = Turbine()
-    t.summary
+    for test_case in test_cases:
+        t = Turbine(test_case["name"])
+        t.summary
 
-    setattr(t, gtep.power, 32 * 10**6)
-    setattr(t, gtep.effeff, 0.9)
+        for k, v in test_case["turbine"].items():
+            setattr(t, k, v)
 
-    t.calculate(substance_inlet)
+        t.calculate(exhaust)
 
-    t.summary
+        t.summary
 
-    print(f"{t.validate(0.0001) = }")
-    print(f"{t.is_real = }")
+        print(Fore.GREEN + f"{t.validate() = }" + Fore.RESET)
+        print(Fore.GREEN + f"{t.is_real = }" + Fore.RESET)
+        print()

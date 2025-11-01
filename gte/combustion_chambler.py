@@ -54,7 +54,7 @@ class CombustionChamber(GTENode):
         }
 
     @property
-    def x0(self) -> Dict[str, float]:
+    def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
         x0 = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
@@ -132,7 +132,7 @@ class CombustionChamber(GTENode):
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.mf] / self.fuel.parameters[gtep.mf] / self.fuel.parameters["stoichiometry"]
 
         if x0 is None:
-            x0 = tuple(self.x0.values())
+            x0 = tuple(self.predict.values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
         count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
