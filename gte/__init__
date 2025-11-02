@@ -7,4 +7,4 @@ from .turbine import Turbine
 # from src.nodes.outlet import Outlet
 
 # import *
-__all__ = ["GTE", "Compressor", "CombustionChamber", "Turbine"]
+__all__ = ["parameters", "GTE", "Compressor", "CombustionChamber", "Turbine"]
