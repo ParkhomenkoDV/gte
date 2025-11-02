@@ -1,13 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from combustion_chambler import CombustionChamber
 from compressor import Compressor
 from config import parameters as gtep
 from numpy import cos, linspace, nan, prod, radians, sin
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import T0, atmosphere_standard, gas_const, gdf, heat_capacity_at_constant_pressure, stoichiometry
+from thermodynamics import T0, atmosphere_standard, gas_const, heat_capacity_p, stoichiometry
 from tqdm import tqdm
 from turbine import Turbine
 
@@ -591,7 +590,7 @@ if __name__ == "__main__":
         },
         functions={
             gtep.gc: lambda total_temperature: gas_const("AIR"),
-            gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("AIR", total_temperature),
+            gtep.Cp: lambda total_temperature: heat_capacity_p("AIR", total_temperature),
         },
     )
 

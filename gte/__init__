@@ -1,5 +1,6 @@
 from .combustion_chambler import CombustionChamber
 from .compressor import Compressor
+from .config import parameters
 from .gte import GTE
 from .turbine import Turbine
 
