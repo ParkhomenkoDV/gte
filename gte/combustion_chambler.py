@@ -24,7 +24,7 @@ except ImportError:
 
 models = {}
 for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
-    path = f"models/compressor_{model}.pickle"
+    path = f"models/compressor_{model}.pkl"
     if os.path.exists(path):
         models[model] = pickle.load(path)
     else:
