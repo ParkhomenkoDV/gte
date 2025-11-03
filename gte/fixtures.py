@@ -20,15 +20,6 @@ air = Substance(
     },
 )
 
-
-def hcp_exhaust(temperature, excess_oxidizing, stoichiometry, composition):
-    H2O = composition.get("H2O", 0)  # массовая доля волы в смеси
-    result = (1 - H2O) * (heat_capacity_p_exhaust(temperature, composition) + heat_capacity_p("air", temperature) * excess_oxidizing * stoichiometry)
-    result += H2O * excess_oxidizing * stoichiometry * heat_capacity_p("H2O", temperature)
-    result /= 1 - H2O + excess_oxidizing * stoichiometry
-    return result
-
-
 kerosene = Substance(
     "kerosene",
     composition={"C": 0.85, "H": 0.15},
@@ -40,11 +31,18 @@ kerosene = Substance(
         "lower_heat": lower_heat("kerosene"),
     },
     functions={
-        gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
-        gtep.Cp: lambda temperature, excess_oxidizing: hcp_exhaust(temperature, excess_oxidizing, stoichiometry("kerosene"), {"C": 0.85, "H": 0.15}),
+        gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),  # TODO: убрать. СС должен сама считать
         gtep.hc: lambda temperature: 200,
     },
 )
+
+
+def hcp_exhaust(temperature, excess_oxidizing, stoichiometry, composition):
+    H2O = composition.get("H2O", 0)  # массовая доля волы в смеси
+    result = (1 - H2O) * (heat_capacity_p_exhaust(temperature, composition) + heat_capacity_p("air", temperature) * excess_oxidizing * stoichiometry)
+    result += H2O * excess_oxidizing * stoichiometry * heat_capacity_p("H2O", temperature)
+    result /= 1 - H2O + excess_oxidizing * stoichiometry
+    return result
 
 
 exhaust = Substance(
