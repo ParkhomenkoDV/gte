@@ -54,26 +54,14 @@ class GTENode(ABC):
         return {}
 
     @property
-    def summary(self) -> dict[str:float]:
-        result = {k: getattr(self, k) for k in self.__slots__ if not isinstance(getattr(self, k), Substance)}
-        if hasattr(self, "inlet"):
-            result.update({f"{k}_inlet": v for k, v in self.inlet.parameters.items()})
-        if hasattr(self, "outlet"):
-            result.update({f"{k}_outlet": v for k, v in self.outlet.parameters.items()})
-
-        n = 20
-        print("-" * n)
+    def summary(self) -> Dict[str, float]:
+        result = {}
         for k in self.__slots__:
-            if not k.endswith("let"):
-                print(f"{k}: {getattr(self, k)}")
-        if hasattr(self, "inlet"):
-            for k, v in self.inlet.parameters.items():
-                print(f"{k}_inlet: {v}")
-        if hasattr(self, "outlet"):
-            for k, v in self.outlet.parameters.items():
-                print(f"{k}_outlet: {v}")
-        print("-" * n)
-
+            if not isinstance(getattr(self, k), Substance):
+                result[k] = getattr(self, k)
+            else:
+                for parameter, value in getattr(self, k).parameters.items():
+                    result[f"{k}_{parameter}"] = value
         return result
 
     def validate_substance(self, substance: Substance) -> None:
@@ -89,12 +77,12 @@ class GTENode(ABC):
             for func_arg in function.__code__.co_varnames:
                 assert func_arg in tdp_keys, NameError(f"function '{name}' has arg '{func_arg}' not in {tdp_keys}")
 
-    def equations(self, x: Tuple, args: dict) -> Tuple:
+    def equations(self, x: Tuple, args: Dict) -> Tuple:
         """Уравнения"""
         pass
 
     @abstractmethod
-    def calculate(self, x0: dict = None) -> Substance:
+    def calculate(self, x0: Dict = None) -> Substance:
         """Расчет узла"""
         # расчет входных параметров
         # расчет параметров узла
