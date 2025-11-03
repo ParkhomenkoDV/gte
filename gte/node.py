@@ -48,7 +48,6 @@ class GTENode(ABC):
         """Переменные параметры"""
         return {}
 
-    @property
     @abstractmethod
     def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
