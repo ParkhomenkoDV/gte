@@ -3,8 +3,6 @@ from numpy import nan
 try:
     from .checks import check_efficiency
     from .config import parameters as gtep
-
-
 except ImportError:
     from checks import check_efficiency
     from config import parameters as gtep

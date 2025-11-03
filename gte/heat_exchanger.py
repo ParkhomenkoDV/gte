@@ -1,6 +1,5 @@
-from combustion_chambler import CombustionChamber  # камера сгорания
 from numpy import nan
-from thermodynamics import gas_const, heat_capacity_at_constant_pressure
+from thermodynamics import gas_const, heat_capacity_p
 
 
 def heat_exchanger(coolant, TT1=nan, PP1=nan, τ=nan, σ=nan) -> dict:
@@ -15,23 +14,6 @@ class HeatExchanger:
 
     def __init__(self, name="HeatExchanger"):
         self.name = name
-        self.TT1 = nan  # полная температура перед
-        self.TT3 = nan  # полная температура после
-        self.PP1 = nan  # полное давление перед
-        self.PP3 = nan  # полное давление после
-        self.ρρ1 = nan  # полная плотность перед
-        self.ρρ3 = nan  # полная плотность после
-
-        self.T1 = nan  # статическая температура перед
-        self.T3 = nan  # статическая температура после
-        self.P1 = nan  # статическое давление перед
-        self.P3 = nan  # статическое давление после
-        self.ρ1 = nan  # статическая плотность перед
-        self.ρ3 = nan  # статическая плотность после
-        self.c1 = nan  # абсолютная скорость перед
-        self.c3 = nan  # абсолютная скорость после
-        self.g1 = nan  # относительный массовый расход перед
-        self.g3 = nan  # относительный массовый расход после
 
         self.Cp1 = nan  # теплоемкость при постоянном давлении перед
         self.Cp3 = nan  # теплоемкость при постоянном давлении после
@@ -76,38 +58,19 @@ class HeatExchanger:
         substance = kwargs.get("substance", "")  # рабочее тело
         fuel = kwargs.get("fuel", "")  # горючее
 
-        scheme = kwargs.get("scheme", {})
-        if scheme:
-            c, n = find_node_in_scheme(scheme, self)
-            self.a_ox = scheme[c][n - 1].a_ox3
-            self.TT1 = scheme[c][n - 1].TT3
-            self.PP1 = scheme[c][n - 1].PP3
-            self.g1 = scheme[c][n - 1].g3 - self.g_leak
-            for node in scheme[c][:n]:
-                self.g1 -= node.g_leak
-                self.g1 += node.g_fuel if hasattr(node, "g_fuel") else 0
-                self.g3 -= node.g_leak
-                self.g3 += node.g_fuel if hasattr(node, "g_fuel") else 0
-
-            substance = "AIR"
-            for node in scheme[c][:n]:
-                if type(node) is CombustionChamber:
-                    substance = "EXHAUST"
-                    break
-
         self.a_ox = kwargs.get("a_ox", nan) if self.a_ox is nan else self.a_ox  # коэффициент избытка окислителя
-        self.R_gas1 = R_gas(substance, a_ox=self.a_ox, fuel=fuel)
+        self.R_gas1 = gas_const(substance, a_ox=self.a_ox, fuel=fuel)
         self.TT1 = kwargs.get("TT3", nan) if self.TT1 is nan else self.TT1
         self.PP1 = kwargs.get("PP3", nan) if self.PP1 is nan else self.PP1
         self.ρρ1 = self.PP1 / (self.R_gas1 * self.TT1)
-        self.Cp1 = Cp(substance, T=self.TT1, P=self.PP1, a_ox=self.a_ox, fuel=fuel)
+        self.Cp1 = heat_capacity_p(substance, T=self.TT1, P=self.PP1, a_ox=self.a_ox, fuel=fuel)
         self.k1 = self.Cp1 / (self.Cp1 - self.R_gas1)
 
-        self.R_gas3 = R_gas(substance, a_ox=self.a_ox, fuel=fuel)
+        self.R_gas3 = gas_const(substance, a_ox=self.a_ox, fuel=fuel)
         self.TT3 = self.TT1 * self.τ
         self.PP3 = self.PP1 * self.σ
         self.ρρ3 = self.PP3 / (self.R_gas3 * self.TT3)
-        self.Cp3 = Cp(substance, T=self.TT3, P=self.PP3, a_ox=self.a_ox, fuel=fuel)
+        self.Cp3 = heat_capacity_p(substance, T=self.TT3, P=self.PP3, a_ox=self.a_ox, fuel=fuel)
         self.k3 = self.Cp3 / (self.Cp3 - self.R_gas3)
 
 
