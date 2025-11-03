@@ -22,11 +22,13 @@ except ImportError:
     from node import GTENode
     from utils import call_with_kwargs, integral_average
 
+
 models = {}
 for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
-    path = f"models/compressor_{model}.pkl"
+    path = f"gte/models/compressor_{model}.pkl"
     if os.path.exists(path):
-        models[model] = pickle.load(path)
+        with open(path, "rb") as file:
+            models[model] = pickle.load(file)
     else:
         print(f"'{path}' not found!")
 
@@ -169,14 +171,14 @@ if __name__ == "__main__":
 
     for test_case in test_cases:
         t = Turbine(test_case["name"])
-        t.summary
 
         for k, v in test_case["turbine"].items():
             setattr(t, k, v)
 
         t.calculate(exhaust)
 
-        t.summary
+        for k, v in t.summary.items():
+            print(f"{k:<40}: {v}")
 
         print(Fore.GREEN + f"{t.validate() = }" + Fore.RESET)
         print(Fore.GREEN + f"{t.is_real = }" + Fore.RESET)

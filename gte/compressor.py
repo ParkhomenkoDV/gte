@@ -176,7 +176,6 @@ if __name__ == "__main__":
 
         c.calculate(air)
 
-        print(c.__slots__)
         for k, v in c.summary.items():
             print(f"{k:<40}: {v}")
 

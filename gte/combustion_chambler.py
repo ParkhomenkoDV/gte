@@ -22,11 +22,13 @@ except ImportError:
     from node import GTENode
     from utils import call_with_kwargs, enthalpy
 
+
 models = {}
 for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
-    path = f"models/compressor_{model}.pkl"
+    path = f"gte/models/compressor_{model}.pkl"
     if os.path.exists(path):
-        models[model] = pickle.load(path)
+        with open(path, "rb") as file:
+            models[model] = pickle.load(file)
     else:
         print(f"'{path}' not found!")
 
@@ -187,7 +189,6 @@ if __name__ == "__main__":
     air.parameters[gtep.PP] = 101325 * 6
 
     cc = CombustionChamber()
-    cc.summary
 
     cc.efficiency_burn = 0.99
     setattr(cc, gtep.peff, 0.95)
@@ -195,7 +196,8 @@ if __name__ == "__main__":
 
     cc.calculate(air, kerosene)
 
-    cc.summary
+    for k, v in cc.summary.items():
+        print(f"{k:<40}: {v}")
 
     print(Fore.GREEN + f"{cc.validate() = }" + Fore.RESET)
     print(Fore.GREEN + f"{cc.is_real = }" + Fore.RESET)
