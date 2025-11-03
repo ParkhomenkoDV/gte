@@ -36,7 +36,7 @@ class Turbine(GTENode):
 
     models: Dict[str, Any] = models
 
-    __slots__ = (gtep.pipi, gtep.effeff, gtep.power)
+    __slots__ = GTENode.__slots__ + [gtep.pipi, gtep.effeff, gtep.power]
 
     def __init__(self, name: str = "Turbine"):
         GTENode.__init__(self, name=name)
@@ -53,10 +53,9 @@ class Turbine(GTENode):
             gtep.power: getattr(self, gtep.power),
         }
 
-    @property
     def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
-        x0 = {
+        prediction = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT] * 0.7,  # TODO model
             f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP] / 2,  # TODO model
         }
@@ -64,12 +63,12 @@ class Turbine(GTENode):
             if not isnan(v):
                 continue
             if k == gtep.pipi:
-                x0[k] = 3  # TODO: model or formula
+                prediction[k] = 3  # TODO: model or formula
             elif k == gtep.effeff:
-                x0[k] = 1.0
+                prediction[k] = 1.0
             elif k == gtep.power:
-                x0[k] = 24 * 10**6  # TODO: model or formula
-        return x0
+                prediction[k] = 24 * 10**6  # TODO: model or formula
+        return prediction
 
     def equations(self, x, args: Dict) -> Tuple:
         """Уравнения"""
@@ -110,10 +109,10 @@ class Turbine(GTENode):
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]  # TODO посчитать через массу!
 
         if x0 is None:
-            x0 = tuple(self.predict.values())
+            x0 = tuple(self.predict().values())
         else:
             assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self.predict.items():
+            for k, v in self.predict().items():
                 if k not in x0:
                     x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
@@ -161,9 +160,6 @@ class Turbine(GTENode):
 if __name__ == "__main__":
     from colorama import Fore
     from fixtures import exhaust
-
-    for k, v in gtep.items():
-        print(f"{k:<10}: {v}")
 
     test_cases = (
         {"name": "1", "turbine": {gtep.pipi: 3, gtep.effeff: 0.9, "leak": 0.03}},

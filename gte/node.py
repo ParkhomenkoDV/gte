@@ -22,7 +22,7 @@ class GTENode(ABC):
 
     models: Dict[str, Any] = {}  # ML модели
 
-    __slots__ = ("name", "inlet", "outlet", "leak")
+    __slots__ = ["name", "inlet", "outlet", "leak"]
 
     def __init__(self, name: str = "node") -> None:
         assert isinstance(name, str), TypeError(f"type name must be str, but has {type(name)}")

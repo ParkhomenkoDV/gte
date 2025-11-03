@@ -22,11 +22,13 @@ except ImportError:
     from node import GTENode
     from utils import call_with_kwargs, integral_average
 
+
 models = {}
 for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
-    path = f"compressor_{model}.pkl"
+    path = f"gte/models/compressor_{model}.pkl"
     if os.path.isfile(path):
-        models[model] = pickle.load(path)
+        with open(path, "rb") as file:
+            models[model] = pickle.load(file)
     else:
         print(f"'{path}' not found!")
 
@@ -36,7 +38,7 @@ class Compressor(GTENode):
 
     models: Dict[str, Any] = models
 
-    __slots__ = (gtep.pipi, gtep.effeff, gtep.power)
+    __slots__ = GTENode.__slots__ + [gtep.pipi, gtep.effeff, gtep.power]
 
     def __init__(self, name: str = "Compressor"):
         GTENode.__init__(self, name=name)
@@ -53,10 +55,9 @@ class Compressor(GTENode):
             gtep.power: getattr(self, gtep.power),
         }
 
-    @property
     def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
-        x0 = {
+        prediction = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],  # TODO model
             f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],  # TODO model
         }
@@ -64,12 +65,12 @@ class Compressor(GTENode):
             if not isnan(v):
                 continue
             if k == gtep.pipi:
-                x0[k] = 6  # TODO: model or formula
+                prediction[k] = 6  # TODO: model or formula
             elif k == gtep.effeff:
-                x0[k] = 1.0
+                prediction[k] = 1.0
             elif k == gtep.power:
-                x0[k] = 20 * 10**6  # TODO: model or formula
-        return x0
+                prediction[k] = 20 * 10**6  # TODO: model or formula
+        return prediction
 
     def equations(self, x: Tuple, args: Dict) -> Tuple:
         """Уравнения"""
@@ -108,10 +109,10 @@ class Compressor(GTENode):
         )
 
         if x0 is None:
-            x0 = tuple(self.predict.values())
+            x0 = tuple(self.predict().values())
         else:
             assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self.predict.items():
+            for k, v in self.predict().items():
                 if k not in x0:
                     x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
@@ -161,9 +162,6 @@ if __name__ == "__main__":
     from colorama import Fore
     from fixtures import air
 
-    for k, v in gtep.items():
-        print(f"{k:<10}: {v}")
-
     test_cases = (
         {"name": "1", "compressor": {gtep.pipi: 6, gtep.effeff: 0.85, "leak": 0.03}},
         {"name": "2", "compressor": {gtep.pipi: 6, gtep.power: 12 * 10**6, "leak": 0.03}},
@@ -172,14 +170,15 @@ if __name__ == "__main__":
 
     for test_case in test_cases:
         c = Compressor(test_case["name"])
-        c.summary
 
         for k, v in test_case["compressor"].items():
             setattr(c, k, v)
 
         c.calculate(air)
 
-        c.summary
+        print(c.__slots__)
+        for k, v in c.summary.items():
+            print(f"{k:<40}: {v}")
 
         print(Fore.GREEN + f"{c.validate() = }" + Fore.RESET)
         print(Fore.GREEN + f"{c.is_real = }" + Fore.RESET)

@@ -36,7 +36,7 @@ class CombustionChamber(GTENode):
 
     models: Dict[str, Any] = models
 
-    __slots__ = (gtep.effburn, gtep.peff, "fuel")
+    __slots__ = GTENode.__slots__ + [gtep.effburn, gtep.peff, "fuel"]
 
     def __init__(self, name="CombustionChamber"):
         GTENode.__init__(self, name=name)
@@ -53,10 +53,9 @@ class CombustionChamber(GTENode):
             gtep.peff: getattr(self, gtep.peff),
         }
 
-    @property
     def predict(self) -> Dict[str, float]:
         """Начальные приближения"""
-        x0 = {
+        prediction = {
             f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
             f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
         }
@@ -64,10 +63,10 @@ class CombustionChamber(GTENode):
             if not isnan(v):
                 continue
             if k == "efficiency_burn":
-                x0[k] = 1.0
+                prediction[k] = 1.0
             elif k == gtep.peff:
-                x0[k] = 0.95  # TODO: model or formula
-        return x0
+                prediction[k] = 0.95  # TODO: model or formula
+        return prediction
 
     def equations(self, x: Tuple, args: Dict) -> Tuple:
         """Уравнения"""
@@ -132,7 +131,7 @@ class CombustionChamber(GTENode):
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.mf] / self.fuel.parameters[gtep.mf] / self.fuel.parameters["stoichiometry"]
 
         if x0 is None:
-            x0 = tuple(self.predict.values())
+            x0 = tuple(self.predict().values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
         count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
@@ -186,9 +185,6 @@ if __name__ == "__main__":
 
     air.parameters[gtep.TT] = 600
     air.parameters[gtep.PP] = 101325 * 6
-
-    for k, v in gtep.items():
-        print(f"{k:<10}: {v}")
 
     cc = CombustionChamber()
     cc.summary
