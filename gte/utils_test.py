@@ -4,13 +4,27 @@ from utils import call_with_kwargs, enthalpy, integral_average
 
 
 class Test_call_with_kwargs:
+    """Тесты функции call_with_kwargs"""
+
     @staticmethod
-    def f(a, b):
+    def f0():
+        return "success"
+
+    @staticmethod
+    def f2(a, b):
         return a + b
 
+    @staticmethod
+    def f3(a, b, c):
+        return a + b + c
+
+    @staticmethod
+    def test_func(name: str, age: int, active: bool):
+        return f"{name} is {age} years old and active: {active}"
+
     def test_types(self):
-        assert call_with_kwargs(self.f, {"a": 2, "b": 3}) == 5
-        assert call_with_kwargs(self.f, {"a": 2, "b": 3, "c": 4}) == 5
+        assert call_with_kwargs(self.f2, {"a": 2, "b": 3}) == 5
+        assert call_with_kwargs(self.f2, {"a": 2, "b": 3, "c": 4}) == 5
 
         # has not function
         with pytest.raises((AssertionError, TypeError)):
@@ -18,11 +32,134 @@ class Test_call_with_kwargs:
 
         # type(kwargs) is not dict
         with pytest.raises((AssertionError, TypeError)):
-            call_with_kwargs(self.f, (2, 3))
+            call_with_kwargs(self.f2, (2, 3))
 
         # нехватка аргументов
         with pytest.raises((AssertionError, TypeError)):
-            call_with_kwargs(self.f, {"a": 2, "c": 4})
+            call_with_kwargs(self.f2, {"a": 2, "c": 4})
+
+    def test_call_with_kwargs_basic_functionality(self):
+        """Тест базовой функциональности"""
+        kwargs = {"a": 1, "b": 2, "c": 3}
+        assert call_with_kwargs(self.f3, kwargs) == 6
+
+    def test_call_with_kwargs_with_different_types(self):
+        """Тест с различными типами данных"""
+        kwargs = {"name": "Alice", "age": 25, "active": True}
+        assert call_with_kwargs(self.test_func, kwargs) == "Alice is 25 years old and active: True"
+
+    def test_call_with_kwargs_with_extra_kwargs():
+        """Тест с лишними kwargs (должны игнорироваться)"""
+
+        def test_func(x, y):
+            return x * y
+
+        kwargs = {"x": 5, "y": 3, "z": 10}  # z - лишний параметр
+        result = call_with_kwargs(test_func, kwargs)
+        assert result == 15
+
+    def test_call_with_kwargs_function_with_defaults():
+        """Тест с функцией, имеющей параметры по умолчанию"""
+
+        def test_func(a, b=10, c=20):
+            return a + b + c
+
+        kwargs = {"a": 1, "b": 2, "c": 3}
+        result = call_with_kwargs(test_func, kwargs)
+        assert result == 6
+
+    def test_call_with_kwargs_empty_function(self):
+        """Тест с функцией без параметров"""
+
+        result = call_with_kwargs(self.test_func, {})
+        assert result == "success"
+
+    def test_call_with_kwargs_missing_required_arg():
+        """Тест с отсутствующим обязательным аргументом"""
+
+        def test_func(a, b, c):
+            return a + b + c
+
+        kwargs = {"a": 1, "b": 2}  # отсутствует c
+
+        with pytest.raises(ValueError) as exc_info:
+            call_with_kwargs(test_func, kwargs)
+
+        assert "arg 'c'" in str(exc_info.value)
+        assert "must be not None" in str(exc_info.value)
+
+    def test_call_with_kwargs_none_value():
+        """Тест с явным None в значении аргумента"""
+
+        def test_func(a, b):
+            return a + b
+
+        kwargs = {"a": 1, "b": None}
+
+        with pytest.raises(ValueError) as exc_info:
+            call_with_kwargs(test_func, kwargs)
+
+        assert "arg 'b'" in str(exc_info.value)
+        assert "must be not None" in str(exc_info.value)
+
+    def test_call_with_kwargs_not_callable():
+        """Тест с невызываемым объектом"""
+        not_callable = "I'm not a function"
+
+        with pytest.raises(TypeError) as exc_info:
+            call_with_kwargs(not_callable, {})
+
+        assert "must be callable" in str(exc_info.value)
+
+    def test_call_with_kwargs_not_dict():
+        """Тест с некорректным типом kwargs"""
+
+        def test_func():
+            return "test"
+
+        with pytest.raises(TypeError) as exc_info:
+            call_with_kwargs(test_func, "not a dict")
+
+        assert "must be dict" in str(exc_info.value)
+
+    def test_call_with_kwargs_class_method():
+        """Тест с методом класса"""
+
+        class TestClass:
+            def method(self, x, y):
+                return x * y
+
+        obj = TestClass()
+        kwargs = {"x": 4, "y": 5}
+        result = call_with_kwargs(obj.method, kwargs)
+        assert result == 20
+
+    def test_call_with_kwargs_lambda():
+        """Тест с lambda-функцией"""
+        lambda_func = lambda x, y: x**y
+        kwargs = {"x": 2, "y": 3}
+        result = call_with_kwargs(lambda_func, kwargs)
+        assert result == 8
+
+    def test_call_with_kwargs_complex_object():
+        """Тест со сложными объектами в аргументах"""
+
+        def test_func(data, count):
+            return len(data) * count
+
+        kwargs = {"data": [1, 2, 3, 4, 5], "count": 2}
+        result = call_with_kwargs(test_func, kwargs)
+        assert result == 10
+
+    def test_call_with_kwargs_function_with_annotations():
+        """Тест с функцией с аннотациями типов"""
+
+        def test_func(name: str, count: int) -> str:
+            return name * count
+
+        kwargs = {"name": "hi", "count": 3}
+        result = call_with_kwargs(test_func, kwargs)
+        assert result == "hihihi"
 
 
 class TestEnthalpy:
@@ -63,6 +200,18 @@ class TestEnthalpy:
     def test_function(self, function, kwargs, expected):
         result = enthalpy(function, **kwargs)
         assert result == pytest.approx(expected, rel=self.RELERR)
+
+    @pytest.mark.benchmark
+    def test_enthalpy(self, benchmark):
+        """Бенчмарк для функции enthalpy"""
+
+        def f(x):
+            return ((np.sin(x) ** (2 * x)) / np.exp(np.arccos(x**0.5))) ** np.log(x)
+
+        def benchfunc(ranges):
+            enthalpy(f, **ranges)
+
+        benchmark(benchfunc, {"x": (-100, 100)})
 
     def test_reverse_integration_limits(self):
         """Тест с обратными пределами интегрирования"""

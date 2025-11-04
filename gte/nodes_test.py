@@ -57,7 +57,7 @@ class TestCompressor:
         assert compressor.leak == 0.0
 
     @pytest.mark.benchmark
-    def test_bench_init(self, benchmark):
+    def test_compressor_init(self, benchmark):
         """Бенчмарк инициализации компрессора"""
 
         def benchfunc():
@@ -128,7 +128,7 @@ class TestCompressor:
         ],
     )
     @pytest.mark.benchmark
-    def test_bench_calculate(self, benchmark, node, kwargs):
+    def test_compressor_calculate(self, benchmark, node, kwargs):
         def benchfunc(node, kwargs):
             for k, v in kwargs.items():
                 setattr(node, k, v)
@@ -187,7 +187,7 @@ class TestCombustionChamber:
         assert cc.leak == 0.0
 
     @pytest.mark.benchmark
-    def test_bench_init(self, benchmark):
+    def test_cc_init(self, benchmark):
         """Бенчмарк инициализации камеры сгорания"""
 
         def benchfunc():
@@ -233,7 +233,7 @@ class TestCombustionChamber:
         ],
     )
     @pytest.mark.benchmark
-    def test_bench_calculate(self, benchmark, node, kwargs):
+    def test_cc_calculate(self, benchmark, node, kwargs):
         def benchfunc(node, kwargs):
             for k, v in kwargs.items():
                 setattr(node, k, v)
@@ -264,7 +264,7 @@ class TestTurbine:
         assert turbine.leak == 0.0
 
     @pytest.mark.benchmark
-    def test_bench_init(self, benchmark):
+    def test_turbine_init(self, benchmark):
         """Бенчмарк инициализации компрессора"""
 
         def benchfunc():
@@ -316,7 +316,7 @@ class TestTurbine:
         ],
     )
     @pytest.mark.benchmark
-    def test_bench_calculate(self, benchmark, node, kwargs):
+    def test_turbine_calculate(self, benchmark, node, kwargs):
         def benchfunc(node, kwargs):
             for k, v in kwargs.items():
                 setattr(node, k, v)
