@@ -70,7 +70,7 @@ class CombustionChamber(GTENode):
                 prediction[k] = 0.95  # TODO: model or formula
         return prediction
 
-    def equations(self, x: Tuple, args: Dict) -> Tuple:
+    def equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
         """Уравнения"""
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
