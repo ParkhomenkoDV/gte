@@ -17,9 +17,10 @@ def call_with_kwargs(function: Callable, kwargs: Dict[str, Any]):
 
     arguments = {}
     for arg in get_co_varnames(function):
-        value = kwargs.get(arg)
-        assert value is not None, ValueError(f"arg '{arg}' {value = } must be not None")
-        arguments[arg] = value
+        if arg in ("cls", "self"):
+            continue
+        assert arg in kwargs, ValueError(f"'kwargs has not {arg=}'")
+        arguments[arg] = kwargs[arg]
 
     return function(**arguments)
 
