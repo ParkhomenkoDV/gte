@@ -77,7 +77,7 @@ class GTENode(ABC):
             for func_arg in function.__code__.co_varnames:
                 assert func_arg in tdp_keys, NameError(f"function '{name}' has arg '{func_arg}' not in {tdp_keys}")
 
-    def equations(self, x: Tuple, args: Dict) -> Tuple:
+    def equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
         """Уравнения"""
         pass
 
