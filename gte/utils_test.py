@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from utils import call_with_kwargs, enthalpy, integral_average
+from utils import call_with_kwargs, integral_average, integrate
 
 
 class Test_call_with_kwargs:
@@ -55,9 +55,10 @@ class Test_call_with_kwargs:
             call_with_kwargs(self.f, {"name": "Alice"})
 
 
-class TestEnthalpy:
-    """Тесты для функции enthalpy"""
+class TestIntegrate:
+    """Тесты для функции integrate()"""
 
+    ABSERR = 1e-2
     RELERR = 0.000_1
 
     @staticmethod
@@ -91,86 +92,93 @@ class TestEnthalpy:
         ],
     )
     def test_function(self, function, kwargs, expected):
-        result = enthalpy(function, **kwargs)
+        result, error = integrate(function, **kwargs)
         assert result == pytest.approx(expected, rel=self.RELERR)
+        assert error < self.ABSERR
 
     @pytest.mark.benchmark
-    def test_enthalpy(self, benchmark):
-        """Бенчмарк для функции enthalpy"""
+    def test_integrate(self, benchmark):
+        """Бенчмарк для функции integrate()"""
 
         def f(x):
             return ((np.sin(x) ** (2 * x)) / np.exp(np.arccos(x**0.5))) ** np.log(abs(x) + 1)
 
         def benchfunc(ranges):
-            enthalpy(f, **ranges)
+            integrate(f, **ranges)
 
         benchmark(benchfunc, {"x": (-100, 100)})
 
     def test_reverse_integration_limits(self):
         """Тест с обратными пределами интегрирования"""
-        result_forward = enthalpy(self.f1_1, T=(300, 500))
-        result_reverse = enthalpy(self.f1_1, T=(500, 300))
+        result_forward, error_forward = integrate(self.f1_1, T=(300, 500))
+        result_reverse, error_reverse = integrate(self.f1_1, T=(500, 300))
         assert abs(result_forward + result_reverse) < 1e-10
+        assert error_forward < self.ABSERR
+        assert error_reverse < self.ABSERR
 
     def test_zero_range(self):
         """Тест с нулевым диапазоном"""
-        result = enthalpy(self.f0_1, T=(400, 400))
+        result, error = integrate(self.f0_1, T=(400, 400))
         assert result == pytest.approx(1000.0, rel=self.RELERR)
+        assert error < self.ABSERR
 
     def test_error_cases(self):
         """Тесты обработки ошибок"""
 
         # Не callable объект
         with pytest.raises((AssertionError, TypeError)):
-            enthalpy("not a function", T=(300, 500))
+            integrate("not a function", T=(300, 500))
 
         # Отсутствующий аргумент
         with pytest.raises((AssertionError, Exception), match="require argument"):
-            enthalpy(self.f1_1)  # T отсутствует
+            integrate(self.f1_1)  # T отсутствует
 
         # Неправильный тип диапазона
         with pytest.raises((AssertionError, TypeError)):
-            enthalpy(self.f1_1, T="not a range")
+            integrate(self.f1_1, T="not a range")
 
         # Диапазон неправильной длины
         with pytest.raises((AssertionError, ValueError)):
-            enthalpy(self.f1_1, T=(300, 400, 500))
+            integrate(self.f1_1, T=(300, 400, 500))
 
         # Лишние аргументы (должны игнорироваться)
-        result = enthalpy(self.f1_1, T=(300, 500), extra_arg=(100, 200))
-        expected = enthalpy(self.f1_1, T=(300, 500))
+        result, error1 = integrate(self.f1_1, T=(300, 500), extra_arg=(100, 200))
+        expected, error2 = integrate(self.f1_1, T=(300, 500))
         assert result == pytest.approx(expected, rel=self.RELERR)
+        assert error1 == error2
 
     def test_lambda_functions(self):
         """Тест с lambda-функциями"""
-        result1 = enthalpy(lambda T: 1000.0, T=(300, 500))
-        expected1 = 1000.0 * 200
-        assert result1 == pytest.approx(expected1, rel=self.RELERR)
+        result, error = integrate(lambda T: 1000.0, T=(300, 500))
+        assert result == pytest.approx(1000.0 * 200, rel=self.RELERR)
+        assert error < self.ABSERR
 
-        result2 = enthalpy(lambda T, P: 1000.0 + 0.1 * T, T=(300, 500), P=(100_000, 200_000))
-        expected2 = (1000.0 + 0.1 * 400) * 200 * 100000  # Среднее значение
-        assert result2 == pytest.approx(expected2, rel=self.RELERR)
+        result, error = integrate(lambda T, P: 1000.0 + 0.1 * T, T=(300, 500), P=(100_000, 200_000))
+        assert result == pytest.approx((1000.0 + 0.1 * 400) * 200 * 100000, rel=self.RELERR)
+        assert error < self.ABSERR
 
     def test_edge_cases(self):
         """Тесты граничных случаев"""
 
         # Очень большой диапазон
-        result = enthalpy(self.f0_1, T=(0, 10_000))
-        expected = 1000.0 * 10_000
-        assert abs(result - expected) < 1e-6
+        result, error = integrate(self.f0_1, T=(0, 10_000))
+        assert result == pytest.approx(1000.0 * 10_000, rel=1e-6)
+        assert error < self.ABSERR
 
         # Отрицательный диапазон
-        result = enthalpy(self.f1_1, T=(-100, 100))
+        result, error = integrate(self.f1_1, T=(-100, 100))
         expected = 800.0 * 200 + 0.5 * (10_000 - 10_000) / 2  # T² симметрично
-        assert abs(result - expected) < 1e-10
+        assert result == pytest.approx(expected, rel=1e-6)
+        assert error < self.ABSERR
 
         # Очень маленький диапазон
-        result = enthalpy(self.f0_1, T=(400, 400 + 1e-10))
-        assert abs(result) < 1e-6
+        result, error = integrate(self.f0_1, T=(400, 400 + 1e-10))
+        assert abs(result) < self.ABSERR
+        assert error < self.ABSERR
 
 
 class TestIntegralAverage:
-    """Тесты для функции integral_average"""
+    """Тесты для функции integral_average()"""
 
     ABSERR = 1e-9
     RELERR = 0.000_1

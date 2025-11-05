@@ -14,13 +14,13 @@ try:
     from .config import EPSREL
     from .config import parameters as gtep
     from .node import GTENode
-    from .utils import call_with_kwargs, enthalpy
+    from .utils import call_with_kwargs, integrate
 except ImportError:
     from checks import check_efficiency, check_temperature
     from config import EPSREL
     from config import parameters as gtep
     from node import GTENode
-    from utils import call_with_kwargs, enthalpy
+    from utils import call_with_kwargs, integrate
 
 
 models = {}
@@ -84,14 +84,14 @@ class CombustionChamber(GTENode):
             # (mf_i * enthalpy_i) + mf_f * (Q*eff + enthalpy_f) = (mf_i + mf_f) * enthalpy_o
             (
                 self.outlet.parameters[gtep.mf]
-                * enthalpy(
+                * integrate(
                     self.outlet.functions[gtep.Cp],
                     **{
                         tdp.t: (T0 + 15, self.outlet.parameters[gtep.TT]),
                         tdp.p: (101325, self.outlet.parameters[gtep.PP]),
                         tdp.eo: (self.outlet.parameters[gtep.eo], self.outlet.parameters[gtep.eo]),
                     },
-                )
+                )[0]
             )
             - (self.inlet.parameters[gtep.mf] * self.inlet.parameters.get("enthalpy", nan))
             - self.fuel.parameters[gtep.mf] * (self.fuel.parameters.get("enthalpy", nan) + self.efficiency_burn * self.fuel.parameters.get("lower_heat", nan)),
@@ -143,8 +143,8 @@ class CombustionChamber(GTENode):
         elif count_variables > count_equations:
             raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
-        self.inlet.parameters["enthalpy"] = enthalpy(self.inlet.functions[gtep.Cp], **{tdp.t: (T0 + 15, self.inlet.parameters[gtep.TT]), tdp.p: (101325, self.inlet.parameters[gtep.PP])})
-        self.fuel.parameters["enthalpy"] = enthalpy(self.fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, self.fuel.parameters[gtep.TT])})
+        self.inlet.parameters["enthalpy"], _ = integrate(self.inlet.functions[gtep.Cp], **{tdp.t: (T0 + 15, self.inlet.parameters[gtep.TT]), tdp.p: (101325, self.inlet.parameters[gtep.PP])})
+        self.fuel.parameters["enthalpy"], _ = integrate(self.fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, self.fuel.parameters[gtep.TT])})
 
         root(self.equations, x0, args, method="lm")
 
