@@ -1,3 +1,4 @@
+import inspect
 from functools import lru_cache
 from typing import Any, Callable, Dict, Tuple
 
@@ -6,8 +7,9 @@ from scipy.integrate import nquad
 
 
 @lru_cache(maxsize=128)
-def get_co_varnames(function):
-    return function.__code__.co_varnames
+def get_function_signature(function: Callable):
+    """Получить сингнатуру функции с помощью inspect"""
+    return inspect.signature(function)
 
 
 def call_with_kwargs(function: Callable, kwargs: Dict[str, Any]):
@@ -15,12 +17,21 @@ def call_with_kwargs(function: Callable, kwargs: Dict[str, Any]):
     assert callable(function), TypeError(f"{function} must be callable")
     assert isinstance(kwargs, dict), TypeError(f"type {kwargs} must be dict")
 
-    arguments = {}
-    for arg in get_co_varnames(function):
-        if arg in ("cls", "self"):
+    sig = get_function_signature(function)
+
+    arguments: Dict[str, Any] = {}
+    for key, value in sig.parameters.items():
+        if key in ("cls", "self"):
             continue
-        assert arg in kwargs, ValueError(f"'kwargs has not {arg=}'")
-        arguments[arg] = kwargs[arg]
+
+        # Проверяем обязательные параметры (без значений по умолчанию)
+        assert value.default is not value.empty or key in kwargs, ValueError(f"kwargs has not required parameter '{key}'")
+
+        # Добавляем значение из kwargs, если оно есть
+        if key in kwargs:
+            arguments[key] = kwargs[key]
+        # Если параметра нет в kwargs, но у него есть значение по умолчанию -
+        # функция будет использовать значение по умолчанию
 
     return function(**arguments)
 

@@ -23,7 +23,7 @@ class Test_call_with_kwargs:
         [
             (f0.__func__, {}, "success"),
             (f0.__func__, {"name": "Tom", "age": 21, "active": True}, "success"),
-            (f.__func__, {"name": "Tom", "age": 21, "active": True}, "Tom is 21 years old and active: True"),
+            (f.__func__, {"name": "Tom", "age": 21}, "Tom is 21 years old and active: True"),
             (f.__func__, {"name": "Bob", "age": 24, "active": False, "sex": "male"}, "Bob is 24 years old and active: False"),
             (lambda x, y: x**y, {"x": 2, "y": 3}, 8),
             (TestClass().method, {"x": 2, "y": 3}, 8),
@@ -50,9 +50,9 @@ class Test_call_with_kwargs:
         with pytest.raises((AssertionError, TypeError)):
             call_with_kwargs(self.f, (2, 3))
 
-        # нехватка аргументов
-        with pytest.raises((AssertionError, TypeError)):
-            call_with_kwargs(self.f, {"name": "Alice", "age": 4})
+        # нехватка обязательных аргументов
+        with pytest.raises((AssertionError, ValueError)):
+            call_with_kwargs(self.f, {"name": "Alice"})
 
 
 class TestEnthalpy:
