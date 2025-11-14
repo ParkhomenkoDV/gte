@@ -33,7 +33,7 @@ class Outlet(GTENode):
             gtep.peff: getattr(self, gtep.peff),
         }
 
-    def calculate(self, substance_inlet: Substance, x0=None):
+    def solve(self, substance_inlet: Substance, x0=None):
         return self.outlet
 
 

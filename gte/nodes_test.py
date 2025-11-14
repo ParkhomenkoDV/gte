@@ -25,18 +25,18 @@ class TestNode:
     @pytest.mark.parametrize("Node", [Compressor, CombustionChamber, Turbine])
     def test_name(self, Node):
         node = Node()
-        assert node.name == Node.__name__
+        assert node.name == Node.__name__  # default
         node.name = "C"
-        assert node.name == "C"
+        assert node.name == "C"  # reset
         node = Node("123")
-        assert node.name == "123"
+        assert node.name == "123"  # __init__
 
     @pytest.mark.parametrize("Node", [Compressor, CombustionChamber, Turbine])
     def test_leak(self, Node):
         node = Node()
-        assert node.leak == 0
+        assert node.leak == 0  # default
         node.leak = 0.5
-        assert node.leak == 0.5
+        assert node.leak == 0.5  # reset
 
 
 @pytest.fixture
@@ -98,7 +98,7 @@ class TestCompressor:
             (nan, nan, nan, 0, True, expected("", 0)),
         ],
     )
-    def test_calculate(self, compressor, pipi, effeff, power, leak, error, expected):
+    def test_solve(self, compressor, pipi, effeff, power, leak, error, expected):
         """Интеграционный тест расчета"""
         setattr(compressor, gtep.pipi, pipi)
         setattr(compressor, gtep.effeff, effeff)
@@ -107,9 +107,9 @@ class TestCompressor:
 
         if error:
             with pytest.raises(Exception):
-                compressor.calculate(air)
+                compressor.solve(air)
         else:
-            outlet = compressor.calculate(air)
+            outlet = compressor.solve(air)
 
             assert isinstance(outlet, Substance)
             # Проверяем основные параметры
@@ -128,12 +128,12 @@ class TestCompressor:
         ],
     )
     @pytest.mark.benchmark
-    def test_compressor_calculate(self, benchmark, node, kwargs):
+    def test_compressor_solve(self, benchmark, node, kwargs):
         def benchfunc(node, kwargs):
             for k, v in kwargs.items():
                 setattr(node, k, v)
 
-            node.calculate(air)
+            node.solve(air)
 
             for k in node.variables:
                 setattr(node, k, np.nan)
@@ -162,12 +162,12 @@ class TestCompressor:
         """Тест обработки ошибок"""
         # Тест с некорректным веществом
         with pytest.raises(Exception):
-            compressor.calculate(None)
+            compressor.solve(None)
 
         # Тест с веществом без необходимых параметров
         invalid_substance = Substance("invalid", parameters={}, functions={})
         with pytest.raises(Exception):
-            compressor.calculate(invalid_substance)
+            compressor.solve(invalid_substance)
 
 
 @pytest.fixture
@@ -205,7 +205,7 @@ class TestCombustionChamber:
             (nan, nan, 0, True, {}),
         ],
     )
-    def test_calculate(self, cc, peff, efficiency_burn, leak, error, expected):
+    def test_solve(self, cc, peff, efficiency_burn, leak, error, expected):
         """Интеграционный тест расчета"""
         setattr(cc, gtep.peff, peff)
         setattr(cc, "efficiency_burn", efficiency_burn)
@@ -213,9 +213,9 @@ class TestCombustionChamber:
 
         if error:
             with pytest.raises(Exception):
-                cc.calculate(air, kerosene)
+                cc.solve(air, kerosene)
         else:
-            outlet = cc.calculate(air, kerosene)
+            outlet = cc.solve(air, kerosene)
 
             assert isinstance(outlet, Substance)
             # Проверяем основные параметры
@@ -233,12 +233,12 @@ class TestCombustionChamber:
         ],
     )
     @pytest.mark.benchmark
-    def test_cc_calculate(self, benchmark, node, kwargs):
+    def test_cc_solve(self, benchmark, node, kwargs):
         def benchfunc(node, kwargs):
             for k, v in kwargs.items():
                 setattr(node, k, v)
 
-            node.calculate(air, kerosene)
+            node.solve(air, kerosene)
 
             for k in node.variables:
                 setattr(node, k, np.nan)
@@ -286,7 +286,7 @@ class TestTurbine:
             (nan, nan, nan, 0, True, expected("", 0)),
         ],
     )
-    def test_calculate(self, turbine, pipi, effeff, power, leak, error, expected):
+    def test_solve(self, turbine, pipi, effeff, power, leak, error, expected):
         """Интеграционный тест расчета"""
         setattr(turbine, gtep.pipi, pipi)
         setattr(turbine, gtep.effeff, effeff)
@@ -295,9 +295,9 @@ class TestTurbine:
 
         if error:
             with pytest.raises(Exception):
-                turbine.calculate(exhaust)
+                turbine.solve(exhaust)
         else:
-            outlet = turbine.calculate(exhaust)
+            outlet = turbine.solve(exhaust)
 
             assert isinstance(outlet, Substance)
             # Проверяем основные параметры
@@ -316,12 +316,12 @@ class TestTurbine:
         ],
     )
     @pytest.mark.benchmark
-    def test_turbine_calculate(self, benchmark, node, kwargs):
+    def test_turbine_solve(self, benchmark, node, kwargs):
         def benchfunc(node, kwargs):
             for k, v in kwargs.items():
                 setattr(node, k, v)
 
-            node.calculate(exhaust)
+            node.solve(exhaust)
 
             for k in node.variables:
                 setattr(node, k, np.nan)

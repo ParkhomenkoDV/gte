@@ -24,7 +24,7 @@ except ImportError:
 
 
 models = {}
-for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
+for model in (f"outlet_{gtep.TT}", f"outlet_{gtep.PP}", gtep.pipi, gtep.effeff, gtep.power):
     path = f"gte/models/compressor_{model}.pkl"
     if os.path.isfile(path):
         with open(path, "rb") as file:
@@ -55,25 +55,35 @@ class Compressor(GTENode):
             gtep.power: getattr(self, gtep.power),
         }
 
-    def predict(self) -> Dict[str, float]:
+    def predict(self, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
+        GTENode.validate_substance(self, inlet)
+
         prediction = {
-            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],  # TODO model
-            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],  # TODO model
+            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],  # TODO model
+            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP],  # TODO model
+        }
+        inlet_params = {
+            f"inlet_{gtep.mf}": inlet.parameters[gtep.mf],
+            f"inlet_{gtep.TT}": inlet.parameters[gtep.TT],
+            f"inlet_{gtep.PP}": inlet.parameters[gtep.PP],
         }
         for k, v in self.variables.items():
             if not isnan(v):
                 continue
             if k == gtep.pipi:
-                prediction[k] = 6  # TODO: model or formula
+                prediction[k] = models[gtep.pipi].predict([list({**inlet_params, gtep.effeff: getattr(self, gtep.effeff), gtep.power: getattr(self, gtep.power)}.values())]) if gtep.pipi in models else 6
             elif k == gtep.effeff:
                 prediction[k] = 1.0
             elif k == gtep.power:
-                prediction[k] = 20 * 10**6  # TODO: model or formula
+                prediction[k] = inlet.parameters[gtep.mf] * 1006 * inlet.parameters[gtep.TT]  # TODO: model
         return prediction
 
-    def equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
+    def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
         """Уравнения"""
+        if not len(x):
+            return (nan, nan, nan)
+
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
         idx = 2
@@ -98,9 +108,11 @@ class Compressor(GTENode):
             getattr(self, gtep.pipi) - self.outlet.parameters[gtep.PP] / self.inlet.parameters[gtep.PP],
         )
 
-    def calculate(self, substance_inlet: Substance, x0: Dict = None) -> Substance:
-        GTENode.validate_substance(self, substance_inlet)
-        self.inlet = deepcopy(substance_inlet)
+    def solve(self, inlet: Substance, x0: Dict = None) -> Substance:
+        if error := GTENode.is_solvable(self, inlet):
+            raise ArithmeticError(error)
+
+        self.inlet = deepcopy(inlet)
         self.outlet = Substance(
             self.inlet.name,
             self.inlet.composition,
@@ -109,22 +121,17 @@ class Compressor(GTENode):
         )
 
         if x0 is None:
-            x0 = tuple(self.predict().values())
+            x0 = tuple(self.predict(self.inlet).values())
         else:
-            assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self.predict().items():
+            assert isinstance(x0, dict), TypeError(f"{type(x0) = } must be dict")
+            for k, v in self.predict(self.inlet).items():
                 if k not in x0:
                     x0[k] = v
+            x0 = tuple(x0.values())
+
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
-        count_variables = sum(1 if k not in args else 0 for k in self.variables)
-        count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
 
-        if count_variables < count_equations:
-            raise ArithmeticError(f"{count_variables=} < {count_equations=}")
-        elif count_variables > count_equations:
-            raise ArithmeticError(f"{count_variables=} > {count_equations=}")
-
-        root(self.equations, x0, args, method="lm")
+        root(self._equations, x0, args, method="lm")
 
         outlet_parameters = {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)}
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], outlet_parameters)
@@ -141,7 +148,7 @@ class Compressor(GTENode):
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
 
         result = True
-        for i, null in enumerate(self.equations(x0, args)):
+        for i, null in enumerate(self._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
@@ -174,7 +181,7 @@ if __name__ == "__main__":
         for k, v in test_case["compressor"].items():
             setattr(c, k, v)
 
-        c.calculate(air)
+        c.solve(air)
 
         for k, v in c.summary.items():
             print(f"{k:<40}: {v}")

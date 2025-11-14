@@ -70,8 +70,11 @@ class CombustionChamber(GTENode):
                 prediction[k] = 0.95  # TODO: model or formula
         return prediction
 
-    def equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
+    def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
         """Уравнения"""
+        if not len(x):
+            return (nan, nan)
+
         self.outlet.parameters[gtep.TT] = x[0]
         self.outlet.parameters[gtep.PP] = x[1]
         idx = 2
@@ -112,7 +115,7 @@ class CombustionChamber(GTENode):
 
         assert fuel.functions.get(gtep.gc) is not None, KeyError(f"fuel has not function '{gtep.gc}'")
 
-    def calculate(self, substance_inlet: Substance, fuel: Substance, x0=None) -> Substance:
+    def solve(self, substance_inlet: Substance, fuel: Substance, x0=None) -> Substance:
         GTENode.validate_substance(self, substance_inlet)
         GTENode.validate_substance(self, fuel)
         self.__validate_fuel(fuel)
@@ -136,7 +139,7 @@ class CombustionChamber(GTENode):
             x0 = tuple(self.predict().values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
         count_variables = sum(1 if k not in args else 0 for k in self.variables)
-        count_equations = len(self.equations(x0, args)) - 2  # outlet_TT, outlet_PP
+        count_equations = len(self._equations(x0, args)) - 2  # outlet_TT, outlet_PP
 
         if count_variables < count_equations:
             raise ArithmeticError(f"{count_variables=} < {count_equations=}")
@@ -146,7 +149,7 @@ class CombustionChamber(GTENode):
         self.inlet.parameters["enthalpy"], _ = integrate(self.inlet.functions[gtep.Cp], **{tdp.t: (T0 + 15, self.inlet.parameters[gtep.TT]), tdp.p: (101325, self.inlet.parameters[gtep.PP])})
         self.fuel.parameters["enthalpy"], _ = integrate(self.fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, self.fuel.parameters[gtep.TT])})
 
-        root(self.equations, x0, args, method="lm")
+        root(self._equations, x0, args, method="lm")
 
         outlet_parameters = {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)}
         self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], outlet_parameters)
@@ -163,7 +166,7 @@ class CombustionChamber(GTENode):
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
 
         result = True
-        for i, null in enumerate(self.equations(x0, args)):
+        for i, null in enumerate(self._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result = False
                 print(f"{i}: {null:.6f}")
@@ -194,7 +197,7 @@ if __name__ == "__main__":
     setattr(cc, gtep.peff, 0.95)
     cc.leak = 0
 
-    cc.calculate(air, kerosene)
+    cc.solve(air, kerosene)
 
     for k, v in cc.summary.items():
         print(f"{k:<40}: {v}")
