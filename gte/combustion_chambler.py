@@ -55,11 +55,15 @@ class CombustionChamber(GTENode):
             gtep.peff: getattr(self, gtep.peff),
         }
 
-    def predict(self, inlet, use_ml: bool = True) -> Dict[str, float]:
+    def predict(self, inlet, fuel, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
+        GTENode.validate_substance(self, inlet)
+        GTENode.validate_substance(self, fuel)
+        self.__validate_fuel(fuel)
+
         prediction = {
-            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],
-            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP],
+            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],  # TODO: model or formula
+            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] * getattr(self, gtep.peff),
         }
         for k, v in self.variables.items():
             if not isnan(v):
@@ -67,7 +71,7 @@ class CombustionChamber(GTENode):
             if k == "efficiency_burn":
                 prediction[k] = 1.0
             elif k == gtep.peff:
-                prediction[k] = 0.95  # TODO: model or formula
+                prediction[k] = 0.95
         return prediction
 
     def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
@@ -91,7 +95,7 @@ class CombustionChamber(GTENode):
                     self.outlet.functions[gtep.Cp],
                     **{
                         tdp.t: (T0 + 15, self.outlet.parameters[gtep.TT]),
-                        tdp.p: (101325, self.outlet.parameters[gtep.PP]),
+                        tdp.p: (101_325, self.outlet.parameters[gtep.PP]),
                         tdp.eo: (self.outlet.parameters[gtep.eo], self.outlet.parameters[gtep.eo]),
                     },
                 )[0]
@@ -116,12 +120,8 @@ class CombustionChamber(GTENode):
         assert fuel.functions.get(gtep.gc) is not None, KeyError(f"fuel has not function '{gtep.gc}'")
 
     def solve(self, inlet: Substance, fuel: Substance, x0=None) -> Substance:
-        if error := GTENode.is_solvable(self, inlet):
+        if error := GTENode.is_solvable(self, inlet, fuel):
             raise ArithmeticError(error)
-
-        GTENode.validate_substance(self, inlet)
-        GTENode.validate_substance(self, fuel)
-        self.__validate_fuel(fuel)
 
         self.inlet = deepcopy(inlet)
         self.fuel = deepcopy(fuel)
@@ -139,7 +139,7 @@ class CombustionChamber(GTENode):
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.mf] / self.fuel.parameters[gtep.mf] / self.fuel.parameters["stoichiometry"]
 
         if x0 is None:
-            x0 = tuple(self.predict(inlet).values())
+            x0 = tuple(self.predict(self.inlet, self.fuel).values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
 
         self.inlet.parameters["enthalpy"], _ = integrate(self.inlet.functions[gtep.Cp], **{tdp.t: (T0 + 15, self.inlet.parameters[gtep.TT]), tdp.p: (101325, self.inlet.parameters[gtep.PP])})
