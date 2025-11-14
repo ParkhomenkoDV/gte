@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple
 
+from numpy import isnan
 from substance import Substance
 from thermodynamics import parameters as tdp
 
@@ -48,22 +49,6 @@ class GTENode(ABC):
         """Переменные параметры"""
         return {}
 
-    @abstractmethod
-    def predict(self) -> Dict[str, float]:
-        """Начальные приближения"""
-        return {}
-
-    @property
-    def summary(self) -> Dict[str, float]:
-        result = {}
-        for k in self.__slots__:
-            if not isinstance(getattr(self, k), Substance):
-                result[k] = getattr(self, k)
-            else:
-                for parameter, value in getattr(self, k).parameters.items():
-                    result[f"{k}_{parameter}"] = value
-        return result
-
     def validate_substance(self, substance: Substance) -> None:
         """Проверка параметров рабочего тела на входе"""
         assert isinstance(substance, Substance), TypeError("type substance must be Substance")
@@ -77,13 +62,51 @@ class GTENode(ABC):
             for func_arg in function.__code__.co_varnames:
                 assert func_arg in tdp_keys, NameError(f"function '{name}' has arg '{func_arg}' not in {tdp_keys}")
 
-    def equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
-        """Уравнения"""
-        pass
+    def is_solvable(self, *args) -> str:
+        """Проверка резрешимости математической модели"""
+        try:
+            prediction = self.predict(*args, use_ml=False)  # для быстроты
+        except Exception as e:
+            return f"{e}"
+
+        count_outlet_variables = sum(1 if k.startswith("outlet") else 0 for k in prediction)  # количество неизвестных выходных параметров
+        args = {k: v for k, v in self.variables.items() if not isnan(v)}  # известные параметры узла
+        count_variables = len(self.variables) - len(args)  # количество неизвестных параметров узла
+        count_equations = len(self._equations(tuple(), args))  # количество уравнений
+
+        if count_variables + count_outlet_variables < count_equations:
+            return f"{count_variables=} + {count_outlet_variables=} < {count_equations=}"
+        elif count_variables + count_outlet_variables > count_equations:
+            return f"{count_variables=} + {count_outlet_variables=} > {count_equations=}"
+        else:
+            return ""
 
     @abstractmethod
-    def calculate(self, x0: Dict = None) -> Substance:
+    def predict(self, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
+        """Начальные приближения"""
+        self.validate_substance(inlet)
+        assert isinstance(use_ml, bool), TypeError(f"{type(use_ml) = } must be bool")
+        return {}
+
+    @property
+    def summary(self) -> Dict[str, float]:
+        result = {}
+        for k in self.__slots__:
+            if not isinstance(getattr(self, k), Substance):
+                result[k] = getattr(self, k)
+            else:
+                for parameter, value in getattr(self, k).parameters.items():
+                    result[f"{k}_{parameter}"] = value
+        return result
+
+    def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
+        """Уравнения"""
+        return tuple()
+
+    @abstractmethod
+    def solve(self, x0: Dict = None) -> Substance:
         """Расчет узла"""
+        # валидация входных параметров
         # расчет входных параметров
         # расчет параметров узла
         # расчет выходных параметров
@@ -93,3 +116,4 @@ class GTENode(ABC):
     @abstractmethod
     def is_real(self) -> bool:
         """Проверка физичной реальности"""
+        return False
