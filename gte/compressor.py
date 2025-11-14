@@ -60,8 +60,8 @@ class Compressor(GTENode):
         GTENode.validate_substance(self, inlet)
 
         prediction = {
-            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],  # TODO model
-            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP],  # TODO model
+            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT] if use_ml else inlet.parameters[gtep.TT],  # TODO model
+            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] if use_ml else inlet.parameters[gtep.PP],  # TODO model
         }
         inlet_params = {
             f"inlet_{gtep.mf}": inlet.parameters[gtep.mf],
@@ -123,7 +123,7 @@ class Compressor(GTENode):
         if x0 is None:
             x0 = tuple(self.predict(self.inlet).values())
         else:
-            assert isinstance(x0, dict), TypeError(f"{type(x0) = } must be dict")
+            assert isinstance(x0, dict), TypeError(f"{type(x0)=} must be dict")
             for k, v in self.predict(self.inlet).items():
                 if k not in x0:
                     x0[k] = v

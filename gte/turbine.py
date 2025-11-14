@@ -55,11 +55,11 @@ class Turbine(GTENode):
             gtep.power: getattr(self, gtep.power),
         }
 
-    def predict(self) -> Dict[str, float]:
+    def predict(self, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
         prediction = {
-            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT] * 0.7,  # TODO model
-            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP] / 2,  # TODO model
+            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT] * 0.7,  # TODO model
+            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] / 2,  # TODO model
         }
         for k, v in self.variables.items():
             if not isnan(v):
@@ -101,9 +101,11 @@ class Turbine(GTENode):
             getattr(self, gtep.pipi) - self.inlet.parameters[gtep.PP] / self.outlet.parameters[gtep.PP],
         )
 
-    def solve(self, substance_inlet: Substance, x0: Dict = None) -> Substance:  # TODO *inlet_substances
-        GTENode.validate_substance(self, substance_inlet)
-        self.inlet = deepcopy(substance_inlet)
+    def solve(self, inlet: Substance, x0: Dict = None) -> Substance:  # TODO *inlet_substances
+        if error := GTENode.is_solvable(self, inlet):
+            raise ArithmeticError(error)
+
+        self.inlet = deepcopy(inlet)
         self.outlet = Substance(
             self.inlet.name,
             self.inlet.composition,
@@ -114,20 +116,13 @@ class Turbine(GTENode):
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]  # TODO посчитать через массу!
 
         if x0 is None:
-            x0 = tuple(self.predict().values())
+            x0 = tuple(self.predict(inlet).values())
         else:
-            assert isinstance(x0, dict), TypeError(f"type x0 must be dict, but has {type(x0)}")
-            for k, v in self.predict().items():
+            assert isinstance(x0, dict), TypeError(f"{type(x0)=} must be dict")
+            for k, v in self.predict(inlet).items():
                 if k not in x0:
                     x0[k] = v
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
-        count_variables = sum(1 if k not in args else 0 for k in self.variables)
-        count_equations = len(self._equations(x0, args)) - 2  # outlet_TT, outlet_PP
-
-        if count_variables < count_equations:
-            raise ArithmeticError(f"{count_variables=} < {count_equations=}")
-        elif count_variables > count_equations:
-            raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
         root(self._equations, x0, args, method="lm")
 

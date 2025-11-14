@@ -23,7 +23,7 @@ class GTENode(ABC):
 
     models: Dict[str, Any] = {}  # ML модели
 
-    __slots__ = ["name", "inlet", "outlet", "leak"]
+    __slots__ = ["name", "inlet", "outlet", "leak"]  # list
 
     def __init__(self, name: str = "node") -> None:
         assert isinstance(name, str), TypeError(f"type name must be str, but has {type(name)}")
@@ -85,7 +85,7 @@ class GTENode(ABC):
     def predict(self, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
         self.validate_substance(inlet)
-        assert isinstance(use_ml, bool), TypeError(f"{type(use_ml) = } must be bool")
+        assert isinstance(use_ml, bool), TypeError(f"{type(use_ml)=} must be bool")
         return {}
 
     @property

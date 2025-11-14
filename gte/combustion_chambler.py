@@ -55,11 +55,11 @@ class CombustionChamber(GTENode):
             gtep.peff: getattr(self, gtep.peff),
         }
 
-    def predict(self) -> Dict[str, float]:
+    def predict(self, inlet, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
         prediction = {
-            f"outlet_{gtep.TT}": self.inlet.parameters[gtep.TT],
-            f"outlet_{gtep.PP}": self.inlet.parameters[gtep.PP],
+            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],
+            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP],
         }
         for k, v in self.variables.items():
             if not isnan(v):
@@ -107,20 +107,23 @@ class CombustionChamber(GTENode):
 
         stoichiometry = fuel.parameters.get("stoichiometry")
         assert stoichiometry is not None, KeyError("fuel has not parameter 'stoichiometry'")
-        assert isinstance(stoichiometry, (int, float)), TypeError(f"type fuel stoichiometry must be numeric, but has {type(stoichiometry)}")
+        assert isinstance(stoichiometry, (int, float)), TypeError(f"{type(stoichiometry)=} must be numeric")
 
         lower_heat = fuel.parameters.get("lower_heat")
         assert lower_heat is not None, KeyError("fuel has not parameter 'lower_heat'")
-        assert isinstance(lower_heat, (int, float)), TypeError(f"type fuel lower_heat must be numeric, but has {type(lower_heat)}")
+        assert isinstance(lower_heat, (int, float)), TypeError(f"{type(lower_heat)=} must be numeric")
 
         assert fuel.functions.get(gtep.gc) is not None, KeyError(f"fuel has not function '{gtep.gc}'")
 
-    def solve(self, substance_inlet: Substance, fuel: Substance, x0=None) -> Substance:
-        GTENode.validate_substance(self, substance_inlet)
+    def solve(self, inlet: Substance, fuel: Substance, x0=None) -> Substance:
+        if error := GTENode.is_solvable(self, inlet):
+            raise ArithmeticError(error)
+
+        GTENode.validate_substance(self, inlet)
         GTENode.validate_substance(self, fuel)
         self.__validate_fuel(fuel)
 
-        self.inlet = deepcopy(substance_inlet)
+        self.inlet = deepcopy(inlet)
         self.fuel = deepcopy(fuel)
         self.outlet = Substance("exhaust")
 
@@ -136,15 +139,8 @@ class CombustionChamber(GTENode):
         self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.mf] / self.fuel.parameters[gtep.mf] / self.fuel.parameters["stoichiometry"]
 
         if x0 is None:
-            x0 = tuple(self.predict().values())
+            x0 = tuple(self.predict(inlet).values())
         args = {k: v for k, v in self.variables.items() if not isnan(v)}
-        count_variables = sum(1 if k not in args else 0 for k in self.variables)
-        count_equations = len(self._equations(x0, args)) - 2  # outlet_TT, outlet_PP
-
-        if count_variables < count_equations:
-            raise ArithmeticError(f"{count_variables=} < {count_equations=}")
-        elif count_variables > count_equations:
-            raise ArithmeticError(f"{count_variables=} > {count_equations=}")
 
         self.inlet.parameters["enthalpy"], _ = integrate(self.inlet.functions[gtep.Cp], **{tdp.t: (T0 + 15, self.inlet.parameters[gtep.TT]), tdp.p: (101325, self.inlet.parameters[gtep.PP])})
         self.fuel.parameters["enthalpy"], _ = integrate(self.fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, self.fuel.parameters[gtep.TT])})
