@@ -1,12 +1,8 @@
 colorama
 tqdm
 numpy
-pandas
-openpyxl
-jinja2
 scipy
 matplotlib
-scikit-learn
 
 mathematics @ git+https://github.com/ParkhomenkoDV/mathematics.git@master
 thermodynamics @ git+https://github.com/ParkhomenkoDV/thermodynamics.git@master
