@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple
 
-from numpy import isnan
+from numpy import isnan, nan
 from substance import Substance
 from thermodynamics import parameters as tdp
 
@@ -117,3 +117,8 @@ class GTENode(ABC):
     def is_real(self) -> bool:
         """Проверка физичной реальности"""
         return False
+
+    def reset(self) -> None:
+        """Сброс параметров узла"""
+        for k in self.variables:
+            setattr(self, k, nan)
