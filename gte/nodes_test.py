@@ -2,14 +2,15 @@ from collections import namedtuple
 
 import numpy as np
 import pytest
-from combustion_chamber import CombustionChamber
-from compressor import Compressor
-from config import EPSREL
-from config import parameters as gtep
-from fixtures import air, exhaust, kerosene
 from numpy import isnan, nan
 from substance import Substance
-from turbine import Turbine
+
+from .combustion_chamber import CombustionChamber
+from .compressor import Compressor
+from .config import EPSREL
+from .config import parameters as gtep
+from .fixtures import air, exhaust, kerosene
+from .turbine import Turbine
 
 
 class TestNode:
