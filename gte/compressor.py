@@ -111,7 +111,7 @@ class Compressor(GTENode):
         """
         power - mf * Cp * (T*_outlet - T*_inlet) = 0
         T*_outlet - T*_inlet * (1 + (pi* ** ((k-1) / k)) / eff) = 0
-        pi* - T*_outlet / T*_inlet = 0
+        pi* - P*_outlet / P*_inlet = 0
         """
         if not len(x):
             return (nan, nan, nan)

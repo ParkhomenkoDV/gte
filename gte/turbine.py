@@ -73,7 +73,11 @@ class Turbine(GTENode):
         return prediction
 
     def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
-        """Уравнения"""
+        """
+        power - mf * Cp * (T*_inlet - T*_outlet) = 0
+        T*_outlet - T*_inlet * (1 - (1 - pi* ** ((1-k) / k))) * eff) = 0
+        pi* - P*_inlet / P*_outlet = 0
+        """
         if not len(x):
             return (nan, nan, nan)
 

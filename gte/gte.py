@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from combustion_chambler import CombustionChamber
 from compressor import Compressor
 from config import parameters as gtep
 from numpy import cos, linspace, nan, prod, radians, sin
@@ -9,6 +8,8 @@ from substance import Substance
 from thermodynamics import T0, atmosphere_standard, gas_const, heat_capacity_p, stoichiometry
 from tqdm import tqdm
 from turbine import Turbine
+
+from gte.combustion_chamber import CombustionChamber
 
 # TODO: обучить модели регрессии по предсказанию НУ расчета
 # TODO: gte.describe() # неизвестные параметры и необходимые уравнения
