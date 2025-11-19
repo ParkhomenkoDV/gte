@@ -5,6 +5,9 @@ __pycache__
 .venv/
 venv/
 
+data/
+models/
+
 
 *.html
 *.mp4

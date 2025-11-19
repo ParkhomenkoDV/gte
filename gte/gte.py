@@ -432,7 +432,7 @@ class GTE:
                 assert isinstance(node, (Compressor, Turbine)), TypeError(f"{type(node)=} must be in {Compressor, Turbine}")
                 assert node in all_nodes
 
-    def equations(self):
+    def _equations(self):
         result = []
         for shaft in self.shafts:
             res = 0
@@ -444,22 +444,22 @@ class GTE:
             result.append(res)
         return result
 
-    def calculate(self, substance_inlet: Substance, fuel: Substance):
+    def solve(self, substance_inlet: Substance, fuel: Substance):
         for contour in self.scheme:
             while True:
                 for i, node in enumerate(self.scheme[contour]):
-                    print(f"calculate {node}")
+                    print(f"{node}")
                     if i == 0:
                         if isinstance(node, CombustionChamber):
-                            node.calculate(substance_inlet, fuel)
+                            node.solve(substance_inlet, fuel)
                         else:
                             node.calculate(substance_inlet)
                     else:
                         if isinstance(node, CombustionChamber):
-                            node.calculate(self.scheme[contour][i - 1].outlet, fuel)
+                            node.solve(self.scheme[contour][i - 1].outlet, fuel)
                         else:
                             node.calculate(self.scheme[contour][i - 1].outlet)
-                if all(null < 0.1 for null in self.equations()):
+                if all(null < 0.1 for null in self._equations()):
                     break
 
     @staticmethod
@@ -471,13 +471,13 @@ class GTE:
         """if type(node) is Inlet:
             x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
             y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
-        if type(node) == Compressor:
+        if isinstance(node, Compressor):
             x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
             y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-        elif type(node) == CombustionChamber:
+        elif isinstance(node, CombustionChamber):
             x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
             y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
-        elif type(node) == Turbine:
+        elif isinstance(node, Turbine):
             x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
             y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
         """elif type(node) == Outlet:
@@ -577,7 +577,7 @@ if __name__ == "__main__":
 
     # gte.show()
 
-    substance_inlet = Substance(
+    air = Substance(
         "air",
         parameters={
             gtep.gc: gas_const("AIR"),
@@ -606,4 +606,4 @@ if __name__ == "__main__":
         },
     )
 
-    gte.calculate(substance_inlet, fuel)
+    gte.solve(air, fuel)

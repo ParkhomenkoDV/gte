@@ -66,23 +66,53 @@ class TestCompressor:
         benchmark(benchfunc)
 
     @pytest.mark.parametrize(
-        "pipi, effeff, power, expected_count",
+        "inlet_parameters, parameters, use_ml, expected",
         [
-            (nan, 0.8, nan, 2),  # недоопределено
-            (6.0, 0.8, nan, 1),  # определяется power
-            (6.0, nan, 1e6, 1),  # определяется effeff
-            (nan, 0.8, 1e6, 1),  # определяется pipi
-            (6.0, 0.8, 1e6, 0),  # все определено
+            # pipi
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, False, {"outlet_total_pressure": 101325, "outlet_total_temperature": 300, gtep.pipi: 6}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, True, {"outlet_total_pressure": 110000, "outlet_total_temperature": 1076, gtep.pipi: 1.1}),
+            # effeff
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, False, {"outlet_total_pressure": 101325, "outlet_total_temperature": 300, gtep.effeff: 1}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, True, {"outlet_total_pressure": 1210000, "outlet_total_temperature": 1954, gtep.effeff: 0.85}),
+            # power
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, False, {"outlet_total_pressure": 101325, "outlet_total_temperature": 300, gtep.power: 30_180_000}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, True, {"outlet_total_pressure": 110000, "outlet_total_temperature": 1076, gtep.power: 3_124_532}),
         ],
     )
-    def test_variables_nan_count(self, compressor, pipi, effeff, power, expected_count):
-        """Тест подсчета неопределенных переменных"""
-        setattr(compressor, gtep.pipi, pipi)
-        setattr(compressor, gtep.effeff, effeff)
-        setattr(compressor, gtep.power, power)
+    def test_predict(self, compressor, inlet_parameters, parameters, use_ml, expected):
+        """Тест предсказания компресоора"""
+        inlet = Substance("inlet")
+        inlet.parameters = inlet_parameters
+        for param, value in parameters.items():
+            setattr(compressor, param, value)
+        prediction = compressor.predict(inlet, use_ml=use_ml)
+        for k, v in prediction.items():
+            assert v == pytest.approx(expected[k], rel=0.2), AssertionError(f"{k=} {v=}")
 
-        count = sum(1 if np.isnan(v) else 0 for v in compressor.variables.values())
-        assert count == expected_count
+    @pytest.mark.parametrize(
+        "inlet_parameters, parameters, use_ml",
+        [
+            # pipi
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, False),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, True),
+            # effeff
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, False),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, True),
+            # power
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, False),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, True),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_compressor_predict(self, benchmark, compressor, inlet_parameters, parameters, use_ml):
+        def benchfunc(compressor, inlet_parameters, parameters, use_ml):
+            inlet = Substance("inlet")
+            inlet.parameters = inlet_parameters
+            for param, value in parameters.items():
+                setattr(compressor, param, value)
+            compressor.predict(inlet, use_ml=use_ml)
+
+        benchmark(benchfunc, compressor, inlet_parameters, parameters, use_ml)
 
     expected = namedtuple("expected", ["key", "value"])
 
@@ -120,25 +150,25 @@ class TestCompressor:
             assert getattr(compressor, expected.key) == pytest.approx(expected.value, rel=EPSREL)
 
     @pytest.mark.parametrize(
-        "node, kwargs",
+        "kwargs",
         [
-            (Compressor(), {gtep.pipi: 6.0, gtep.effeff: 0.85}),
-            (Compressor(), {gtep.effeff: 0.85, gtep.power: 24 * 10**6}),
-            (Compressor(), {gtep.pipi: 6.0, gtep.power: 24 * 10**6}),
+            {gtep.pipi: 6.0, gtep.effeff: 0.85},
+            {gtep.effeff: 0.85, gtep.power: 24 * 10**6},
+            {gtep.pipi: 6.0, gtep.power: 24 * 10**6},
         ],
     )
     @pytest.mark.benchmark
-    def test_compressor_solve(self, benchmark, node, kwargs):
-        def benchfunc(node, kwargs):
+    def test_compressor_solve(self, benchmark, compressor, kwargs):
+        def benchfunc(kwargs):
             for k, v in kwargs.items():
-                setattr(node, k, v)
+                setattr(compressor, k, v)
 
-            node.solve(air)
+            compressor.solve(air)
 
-            for k in node.variables:
-                setattr(node, k, np.nan)
+            for k in compressor.variables:
+                setattr(compressor, k, np.nan)
 
-        benchmark(benchfunc, node, kwargs)
+        benchmark(benchfunc, kwargs)
 
     @pytest.mark.parametrize(
         "effeff, TT, pipi, expected",
