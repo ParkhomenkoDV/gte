@@ -75,7 +75,10 @@ class CombustionChamber(GTENode):
         return prediction
 
     def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
-        """Уравнения"""
+        """
+        (mf_i * enthalpy_i) + mf_f * (Q*eff + enthalpy_f) = (mf_i + mf_f) * enthalpy_o
+        peff = P*_outlet / P*_inlet
+        """
         if not len(x):
             return (nan, nan)
 
@@ -88,7 +91,6 @@ class CombustionChamber(GTENode):
                 idx += 1
 
         return (
-            # (mf_i * enthalpy_i) + mf_f * (Q*eff + enthalpy_f) = (mf_i + mf_f) * enthalpy_o
             (
                 self.outlet.parameters[gtep.mf]
                 * integrate(

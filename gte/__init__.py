@@ -1,4 +1,4 @@
-from .combustion_chambler import CombustionChamber
+from .combustion_chamber import CombustionChamber
 from .compressor import Compressor
 from .config import parameters
 

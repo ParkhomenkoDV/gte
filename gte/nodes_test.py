@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import pytest
-from combustion_chambler import CombustionChamber
+from combustion_chamber import CombustionChamber
 from compressor import Compressor
 from config import EPSREL
 from config import parameters as gtep

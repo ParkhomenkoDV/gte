@@ -8,7 +8,7 @@ from tqdm import tqdm
 # from thermodynamics import FUELS, OXIDIZERS, Cp, R_gas
 # from tools import eps, export2, isiter, isnum, to_roman
 
-"""from nodes.combustion_chambler import CombustionChamber  # камера сгорания
+"""from nodes.combustion_chamber import CombustionChamber  # камера сгорания
 from nodes.compressor import Compressor  # компрессор
 from nodes.gear import Gear  # коробка приводов
 from nodes.heat_exchanger import HeatExchanger  # теплообменный аппарат
