@@ -77,7 +77,7 @@ class Compressor(GTENode):
 
         prediction: Dict[str, float] = {}
         if isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.effeff)) and not isnan(getattr(self, gtep.power)):
-            if use_ml:
+            if False and use_ml:
                 prediction[f"outlet_{gtep.TT}"] = models[f"outlet_{gtep.TT}_{gtep.pipi}"].predict([list({**inlet_params, gtep.effeff: getattr(self, gtep.effeff), gtep.power: getattr(self, gtep.power)}.values())])[0]
                 prediction[f"outlet_{gtep.PP}"] = models[f"outlet_{gtep.PP}_{gtep.pipi}"].predict([list({**inlet_params, gtep.effeff: getattr(self, gtep.effeff), gtep.power: getattr(self, gtep.power)}.values())])[0]
                 prediction[gtep.pipi] = models[gtep.pipi].predict([list({**inlet_params, gtep.effeff: getattr(self, gtep.effeff), gtep.power: getattr(self, gtep.power)}.values())])[0]
@@ -86,7 +86,7 @@ class Compressor(GTENode):
                 prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP]
                 prediction[gtep.pipi] = 6
         elif isnan(getattr(self, gtep.effeff)) and not isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.power)):
-            if use_ml:
+            if False and use_ml:
                 prediction[f"outlet_{gtep.TT}"] = models[f"outlet_{gtep.TT}_{gtep.effeff}"].predict([list({**inlet_params, gtep.pipi: getattr(self, gtep.pipi), gtep.power: getattr(self, gtep.power)}.values())])[0]
                 prediction[f"outlet_{gtep.PP}"] = models[f"outlet_{gtep.PP}_{gtep.effeff}"].predict([list({**inlet_params, gtep.pipi: getattr(self, gtep.pipi), gtep.power: getattr(self, gtep.power)}.values())])[0]
                 prediction[gtep.effeff] = models[gtep.effeff].predict([list({**inlet_params, gtep.pipi: getattr(self, gtep.pipi), gtep.power: getattr(self, gtep.power)}.values())])[0]
@@ -95,7 +95,7 @@ class Compressor(GTENode):
                 prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP]
                 prediction[gtep.effeff] = 1
         elif isnan(getattr(self, gtep.power)) and not isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.effeff)):
-            if use_ml:
+            if False and use_ml:
                 prediction[f"outlet_{gtep.TT}"] = models[f"outlet_{gtep.TT}_{gtep.power}"].predict([list({**inlet_params, gtep.pipi: getattr(self, gtep.pipi), gtep.effeff: getattr(self, gtep.effeff)}.values())])[0]
                 prediction[f"outlet_{gtep.PP}"] = models[f"outlet_{gtep.PP}_{gtep.power}"].predict([list({**inlet_params, gtep.pipi: getattr(self, gtep.pipi), gtep.effeff: getattr(self, gtep.effeff)}.values())])[0]
                 prediction[gtep.power] = models[gtep.power].predict([list({**inlet_params, gtep.pipi: getattr(self, gtep.pipi), gtep.effeff: getattr(self, gtep.effeff)}.values())])[0]
