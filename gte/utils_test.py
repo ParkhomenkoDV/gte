@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
 
-from .utils import call_with_kwargs, integral_average, integrate
+try:
+    from .utils import call_with_kwargs, integral_average, integrate
+except ImportError:
+    from utils import call_with_kwargs, integral_average, integrate
 
 
 class Test_call_with_kwargs:
