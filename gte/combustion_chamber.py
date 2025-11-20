@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
     cc = CombustionChamber()
 
-    cc.efficiency_burn = 0.99
+    setattr(cc, gtep.effburn, 0.99)
     setattr(cc, gtep.peff, 0.95)
     cc.leak = 0
 
