@@ -1,7 +1,11 @@
 from substance import Substance
 from thermodynamics import T0, gas_const, gas_const_exhaust_fuel, heat_capacity_p, heat_capacity_p_exhaust, lower_heat, stoichiometry
 
-from .config import parameters as gtep
+try:
+    from .config import parameters as gtep
+except ImportError:
+    from config import parameters as gtep
+
 
 air = Substance(
     "air",
