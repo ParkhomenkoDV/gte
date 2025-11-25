@@ -109,9 +109,9 @@ class Compressor(GTENode):
 
     def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
         """
-        power - mf * Cp * (T*_outlet - T*_inlet) = 0
-        T*_outlet - T*_inlet * (1 + (pi* ** ((k-1) / k)) / eff) = 0
-        pi* - P*_outlet / P*_inlet = 0
+        power = mf * Cp * (T*_outlet - T*_inlet)
+        T*_outlet = T*_inlet * (1 + (pi* ** ((k-1) / k)) / eff)
+        pi* = P*_outlet / P*_inlet
         """
         if not len(x):
             return (nan, nan, nan)

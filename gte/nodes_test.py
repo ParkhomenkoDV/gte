@@ -281,7 +281,7 @@ class TestCombustionChamber:
     def test_init(self, cc):
         """Тест инициализации камеры сгорания"""
         assert cc.name == "TestCombustionChamber"
-        assert isnan(getattr(cc, "efficiency_burn"))
+        assert isnan(getattr(cc, gtep.effburn))
         assert isnan(getattr(cc, gtep.peff))
         assert cc.leak == 0.0
 
@@ -293,6 +293,24 @@ class TestCombustionChamber:
             return CombustionChamber()
 
         benchmark(benchfunc)
+
+    def test_cc_generator(self):
+        """Тест CombustionChamber generator"""
+        # Устанавливаем переменные для генератора
+        variables = {gtep.effburn: [0.97, 0.98, 0.99], gtep.peff: [0.95, 0.96]}
+
+        result = list(CombustionChamber.generator(**variables))
+
+        assert len(result) == 6  # = 3 * 2
+
+        # Проверяем значения параметров
+        effburn, peff = [], []
+        for obj in result:
+            effburn.append(getattr(obj, gtep.effburn))
+            peff.append(getattr(obj, gtep.peff))
+
+        assert sorted(effburn) == [0.97, 0.97, 0.98, 0.98, 0.99, 0.99]
+        assert sorted(peff) == [0.95, 0.95, 0.95, 0.96, 0.96, 0.96]
 
     @pytest.mark.parametrize(
         "peff, efficiency_burn, leak, error, expected",
@@ -370,6 +388,26 @@ class TestTurbine:
             return Turbine()
 
         benchmark(benchfunc)
+
+    def test_turbine_generator(self):
+        """Тест Turbine generator"""
+        # Устанавливаем переменные для генератора
+        variables = {gtep.pipi: [3.0, 4.0, 5.0], gtep.effeff: [0.85, 0.9], gtep.power: [20 * 10**6]}
+
+        result = list(Turbine.generator(**variables))
+
+        assert len(result) == 6  # = 3 * 2 * 1
+
+        # Проверяем значения параметров
+        pipi, effeff, power = [], [], []
+        for obj in result:
+            pipi.append(getattr(obj, gtep.pipi))
+            effeff.append(getattr(obj, gtep.effeff))
+            power.append(getattr(obj, gtep.power))
+
+        assert sorted(pipi) == [3.0, 3.0, 4.0, 4.0, 5.0, 5.0]
+        assert sorted(effeff) == [0.85, 0.85, 0.85, 0.9, 0.9, 0.9]
+        assert sorted(power) == [20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6]
 
     expected = namedtuple("expected", ["key", "value"])
 

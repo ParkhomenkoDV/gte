@@ -99,9 +99,7 @@ class GTE_OLD(Variability):
         version = 8.0
         next_version = (
             "камера смешения",
-            "переход к массивам в местах постоянства диапазона значенийтеплак плак-плак",
             "переходный канал",
-            "type(node) is class -> isinstance(node, class)соотношение соответствующих относительных расходов к своим контурам",
             "охлаждение турбины",
             "продолжение расчета",
             "multiprocessing",
@@ -266,20 +264,6 @@ class GTE_OLD(Variability):
                 gte_var.describe()
 
         return result
-
-    def dataframe(self) -> pd.DataFrame:
-        result = dict()
-        for key, value in self.__dict__.items():
-            if type(value) in (int, float, str):
-                result[key] = value
-            elif type(value) is object:
-                for k, v in value.__dict__.items():
-                    if type(v) in (int, float, np.float64, str):
-                        result[k] = v
-            else:
-                pass
-
-        return pd.DataFrame([result])
 '''
 '''
 if __name__ == "__main__":
