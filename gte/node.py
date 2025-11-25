@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple
+from itertools import product
+from typing import Any, Dict, Iterable, Tuple
 
+import numpy as np
 from numpy import isnan, nan
 from substance import Substance
 from thermodynamics import parameters as tdp
@@ -42,6 +44,40 @@ class GTENode(ABC):
             self.outlet = Substance("outlet")
         else:
             return super().__delattr__(name)
+
+    @classmethod
+    def generator(cls, **variables) -> Iterable[Any]:
+        """
+        Генератор объектов узлов ГТД
+
+        Генератор, который принимает параметры в **variables,
+        где ключ - атрибут класса, а значение - список значений данного атрибута.
+
+        Возвращает объект узла ГТД с установленными параметрами, перебирая все возможные комбинации.
+
+        Args:
+            **variables: Параметры вида attribute_name=[value1, value2, ...]
+
+        Yields:
+            Объекты класса с установленными параметрами
+        """
+        if not variables:  # словарь для перебора пустой
+            yield cls.__new__(cls)
+            return
+
+        names, values = [], []
+        for variable, value in variables.items():  # валидация переданных параметров
+            assert isinstance(value, (tuple, list, np.ndarray)), TypeError(f"{type(value)=} must be tuple")
+            names.append(variable)
+            values.append(value)
+
+        for combination in product(*values):
+            obj = cls.__new__(cls)
+
+            for k, v in zip(names, combination):
+                setattr(obj, k, v)  # установка значений атрибутов
+
+            yield obj
 
     @property
     @abstractmethod

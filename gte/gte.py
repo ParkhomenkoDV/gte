@@ -1,19 +1,23 @@
+from typing import Dict, Tuple
+
 import matplotlib.pyplot as plt
-import numpy as np
-from compressor import Compressor
-from config import parameters as gtep
-from numpy import cos, linspace, nan, prod, radians, sin
+from numpy import cos, isnan, linspace, nan, prod, radians, sin
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import T0, atmosphere_standard, gas_const, heat_capacity_p, stoichiometry
 from tqdm import tqdm
-from turbine import Turbine
 
-from gte.combustion_chamber import CombustionChamber
+try:
+    from .combustion_chamber import CombustionChamber
+    from .compressor import Compressor
+    from .config import parameters as gtep
+    from .turbine import Turbine
+except ImportError:
+    from combustion_chamber import CombustionChamber
+    from compressor import Compressor
+    from config import parameters as gtep
+    from turbine import Turbine
 
 # TODO: обучить модели регрессии по предсказанию НУ расчета
-# TODO: gte.describe() # неизвестные параметры и необходимые уравнения
-# TODO: __iter__ вместо gte.generator
 
 
 class Variability:
@@ -171,24 +175,6 @@ class GTE_OLD(Variability):
         eq.append(sum([self.scheme[contour][-1].calculate(**p, scheme=self.scheme, substance=self.substance)["R"] for contour in self.scheme]) - self.mode.R)
 
         return eq
-
-    # TODO: обучить модель
-    def get_varibles(self, log=True) -> dict[str : int | float]:
-        """Начальные приближения"""
-
-        # Массовый расход
-        vars0 = {"G": 30}
-
-        # Степени понижения полного давления в турбинах
-        for contour in self.scheme:
-            for i, node in enumerate(self.scheme[contour]):
-                if isinstance(node, Turbine):
-                    vars0[f"pipi_{contour}_{i}"] = 3
-
-        if log:
-            print(f"points0: {vars0}")
-        self.__vars = vars0
-        return vars0
 
     # @decorators.warns("ignore")  # при отсутствии решения
     def __calculate(self, Niter: int = 10, xtol: float = 0.01, **kwargs):
@@ -410,12 +396,41 @@ if __name__ == "__main__":
 '''
 
 
+def get_figure(node, **kwargs) -> Tuple:
+    x0 = kwargs.get("x0", 0)
+    y0 = kwargs.get("y0", 0)
+    x, y = [], []
+
+    """if type(node) is Inlet:
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
+    if isinstance(node, Compressor):
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
+    elif isinstance(node, CombustionChamber):
+        x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
+        y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
+    elif isinstance(node, Turbine):
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
+    """elif type(node) == Outlet:
+        x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
+        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
+    elif type(node) == HeatExchanger:
+        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
+        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
+    elif type(node) == Load:
+        x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
+        y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
+    return x, y
+
+
 class GTE:
     """ГТД"""
 
     __slots__ = ("name", "scheme", "shafts")
 
-    def __init__(self, name: str, scheme: dict, shafts: tuple):
+    def __init__(self, name: str, scheme: Dict, shafts: Tuple):
         assert isinstance(name, str), TypeError(f"{type(name)=} must be str")
         self.name: str = name
 
@@ -425,7 +440,7 @@ class GTE:
             assert isinstance(contour, int), TypeError(f"{type(contour)=} must be int")
             assert isinstance(nodes, (tuple, list)), TypeError(f"{type(nodes)=} must be tuple")
             all_nodes.extend(nodes)
-        self.scheme: dict = dict(sorted(scheme.items(), key=lambda item: item[0]))  # сортировка по контурам по возрастанию
+        self.scheme: Dict = dict(sorted(scheme.items(), key=lambda item: item[0]))  # сортировка по контурам по возрастанию
 
         assert isinstance(shafts, (tuple, list)), TypeError(f"{type(shafts)=} must be tuple")
         for shaft in shafts:
@@ -433,114 +448,35 @@ class GTE:
                 assert isinstance(node, (Compressor, Turbine)), TypeError(f"{type(node)=} must be in {Compressor, Turbine}")
                 assert node in all_nodes
 
-    def _equations(self):
-        result = []
-        for shaft in self.shafts:
-            res = 0
-            for node in shaft:
-                if isinstance(node, Turbine):
-                    res += node.power
-                elif isinstance(node.Compressor):
-                    res -= node.power
-            result.append(res)
-        return result
-
-    def solve(self, substance_inlet: Substance, fuel: Substance):
-        for contour in self.scheme:
-            while True:
-                for i, node in enumerate(self.scheme[contour]):
-                    print(f"{node}")
-                    if i == 0:
-                        if isinstance(node, CombustionChamber):
-                            node.solve(substance_inlet, fuel)
-                        else:
-                            node.calculate(substance_inlet)
-                    else:
-                        if isinstance(node, CombustionChamber):
-                            node.solve(self.scheme[contour][i - 1].outlet, fuel)
-                        else:
-                            node.calculate(self.scheme[contour][i - 1].outlet)
-                if all(null < 0.1 for null in self._equations()):
-                    break
-
-    @staticmethod
-    def Figures(node, **kwargs) -> tuple:
-        x0 = kwargs.get("x0", 0)
-        y0 = kwargs.get("y0", 0)
-        x, y = [], []
-
-        """if type(node) is Inlet:
-            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
-            y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
-        if isinstance(node, Compressor):
-            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-            y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-        elif isinstance(node, CombustionChamber):
-            x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
-            y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
-        elif isinstance(node, Turbine):
-            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-            y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
-        """elif type(node) == Outlet:
-            x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
-            y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-        elif type(node) == HeatExchanger:
-            x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-            y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
-        elif type(node) == Load:
-            x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
-            y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
-        return x, y
-
-    def show(self, **kwargs):
+    def show(self, **kwargs) -> None:
         """Визуализация схемы ГТД"""
-
         fg = plt.figure(figsize=kwargs.get("figsize", (max(map(len, self.scheme.values())) * 2, (len(self.scheme) + 1 + 2) * 2)))
         fg.suptitle("GTE scheme", fontsize=14, fontweight="bold")
         gs = fg.add_gridspec(len(self.scheme) + 1, 1)  # строки, столбцы
 
         for contour in self.scheme:
-            fg.add_subplot(gs[len(self) - contour, 0])
+            fg.add_subplot(gs[len(self.scheme) - contour, 0])
             plt.grid(True)
             plt.axis("square")
-            # plt.title('contour ' + to_roman(contour) + ' | ' + 'контур ' + to_roman(contour), fontsize=14)
-            plt.xlim(0, len(self[contour]))
+            plt.title(f"contour {contour}", fontsize=14)
+            plt.xlim(0, len(self.scheme[contour]))
             plt.ylim(0, 1)
-            plt.xticks(linspace(0, len(self[contour]), len(self[contour]) + 1))
+            plt.xticks(linspace(0, len(self.scheme[contour]), len(self.scheme[contour]) + 1))
             plt.yticks(linspace(0, 1, 1 + 1))
 
-            x0 = y0 = 0.5
+            x0 = y0 = 0.5  # center
 
-            for i, node in enumerate(self[contour]):
-                plt.plot(
-                    *self.Figures(node, x0=x0, y0=y0),
-                    color="black",
-                    linewidth=3,
-                    label=f"{contour}.{i + 1}: {node.__class__.__name__}",
-                )
-                plt.text(
-                    x0,
-                    y0,
-                    f"{contour}.{i + 1}",
-                    fontsize=12,
-                    fontweight="bold",
-                    ha="center",
-                    va="center",
-                )
+            for i, node in enumerate(self.scheme[contour]):
+                plt.plot(*get_figure(node, x0=x0, y0=y0), color="black", linewidth=3, label=f"{contour}.{i + 1}: {node.__class__.__name__}")
+                plt.text(x0, y0, f"{contour}.{i + 1}", fontsize=12, fontweight="bold", ha="center", va="center")
                 x0 += 1
 
-        fg.add_subplot(gs[len(self), 0])
+        fg.add_subplot(gs[len(self.scheme), 0])
         plt.axis("off")
         plt.grid(False)
-        plt.xlim(0, max(map(len, self.values())))
+        plt.xlim(0, max(map(len, self.scheme.values())))
         plt.ylim(0, 1)
-        plt.plot(
-            [0, max(map(len, self.values()))],
-            [0.5, 0.5],
-            color="black",
-            linewidth=1.5,
-            linestyle="dashdot",
-        )
+        plt.plot([0, max(map(len, self.scheme.values()))], [0.5, 0.5], color="black", linewidth=1.5, linestyle="dashdot")
 
         fg.legend(
             title="Specification",
@@ -548,7 +484,7 @@ class GTE:
             alignment="center",
             loc="lower center",
             fontsize=12,
-            ncols=len(self),
+            ncols=len(self.scheme),
             frameon=True,
             framealpha=1.0,
             facecolor="white",
@@ -558,14 +494,61 @@ class GTE:
 
         plt.show()
 
+    def _equations(self):
+        """sum(Compressor.power) = sum(Turbine.power)"""
+        result = []
+        for shaft in self.shafts:
+            balance_power: float = 0
+            for node in shaft:
+                if isinstance(node, Turbine):
+                    balance_power += node.power
+                elif isinstance(node, Compressor):
+                    balance_power -= node.power
+            result.append(balance_power)
+        return result
+
+    def solve(self, inlet: Substance, fuel: Substance):
+        for shaft in shafts:
+            n = 0  # количество узлов с неизвестной мощностью
+            power = 0  # суммарная можность известных узлов
+            for node in shaft:
+                if isnan(node.power):
+                    n += 1
+                elif isinstance(node, Turbine):
+                    power += node.predict(inlet, use_ml=False)[gtep.power]
+                elif isinstance(node, Compressor):
+                    power -= node.predict(inlet, use_ml=False)[gtep.power]
+            for node in shaft:
+                if isnan(node.power):
+                    node.power = power / n  # первое приближение мощнгсти
+
+        for contour in self.scheme:
+            while True:
+                for i, node in enumerate(self.scheme[contour]):
+                    print(f"{node}")
+                    if i == 0:
+                        if isinstance(node, CombustionChamber):
+                            node.solve(inlet, fuel)
+                        else:
+                            node.solve(inlet)
+                    else:
+                        if isinstance(node, CombustionChamber):
+                            node.solve(self.scheme[contour][i - 1].outlet, fuel)
+                        else:
+                            node.solve(self.scheme[contour][i - 1].outlet)
+                if all(null < 0.1 for null in self._equations()):
+                    break
+
 
 if __name__ == "__main__":
+    from fixtures import air, kerosene
+
     c = Compressor()
     setattr(c, gtep.pipi, 6)
-    setattr(c, gtep.effeff, 0.87)
+    setattr(c, gtep.effeff, 0.85)
 
     cc = CombustionChamber()
-    cc.efficiency_burn = 0.99
+    setattr(cc, gtep.effburn, 0.99)
     setattr(cc, gtep.peff, 0.95)
 
     t = Turbine()
@@ -576,35 +559,6 @@ if __name__ == "__main__":
 
     gte = GTE("Jumo 004b", scheme, shafts)
 
-    # gte.show()
+    gte.show()
 
-    air = Substance(
-        "air",
-        parameters={
-            gtep.gc: gas_const("AIR"),
-            gtep.TT: atmosphere_standard(0)["temperature"][0],
-            gtep.PP: atmosphere_standard(0)["pressure"][0],
-            gtep.mf: 50,
-            gtep.Cp: 1006,
-            gtep.k: 1.4,
-            gtep.c: 0,
-        },
-        functions={
-            gtep.gc: lambda total_temperature: gas_const("AIR"),
-            gtep.Cp: lambda total_temperature: heat_capacity_p("AIR", total_temperature),
-        },
-    )
-
-    fuel = Substance(
-        "kerosene",
-        parameters={
-            gtep.mf: 3,
-            gtep.TT: 40 + T0,
-            gtep.PP: 101_325,
-        },
-        functions={
-            gtep.Cp: lambda total_temperature: 200,
-        },
-    )
-
-    gte.solve(air, fuel)
+    gte.solve(air, kerosene)
