@@ -5,7 +5,7 @@ from .config import parameters
 # from .gte import GTE
 from .turbine import Turbine
 
-# from src.nodes.outlet import Outlet
+# from .outlet import Outlet
 
 # import *
 __all__ = [
@@ -14,4 +14,5 @@ __all__ = [
     "Compressor",
     "CombustionChamber",
     "Turbine",
+    # "Outlet",
 ]

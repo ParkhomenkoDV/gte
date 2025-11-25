@@ -62,7 +62,7 @@ class GTENode(ABC):
             Объекты класса с установленными параметрами
         """
         if not variables:  # словарь для перебора пустой
-            yield cls.__new__(cls)
+            yield cls()
             return
 
         names, values = [], []
@@ -72,7 +72,7 @@ class GTENode(ABC):
             values.append(value)
 
         for combination in product(*values):
-            obj = cls.__new__(cls)
+            obj = cls()
 
             for k, v in zip(names, combination):
                 setattr(obj, k, v)  # установка значений атрибутов

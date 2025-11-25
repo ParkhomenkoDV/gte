@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 import numpy as np
 import pytest
 from numpy import isnan, nan
@@ -183,18 +181,16 @@ class TestCompressor:
 
         benchmark(benchfunc, compressor, inlet_parameters, parameters, use_ml)
 
-    expected = namedtuple("expected", ["key", "value"])
-
     @pytest.mark.parametrize(
         "pipi, effeff, power, leak, error, expected",
         [
-            (6.0, 0.85, nan, 0, False, expected(gtep.power, 11_816_242)),
-            (6.0, nan, 12 * 10**6, 0, False, expected(gtep.effeff, 0.8369)),
-            (nan, 0.85, 12 * 10**6, 0, False, expected(gtep.pipi, 6.1329)),
+            (6.0, 0.85, nan, 0, False, {gtep.power: 11_816_242}),
+            (6.0, nan, 12 * 10**6, 0, False, {gtep.effeff: 0.8369}),
+            (nan, 0.85, 12 * 10**6, 0, False, {gtep.pipi: 6.1329}),
             # error
-            (nan, nan, 24 * 10**6, 0, True, expected("", 0)),
-            (6.0, nan, nan, 0, True, expected("", 0)),
-            (nan, nan, nan, 0, True, expected("", 0)),
+            (nan, nan, 24 * 10**6, 0, True, {}),
+            (6.0, nan, nan, 0, True, {}),
+            (nan, nan, nan, 0, True, {}),
         ],
     )
     def test_solve(self, compressor, pipi, effeff, power, leak, error, expected):
@@ -216,7 +212,8 @@ class TestCompressor:
             assert gtep.TT in outlet.parameters
             assert gtep.PP in outlet.parameters
 
-            assert getattr(compressor, expected.key) == pytest.approx(expected.value, rel=EPSREL)
+            for k, v in expected.items():
+                assert getattr(compressor, k) == pytest.approx(v, rel=EPSREL)
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -409,18 +406,16 @@ class TestTurbine:
         assert sorted(effeff) == [0.85, 0.85, 0.85, 0.9, 0.9, 0.9]
         assert sorted(power) == [20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6]
 
-    expected = namedtuple("expected", ["key", "value"])
-
     @pytest.mark.parametrize(
         "pipi, effeff, power, leak, error, expected",
         [
-            (4.0, 0.9, nan, 0, False, expected(gtep.power, 23_396_982)),
-            (4.0, nan, 24 * 10**6, 0, False, expected(gtep.effeff, 0.9232)),
-            (nan, 0.9, 24 * 10**6, 0, False, expected(gtep.pipi, 4.175)),
+            (4.0, 0.9, nan, 0, False, {gtep.power: 23_396_982}),
+            (4.0, nan, 24 * 10**6, 0, False, {gtep.effeff: 0.9232}),
+            (nan, 0.9, 24 * 10**6, 0, False, {gtep.pipi: 4.175}),
             # error
-            (nan, nan, 24 * 10**6, 0, True, expected("", 0)),
-            (6.0, nan, nan, 0, True, expected("", 0)),
-            (nan, nan, nan, 0, True, expected("", 0)),
+            (nan, nan, 24 * 10**6, 0, True, {}),
+            (6.0, nan, nan, 0, True, {}),
+            (nan, nan, nan, 0, True, {}),
         ],
     )
     def test_solve(self, turbine, pipi, effeff, power, leak, error, expected):
@@ -442,7 +437,8 @@ class TestTurbine:
             assert gtep.TT in outlet.parameters
             assert gtep.PP in outlet.parameters
 
-            assert getattr(turbine, expected.key) == pytest.approx(expected.value, rel=EPSREL)
+            for k, v in expected.items():
+                assert getattr(turbine, k) == pytest.approx(v, rel=EPSREL)
 
     @pytest.mark.parametrize(
         "node, kwargs",
