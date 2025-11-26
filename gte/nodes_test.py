@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 import pytest
 from numpy import isnan, nan
@@ -130,32 +132,30 @@ class TestCompressor:
         assert sorted(effeff) == [0.85, 0.85, 0.85, 0.9, 0.9, 0.9]
         assert sorted(power) == [20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6]
 
-    @pytest.mark.skip
     @pytest.mark.parametrize(
         "inlet_parameters, parameters, use_ml, expected",
         [
             # pipi
-            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, False, {"outlet_total_temperature": 300, "outlet_total_pressure": 101325, gtep.pipi: 6}),
-            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, True, {"outlet_total_temperature": 1076, "outlet_total_pressure": 110000, gtep.pipi: 1.1}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, False, {f"outlet_{gtep.TT}": 539.245, f"outlet_{gtep.PP}": 617911.9, gtep.pipi: 6.098}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.power: 24 * 10**6, gtep.effeff: 0.85}, True, {f"outlet_{gtep.TT}": 539.245, f"outlet_{gtep.PP}": 617911.9, gtep.pipi: 6.098}),
             # effeff
-            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, False, {"outlet_total_temperature": 300, "outlet_total_pressure": 101325, gtep.effeff: 1}),
-            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, True, {"outlet_total_temperature": 1954, "outlet_total_pressure": 1210000, gtep.effeff: 0.85}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, False, {f"outlet_{gtep.TT}": 539.245, f"outlet_{gtep.PP}": 607950.0, gtep.effeff: 0.8402}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.power: 24 * 10**6}, True, {f"outlet_{gtep.TT}": 539.245, f"outlet_{gtep.PP}": 607950.0, gtep.effeff: 0.8402}),
             # power
-            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, False, {"outlet_total_temperature": 300, "outlet_total_pressure": 101325, gtep.power: 30_180_000}),
-            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, True, {"outlet_total_temperature": 1076, "outlet_total_pressure": 110000, gtep.power: 3_124_532}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, False, {f"outlet_{gtep.TT}": 942.3, f"outlet_{gtep.PP}": 607950.0, gtep.power: 64_440_578}),
+            ({gtep.mf: 100, gtep.TT: 300, gtep.PP: 101_325}, {gtep.pipi: 6.0, gtep.effeff: 0.85}, True, {f"outlet_{gtep.TT}": 942.3, f"outlet_{gtep.PP}": 607950.0, gtep.power: 64_440_578}),
         ],
     )
     def test_predict(self, compressor, inlet_parameters, parameters, use_ml, expected):
         """Тест предсказания компресоора"""
-        inlet = Substance("inlet")
+        inlet = deepcopy(air)
         inlet.parameters = inlet_parameters
         for param, value in parameters.items():
             setattr(compressor, param, value)
         prediction = compressor.predict(inlet, use_ml=use_ml)
         for k, v in prediction.items():
-            assert v == pytest.approx(expected[k], rel=0.2), AssertionError(f"{k=} {v=}")
+            assert v == pytest.approx(expected[k], rel=0.1), AssertionError(f"{k=} {v=}")
 
-    @pytest.mark.skip
     @pytest.mark.parametrize(
         "inlet_parameters, parameters, use_ml",
         [
@@ -173,7 +173,7 @@ class TestCompressor:
     @pytest.mark.benchmark
     def test_compressor_predict(self, benchmark, compressor, inlet_parameters, parameters, use_ml):
         def benchfunc(compressor, inlet_parameters, parameters, use_ml):
-            inlet = Substance("inlet")
+            inlet = deepcopy(air)
             inlet.parameters = inlet_parameters
             for param, value in parameters.items():
                 setattr(compressor, param, value)
@@ -405,6 +405,55 @@ class TestTurbine:
         assert sorted(pipi) == [3.0, 3.0, 4.0, 4.0, 5.0, 5.0]
         assert sorted(effeff) == [0.85, 0.85, 0.85, 0.9, 0.9, 0.9]
         assert sorted(power) == [20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6, 20 * 10**6]
+
+    @pytest.mark.parametrize(
+        "inlet_parameters, parameters, use_ml, expected",
+        [
+            # pipi
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.power: 24 * 10**6, gtep.effeff: 0.9}, False, {f"outlet_{gtep.TT}": 1103.7, f"outlet_{gtep.PP}": 617911.9, gtep.pipi: 4.331}),
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.power: 24 * 10**6, gtep.effeff: 0.9}, True, {f"outlet_{gtep.TT}": 1103.7, f"outlet_{gtep.PP}": 617911.9, gtep.pipi: 4.331}),
+            # effeff
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.power: 24 * 10**6}, False, {f"outlet_{gtep.TT}": 1103.7, f"outlet_{gtep.PP}": 607950.0, gtep.effeff: 0.9432}),
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.power: 24 * 10**6}, True, {f"outlet_{gtep.TT}": 1103.7, f"outlet_{gtep.PP}": 607950.0, gtep.effeff: 0.9432}),
+            # power
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.effeff: 0.9}, False, {f"outlet_{gtep.TT}": 1121.8, f"outlet_{gtep.PP}": 607950.0, gtep.power: 22_900_688}),
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.effeff: 0.9}, True, {f"outlet_{gtep.TT}": 1121.8, f"outlet_{gtep.PP}": 607950.0, gtep.power: 22_900_688}),
+        ],
+    )
+    def test_predict(self, turbine, inlet_parameters, parameters, use_ml, expected):
+        """Тест предсказания компресоора"""
+        inlet = deepcopy(air)
+        inlet.parameters = inlet_parameters
+        for param, value in parameters.items():
+            setattr(turbine, param, value)
+        prediction = turbine.predict(inlet, use_ml=use_ml)
+        for k, v in prediction.items():
+            assert v == pytest.approx(expected[k], rel=0.1), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "inlet_parameters, parameters, use_ml",
+        [
+            # pipi
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.power: 24 * 10**6, gtep.effeff: 0.9}, False),
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.power: 24 * 10**6, gtep.effeff: 0.9}, True),
+            # effeff
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.power: 24 * 10**6}, False),
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.power: 24 * 10**6}, True),
+            # power
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.effeff: 0.9}, False),
+            ({gtep.mf: 50, gtep.TT: 1500, gtep.PP: 101_325 * 25}, {gtep.pipi: 4.0, gtep.effeff: 0.9}, True),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_turbine_predict(self, benchmark, turbine, inlet_parameters, parameters, use_ml):
+        def benchfunc(turbine, inlet_parameters, parameters, use_ml):
+            inlet = deepcopy(air)
+            inlet.parameters = inlet_parameters
+            for param, value in parameters.items():
+                setattr(turbine, param, value)
+            turbine.predict(inlet, use_ml=use_ml)
+
+        benchmark(benchfunc, turbine, inlet_parameters, parameters, use_ml)
 
     @pytest.mark.parametrize(
         "pipi, effeff, power, leak, error, expected",

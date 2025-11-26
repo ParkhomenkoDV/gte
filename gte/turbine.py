@@ -24,8 +24,8 @@ except ImportError:
 
 
 models = {}
-for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
-    path = f"gte/models/compressor_{model}.pkl"
+for model in (gtep.pipi, gtep.effeff, gtep.power):
+    path = f"gte/models/compressor_{model}.pkl.xz"
     if os.path.exists(path):
         with open(path, "rb") as file:
             models[model] = pickle.load(file)
@@ -57,25 +57,52 @@ class Turbine(GTENode):
 
     def predict(self, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
-        prediction = {
-            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT] * 0.7,  # TODO model
-            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] / 2,  # TODO model
+        GTENode.validate_substance(self, inlet)
+
+        inlet_params = {
+            f"inlet_{gtep.mf}": inlet.parameters[gtep.mf],
+            f"inlet_{gtep.TT}": inlet.parameters[gtep.TT],
+            f"inlet_{gtep.PP}": inlet.parameters[gtep.PP],
         }
-        for k, v in self.variables.items():
-            if not isnan(v):
-                continue
-            if k == gtep.pipi:
-                prediction[k] = 3  # TODO: model or formula
-            elif k == gtep.effeff:
-                prediction[k] = 1.0
-            elif k == gtep.power:
-                prediction[k] = 24 * 10**6  # TODO: model or formula
-        return prediction
+
+        i_params = {tdp.t: inlet.parameters.get(gtep.TT), tdp.p: inlet.parameters.get(gtep.PP), tdp.eo: inlet.parameters.get(gtep.eo)}
+        gc_i = call_with_kwargs(inlet.functions[gtep.gc], i_params)
+        hc_i = call_with_kwargs(inlet.functions[gtep.Cp], i_params)
+        k_i = adiabatic_index(gc_i, hc_i)
+
+        prediction: Dict[str, float] = {}
+        if isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.effeff)) and not isnan(getattr(self, gtep.power)):
+            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] - getattr(self, gtep.power) / inlet.parameters[gtep.mf] / hc_i
+            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / getattr(self, gtep.effeff)) ** (k_i / (k_i - 1))
+            if use_ml:
+                prediction[gtep.pipi] = (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / getattr(self, gtep.effeff)) ** (k_i / (1 - k_i))
+            else:
+                prediction[gtep.pipi] = (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / getattr(self, gtep.effeff)) ** (k_i / (1 - k_i))
+        elif isnan(getattr(self, gtep.effeff)) and not isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.power)):
+            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] - getattr(self, gtep.power) / inlet.parameters[gtep.mf] / hc_i
+            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] / getattr(self, gtep.pipi)
+            if use_ml:
+                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - getattr(self, gtep.pipi) ** ((1 - k_i) / k_i))
+            else:
+                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - getattr(self, gtep.pipi) ** ((1 - k_i) / k_i))
+        elif isnan(getattr(self, gtep.power)) and not isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.effeff)):
+            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] * (1 - getattr(self, gtep.effeff) * (1 - getattr(self, gtep.pipi) ** ((1 - k_i) / k_i)))
+            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] / getattr(self, gtep.pipi)
+            if use_ml:
+                prediction[gtep.power] = inlet.parameters[gtep.mf] * hc_i * (inlet.parameters[gtep.TT] - prediction[f"outlet_{gtep.TT}"])
+            else:
+                prediction[gtep.power] = inlet.parameters[gtep.mf] * hc_i * (inlet.parameters[gtep.TT] - prediction[f"outlet_{gtep.TT}"])
+        else:
+            raise ArithmeticError(f"{getattr(self, gtep.pipi)=} {getattr(self, gtep.effeff)=} {getattr(self, gtep.power)=}")
+
+        order = (f"outlet_{gtep.TT}", f"outlet_{gtep.PP}", gtep.pipi, gtep.effeff, gtep.power)  # порядок выдачи и получения признаков
+
+        return {k: prediction[k] for k in order if k in prediction}
 
     def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
         """
         power = mf * Cp * (T*_inlet - T*_outlet)
-        T*_outlet = T*_inlet * (1 - (1 - pi* ** ((1-k) / k))) * eff)
+        T*_outlet = T*_inlet * (1 - eff* * (1 - pi* ** ((1-k) / k)))
         pi* = P*_inlet / P*_outlet
         """
         if not len(x):

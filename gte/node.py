@@ -73,6 +73,7 @@ class GTENode(ABC):
 
         for combination in product(*values):
             obj = cls()
+            print(obj.variables)
 
             for k, v in zip(names, combination):
                 setattr(obj, k, v)  # установка значений атрибутов
