@@ -2,6 +2,7 @@ from mathematics import Constants
 
 # термодинамические параметры
 parameters = Constants(
+    rf="rotation_frequency",  # частота вращения
     l="thermal_conductivity",  # теплопроводность
     hc="heat_capacity",  # теплоемкость
     Cp="heat_capacity_pressure",  # теплокмкость при постоянном давлении
