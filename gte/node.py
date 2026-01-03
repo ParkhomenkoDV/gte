@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple, Union
 
 from substance import Substance
-from thermodynamics import adiabatic_index, сritical_sonic_velocity
+from thermodynamics import adiabatic_index, critical_sonic_velocity
 from thermodynamics import parameters as tdp
 
 try:  # Попытка относительного импорта
@@ -14,36 +14,47 @@ except ImportError:  # Резервный абсолютный импорт
     from errors import SUBSTANCE_ATTRIBUTE_ERROR
     from utils import call_with_kwargs
 
-"""
-Порядок расчета ТД параметров:
-G -> excess_oxidizing -> gas_const -> T* -> P* -> D* -> Cp -> k -> a* -> c
-"""
-
 
 class GTENode(ABC):
     """Абстрактный базовый класс узла ГТД"""
 
+    variables: Tuple[str, ...]  # переменные узла
     models: Dict[str, Any] = {}  # ML модели
 
     __slots__ = ["name", "characteristic"]  # list to add
 
-    def __init__(self, name: str = "node") -> None:
+    def __init__(self, name: str = "node", characteristic: Dict[str, Callable] = None) -> None:
         assert isinstance(name, str), TypeError(f"{type(name)=} must be str")
         self.name: str = name
 
+        assert isinstance(characteristic), TypeError(f"{type(characteristic)=} must be dict")
+        self.characteristic: Dict[str, Callable] = {}  # TODO
+
     def __str__(self) -> str:
         return self.name
+
+    def __setattr__(self, name, value) -> None:
+        if name == "name":
+            assert isinstance(value, str), TypeError(f"{type(value)=} must be str")
+        elif name == "characteristic":
+            assert isinstance(value), TypeError(f"{type(value)=} must be dict")
+        super().__setattr__(name, value)
 
     def __delattr__(self, name: str) -> None:
         if name == "name":
             self.name = self.__class__.__name__
         elif name == "characteristic":
-            raise Exception("deleting characteristic is prohibited!")
+            raise AttributeError("deleting characteristic is prohibited!")
         else:
-            return super().__delattr__(name)
+            super().__delattr__(name)
 
-    @classmethod
-    def validate_substance(cls, substance: Substance) -> None:
+    @abstractmethod
+    def solve(self) -> Dict[str, Any]:
+        """Термодинамический расчет узла по его характеристике и уравнениям _equations"""
+        raise NotImplementedError
+
+    @staticmethod
+    def validate_substance(substance: Substance) -> None:
         """Проверка обязательных параметров рабочего тела"""
         assert isinstance(substance, Substance), TypeError(f"type substance must be {Substance}")
         # validate parameters
@@ -57,17 +68,17 @@ class GTENode(ABC):
             for func_arg in function.__code__.co_varnames:
                 assert func_arg in tdp_keys, NameError(f"function '{name}' has arg '{func_arg}' not in {tdp_keys}")
 
-    @classmethod
-    def calculate_substance(cls, substance: Substance) -> Substance:
+    @staticmethod
+    def calculate_substance(substance: Substance) -> Substance:
         """Расчет термодинамических параметров вещества по массе, температуре, давлению"""
-        cls.validate_substance(substance)
+        GTENode.validate_substance(substance)
 
         parameters = {tdp.t: substance.parameters.get(gtep.TT), tdp.p: substance.parameters.get(gtep.PP), tdp.eo: substance.parameters.get(gtep.eo)}
         substance.parameters[gtep.gc] = call_with_kwargs(substance.functions[gtep.gc], parameters)
-        substance.parameters[gtep.Cp] = call_with_kwargs(substance.functions[gtep.Cp], parameters)
+        substance.parameters[gtep.hcp] = call_with_kwargs(substance.functions[gtep.hcp], parameters)
         substance.parameters[gtep.DD] = substance.parameters[gtep.PP] / (substance.parameters[gtep.gc] * substance.parameters[gtep.TT])
-        substance.parameters[gtep.k] = adiabatic_index(substance.parameters[gtep.gc], substance.parameters[gtep.Cp])
-        substance.parameters[gtep.a_critical] = сritical_sonic_velocity(substance.parameters[gtep.k], substance.parameters[gtep.gc], substance.parameters[gtep.TT])
+        substance.parameters[gtep.k] = adiabatic_index(substance.parameters[gtep.gc], substance.parameters[gtep.hcp])
+        substance.parameters[gtep.ss_critical] = critical_sonic_velocity(substance.parameters[gtep.k], substance.parameters[gtep.gc], substance.parameters[gtep.TT])
 
         return substance
 
@@ -75,33 +86,32 @@ class GTENode(ABC):
     @abstractmethod
     def predict(cls, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
-        cls.validate_substance(inlet)
-
-        assert isinstance(use_ml, bool), TypeError(f"{type(use_ml)=} must be bool")
-
-        return {}
+        raise NotImplementedError
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
         """Система уравнений"""
         return tuple()
 
     @classmethod
     @abstractmethod
-    def calculate(cls, x0: Dict[str, float] = None) -> Substance:
-        """Термодинамический расчет узла по СНЛАУ _equations"""
+    def calculate(cls, parameters: Dict[str, Union[float, int]] = None) -> Substance:
+        """Термодинамический расчет узла по уравнениям _equations"""
         # валидация входных параметров
         # расчет входных параметров
         # расчет параметров узла
         # расчет выходных параметров
         # вывод выходных параметров
-        pass
+        raise NotImplementedError
 
-
-class TurboCompressor(ABC):
-    """Абстрактный класс турбокомрпессора"""
-
+    @classmethod
     @abstractmethod
-    def get_power(self, inlet: Substance, rotation_frequency: float) -> float:
-        """Расчет мощности по частоте вращения и характеристике узла"""
-        return 0
+    def validate(cls) -> Dict[int, float]:
+        """Валиация найденного решения по уравнениям _equations"""
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def check_real(cls) -> str:
+        """Проверка на физичность"""
+        raise NotImplementedError

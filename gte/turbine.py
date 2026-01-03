@@ -1,7 +1,7 @@
+import inspect
 import os
 import pickle
-from copy import deepcopy
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple, Union
 
 from numpy import isnan, nan
 from scipy.optimize import root
@@ -10,13 +10,13 @@ from thermodynamics import adiabatic_index
 from thermodynamics import parameters as tdp
 
 try:
-    from .checks import check_efficiency, check_pressure_ratio, check_temperature
+    from .checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
     from .config import EPSREL
     from .config import parameters as gtep
     from .node import GTENode
     from .utils import call_with_kwargs, integral_average
 except ImportError:
-    from checks import check_efficiency, check_pressure_ratio, check_temperature
+    from checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
     from config import EPSREL
     from config import parameters as gtep
     from node import GTENode
@@ -36,179 +36,240 @@ for model in (gtep.pipi, gtep.effeff, gtep.power):
 class Turbine(GTENode):
     """Турбина"""
 
+    variables = (gtep.effeff, gtep.pipi, gtep.power)
     models: Dict[str, Any] = models
 
-    __slots__ = GTENode.__slots__ + [gtep.pipi, gtep.effeff, gtep.power]
-
-    def __init__(self, name: str = "Turbine"):
+    def __init__(self, name: str = "Turbine", characteristic: Dict[str, Callable] = None):
         GTENode.__init__(self, name=name)
 
-        setattr(self, gtep.pipi, nan)
-        setattr(self, gtep.effeff, nan)
-        setattr(self, gtep.power, nan)
+        assert isinstance(characteristic, dict), TypeError(f"{type(characteristic)=} must be dict")
+        assert gtep.effeff in characteristic, KeyError(f"{gtep.effeff} not in {characteristic=}")
+        assert gtep.pipi in characteristic, KeyError(f"{gtep.pipi} not in {characteristic=}")
+        effeff, pipi = characteristic[gtep.effeff], characteristic[gtep.pipi]
+        signature = inspect.signature(effeff)
+        assert gtep.rf in signature.parameters, KeyError()
+        assert gtep.mf in signature.parameters, KeyError()
+        signature = inspect.signature(pipi)
+        assert gtep.rf in signature.parameters, KeyError()
+        assert gtep.mf in signature.parameters, KeyError()
+        self.characteristic: Dict[str, Callable] = {gtep.effeff: effeff, gtep.pipi: pipi}
 
-    @property
-    def variables(self) -> Dict[str, float]:
-        return {
-            gtep.pipi: getattr(self, gtep.pipi),
-            gtep.effeff: getattr(self, gtep.effeff),
-            gtep.power: getattr(self, gtep.power),
-        }
+    def solve(self, inlet: Substance, rotation_frequency: float) -> Dict[str, Any]:
+        GTENode.validate_substance(inlet)
 
-    def predict(self, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
+        effeff = self.characteristic[gtep.effeff](rotation_frequency, inlet.parameters[gtep.mf])
+        pipi = self.characteristic[gtep.pipi](rotation_frequency, inlet.parameters[gtep.mf])
+
+        outlet = self.calculate(inlet, parameters={gtep.effeff: effeff, gtep.pipi: pipi})
+
+        hc, _ = integral_average(
+            inlet.functions[gtep.hcp],
+            {
+                tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+                tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+                tdp.eo: (inlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
+            },
+        )
+
+        power = inlet.parameters[gtep.mf] * hc * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])  # TODO
+
+        return {"outlet": outlet, gtep.power: power}
+
+    @classmethod
+    def predict(cls, inlet: Substance, parameters: Dict[str, float | int], use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
-        GTENode.validate_substance(self, inlet)
+        GTENode.validate_substance(inlet)
 
-        inlet_params = {
-            f"inlet_{gtep.mf}": inlet.parameters[gtep.mf],
-            f"inlet_{gtep.TT}": inlet.parameters[gtep.TT],
-            f"inlet_{gtep.PP}": inlet.parameters[gtep.PP],
-        }
-
-        i_params = {tdp.t: inlet.parameters.get(gtep.TT), tdp.p: inlet.parameters.get(gtep.PP), tdp.eo: inlet.parameters.get(gtep.eo)}
-        gc_i = call_with_kwargs(inlet.functions[gtep.gc], i_params)
-        hc_i = call_with_kwargs(inlet.functions[gtep.Cp], i_params)
+        inlet_params = {tdp.t: inlet.parameters.get(gtep.TT), tdp.p: inlet.parameters.get(gtep.PP), tdp.eo: inlet.parameters.get(gtep.eo)}
+        gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
+        hc_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
         k_i = adiabatic_index(gc_i, hc_i)
 
         prediction: Dict[str, float] = {}
-        if isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.effeff)) and not isnan(getattr(self, gtep.power)):
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] - getattr(self, gtep.power) / inlet.parameters[gtep.mf] / hc_i
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / getattr(self, gtep.effeff)) ** (k_i / (k_i - 1))
+        if gtep.pipi not in parameters:
+            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] - parameters[gtep.power] / inlet.parameters[gtep.mf] / hc_i
+            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / parameters[gtep.effeff]) ** (k_i / (k_i - 1))
             if use_ml:
-                prediction[gtep.pipi] = (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / getattr(self, gtep.effeff)) ** (k_i / (1 - k_i))
+                prediction[gtep.pipi] = (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / parameters[gtep.effeff]) ** (k_i / (1 - k_i))
             else:
-                prediction[gtep.pipi] = (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / getattr(self, gtep.effeff)) ** (k_i / (1 - k_i))
-        elif isnan(getattr(self, gtep.effeff)) and not isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.power)):
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] - getattr(self, gtep.power) / inlet.parameters[gtep.mf] / hc_i
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] / getattr(self, gtep.pipi)
+                prediction[gtep.pipi] = (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / parameters[gtep.effeff]) ** (k_i / (1 - k_i))
+        elif gtep.effeff not in parameters:
+            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] - parameters[gtep.power] / inlet.parameters[gtep.mf] / hc_i
+            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] / parameters[gtep.pipi]
             if use_ml:
-                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - getattr(self, gtep.pipi) ** ((1 - k_i) / k_i))
+                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - parameters[gtep.pipi] ** ((1 - k_i) / k_i))
             else:
-                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - getattr(self, gtep.pipi) ** ((1 - k_i) / k_i))
-        elif isnan(getattr(self, gtep.power)) and not isnan(getattr(self, gtep.pipi)) and not isnan(getattr(self, gtep.effeff)):
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] * (1 - getattr(self, gtep.effeff) * (1 - getattr(self, gtep.pipi) ** ((1 - k_i) / k_i)))
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] / getattr(self, gtep.pipi)
+                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - parameters[gtep.pipi] ** ((1 - k_i) / k_i))
+        elif gtep.power not in parameters:
+            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] * (1 - parameters[gtep.effeff] * (1 - parameters[gtep.pipi] ** ((1 - k_i) / k_i)))
+            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] / parameters[gtep.pipi]
             if use_ml:
                 prediction[gtep.power] = inlet.parameters[gtep.mf] * hc_i * (inlet.parameters[gtep.TT] - prediction[f"outlet_{gtep.TT}"])
             else:
                 prediction[gtep.power] = inlet.parameters[gtep.mf] * hc_i * (inlet.parameters[gtep.TT] - prediction[f"outlet_{gtep.TT}"])
         else:
-            raise ArithmeticError(f"{getattr(self, gtep.pipi)=} {getattr(self, gtep.effeff)=} {getattr(self, gtep.power)=}")
+            raise ArithmeticError(f"{parameters=}")
 
-        order = (f"outlet_{gtep.TT}", f"outlet_{gtep.PP}", gtep.pipi, gtep.effeff, gtep.power)  # порядок выдачи и получения признаков
+        order = (f"outlet_{gtep.TT}", f"outlet_{gtep.PP}", gtep.effeff, gtep.pipi, gtep.power)  # порядок выдачи и получения признаков
 
         return {k: prediction[k] for k in order if k in prediction}
 
-    def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> Tuple:
+    @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
         """
-        power = mf * Cp * (T*_inlet - T*_outlet)
+        power = mf * hcp * (T*_inlet - T*_outlet)
         T*_outlet = T*_inlet * (1 - eff* * (1 - pi* ** ((1-k) / k)))
         pi* = P*_inlet / P*_outlet
         """
-        if not len(x):
-            return (nan, nan, nan)
+        effeff, pipi, power = args.get(gtep.effeff), args.get(gtep.pipi), args.get(gtep.power)
+        outlet_TT, outlet_PP = x[0], x[1]
+        if effeff is None:
+            effeff = x[2]
+        elif pipi is None:
+            pipi = x[2]
+        elif power is None:
+            power = x[2]
+        else:
+            pass  # validate
 
-        self.outlet.parameters[gtep.TT] = x[0]
-        self.outlet.parameters[gtep.PP] = x[1]
-        idx = 2
-        for k in self.variables:
-            if k not in args:
-                setattr(self, k, x[idx])
-                idx += 1
+        inlet, outlet = args["inlet"], args["outlet"]
 
-        mf = (self.inlet.parameters[gtep.mf] + self.outlet.parameters[gtep.mf]) / 2
         ranges = {
-            tdp.t: (self.inlet.parameters[gtep.TT], self.outlet.parameters[gtep.TT]),
-            tdp.p: (self.inlet.parameters[gtep.PP], self.outlet.parameters[gtep.PP]),
-            tdp.eo: (self.inlet.parameters.get(gtep.eo), self.outlet.parameters.get(gtep.eo)),
+            tdp.t: (inlet.parameters[gtep.TT], outlet_TT),
+            tdp.p: (inlet.parameters[gtep.PP], outlet_PP),
+            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
-        gc, _ = integral_average(self.inlet.functions[gtep.gc], **ranges)
-        Cp, _ = integral_average(self.inlet.functions[gtep.Cp], **ranges)
-        k = adiabatic_index(gc, Cp)
+        gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
+        hc, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
+        k = adiabatic_index(gc, hc)
 
         return (
-            getattr(self, gtep.power) - mf * Cp * (self.inlet.parameters[gtep.TT] - self.outlet.parameters[gtep.TT]),
-            self.outlet.parameters[gtep.TT] - self.inlet.parameters[gtep.TT] * (1 - getattr(self, gtep.effeff) * (1 - getattr(self, gtep.pipi) ** ((1 - k) / k))),
-            getattr(self, gtep.pipi) - self.inlet.parameters[gtep.PP] / self.outlet.parameters[gtep.PP],
+            power - inlet.parameters[gtep.mf] * hc * (inlet.parameters[gtep.TT] - outlet_TT),
+            outlet_TT - inlet.parameters[gtep.TT] * (1 - effeff * (1 - pipi ** ((1 - k) / k))),
+            pipi - inlet.parameters[gtep.PP] / outlet_PP,
         )
 
-    def solve(self, inlet: Substance, x0: Dict = None) -> Substance:  # TODO *inlet_substances
-        if error := GTENode.is_solvable(self, inlet):
-            raise ArithmeticError(error)
+    @classmethod
+    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Substance:  # TODO cooling
+        prediction: Dict[str, float] = cls.predict(inlet, parameters, use_ml=False)
 
-        self.inlet = deepcopy(inlet)
-        self.outlet = Substance(
-            self.inlet.name,
-            self.inlet.composition,
-            parameters={gtep.mf: self.inlet.parameters[gtep.mf] - self.leak},
-            functions=self.inlet.functions,
+        outlet = Substance(
+            inlet.name,
+            inlet.composition,
+            parameters={
+                gtep.mf: inlet.parameters[gtep.mf],
+                gtep.eo: inlet.parameters[gtep.eo],  # TODO посчитать через массу!
+            },
+            functions=inlet.functions,
         )
 
-        self.outlet.parameters[gtep.eo] = self.inlet.parameters[gtep.eo]  # TODO посчитать через массу!
+        args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
+        x0 = tuple(prediction.values())
 
-        if x0 is None:
-            x0 = tuple(self.predict(inlet).values())
-        else:
-            assert isinstance(x0, dict), TypeError(f"{type(x0)=} must be dict")
-            for k, v in self.predict(inlet).items():
-                if k not in x0:
-                    x0[k] = v
-        args = {k: v for k, v in self.variables.items() if not isnan(v)}
+        result = root(cls._equations, x0, args, method="lm")
 
-        root(self._equations, x0, args, method="lm")
+        outlet.parameters[gtep.TT], outlet.parameters[gtep.PP] = float(result.x[0]), float(result.x[1])
+        outlet = GTENode.calculate_substance(outlet)
 
-        outlet_parameters = {tdp.t: self.outlet.parameters.get(gtep.TT), tdp.p: self.outlet.parameters.get(gtep.PP), tdp.eo: self.outlet.parameters.get(gtep.eo)}
-        self.outlet.parameters[gtep.gc] = call_with_kwargs(self.outlet.functions[gtep.gc], outlet_parameters)
-        self.outlet.parameters[gtep.Cp] = call_with_kwargs(self.outlet.functions[gtep.Cp], outlet_parameters)
-        self.outlet.parameters[gtep.DD] = self.outlet.parameters[gtep.PP] / (self.outlet.parameters[gtep.gc] * self.outlet.parameters[gtep.TT])
-        self.outlet.parameters[gtep.k] = adiabatic_index(self.outlet.parameters[gtep.gc], self.outlet.parameters[gtep.Cp])
+        return outlet
 
-        return self.outlet
+    @classmethod
+    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+        effeff = cls.total_efficiency(inlet, outlet)
+        pipi = cls.pressure_ratio(inlet, outlet)
+        power = cls.power(inlet, outlet)
 
-    def validate(self, epsrel: float = EPSREL) -> bool:
-        """Проверка найденного решения"""
-        x0 = (self.outlet.parameters[gtep.TT], self.outlet.parameters[gtep.PP])
-        args = {k: v for k, v in self.variables.items() if not isnan(v)}
+        x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
+        args = {"inlet": inlet, "outlet": outlet, gtep.effeff: effeff, gtep.pipi: pipi, gtep.power: power}
 
-        result = True
-        for i, null in enumerate(self._equations(x0, args)):
+        result: Dict[int, float] = {}
+        for i, null in enumerate(cls._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
-                result = False
-                print(f"{i}: {null:.6f}")
+                result[i] = null
 
         return result
 
-    @property
-    def is_real(self):
-        checks = (
-            check_efficiency(getattr(self, gtep.effeff)),
-            check_temperature(self.outlet.parameters[gtep.TT]),
-            check_pressure_ratio(getattr(self, gtep.pipi)),
-        )
-        return all(checks)
+    @classmethod
+    def check_real(cls, inlet: Substance, outlet: Substance) -> str:
+        if not check_mass_flow(inlet.parameters[gtep.mf]):
+            return f"inlet {gtep.mf} {inlet.parameters[gtep.mf]}"
+        if not check_mass_flow(outlet.parameters[gtep.mf]):
+            return f"outlet {gtep.mf} {outlet.parameters[gtep.mf]}"
+
+        if not check_temperature(inlet.parameters[gtep.TT]):
+            return f"inlet {gtep.TT} {inlet.parameters[gtep.TT]}"
+        if not check_temperature(outlet.parameters[gtep.TT]):
+            return f"outlet {gtep.TT} {outlet.parameters[gtep.TT]}"
+
+        effeff = cls.total_efficiency(inlet, outlet)
+        if not check_efficiency(effeff):
+            return f"{effeff}"
+
+        pipi = cls.pressure_ratio(inlet, outlet)
+        if not check_pressure_ratio(pipi):
+            return f"{pipi}"
+
+        return ""
+
+    @classmethod
+    def total_efficiency(cls, inlet: Substance, outlet: Substance) -> float:
+        """Адиабатический КПД"""
+        assert isinstance(inlet, Substance), TypeError(f"{type(inlet)=} must be {Substance}")
+        assert isinstance(outlet, Substance), TypeError(f"{type(outlet)=} must be {Substance}")
+
+        titi = outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT]
+        pipi = cls.pressure_ratio(inlet, outlet)
+
+        ranges = {
+            tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+            tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+        }
+        gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
+        hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
+        k = adiabatic_index(gc, hcp)
+
+        return (1 - titi) / (1 - pipi ** ((1 - k) / k))
+
+    @classmethod
+    def pressure_ratio(cls, inlet: Substance, outlet: Substance) -> float:
+        """Степень повышения полного давления"""
+        assert isinstance(inlet, Substance), TypeError(f"{type(inlet)=} must be {Substance}")
+        assert isinstance(outlet, Substance), TypeError(f"{type(outlet)=} must be {Substance}")
+
+        return inlet.parameters.get(gtep.PP, nan) / outlet.parameters.get(gtep.PP, nan)
+
+    @classmethod
+    def power(cls, inlet: Substance, outlet: Substance) -> float:
+        """Мощность"""
+        assert isinstance(inlet, Substance), TypeError(f"{type(inlet)=} must be {Substance}")
+        assert isinstance(outlet, Substance), TypeError(f"{type(outlet)=} must be {Substance}")
+
+        ranges = {
+            tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+            tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+        }
+        hc, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
+
+        return inlet.parameters[gtep.mf] * hc * (inlet.parameters[gtep.TT] - outlet.parameters[gtep.TT])
 
 
 if __name__ == "__main__":
-    from colorama import Fore
     from fixtures import exhaust
 
     test_cases = (
-        {"name": "1", "turbine": {gtep.pipi: 3, gtep.effeff: 0.9, "leak": 0.03}},
-        {"name": "2", "turbine": {gtep.pipi: 3, gtep.power: 12 * 10**6, "leak": 0.03}},
-        {"name": "3", "turbine": {gtep.effeff: 0.9, gtep.power: 12 * 10**6, "leak": 0.03}},
+        {"parameters": {gtep.pipi: 3, gtep.effeff: 0.9}},
+        {"parameters": {gtep.pipi: 3, gtep.power: 12 * 10**6}},
+        {"parameters": {gtep.effeff: 0.9, gtep.power: 12 * 10**6}},
     )
 
     for test_case in test_cases:
-        t = Turbine(test_case["name"])
+        outlet = Turbine.calculate(exhaust, parameters=test_case["parameters"])
 
-        for k, v in test_case["turbine"].items():
-            setattr(t, k, v)
-
-        t.solve(exhaust)
-
-        for k, v in t.summary.items():
+        for k, v in outlet.parameters.items():
             print(f"{k:<40}: {v}")
 
-        print(Fore.GREEN + f"{t.validate() = }" + Fore.RESET)
-        print(Fore.GREEN + f"{t.is_real = }" + Fore.RESET)
+        print(f"{Turbine.validate(exhaust, outlet) = }")
+        print(f"{Turbine.check_real(exhaust, outlet) = }")
         print()
