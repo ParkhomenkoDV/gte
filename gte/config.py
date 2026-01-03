@@ -5,8 +5,8 @@ parameters = Constants(
     rf="rotation_frequency",  # частота вращения
     l="thermal_conductivity",  # теплопроводность
     hc="heat_capacity",  # теплоемкость
-    Cp="heat_capacity_pressure",  # теплокмкость при постоянном давлении
-    Cv="heat_capacity_volume",  # теплокмкость при постоянном объеме
+    hcp="heat_capacity_pressure",  # теплокмкость при постоянном давлении
+    hcv="heat_capacity_volume",  # теплокмкость при постоянном объеме
     k="adiabatic_index",  # показатель адиабаты
     gc="gas_const",  # газовая постоянная
     eo="excess_oxidizing",  # коэффициент избытка окислителя
@@ -21,8 +21,8 @@ parameters = Constants(
     m="mass",  # масса
     v="volume",  # объем
     # скорости
-    a="sound_speed",  # скорость звука
-    a_critical="critical_sound_speed",  # критическая скорость звука
+    ss="sound_speed",  # скорость звука
+    ss_critical="critical_sound_speed",  # критическая скорость звука
     c="absolute_velocity",  # абсолютная скорость
     u="portable_velocity",  # переносная скорость
     w="relative_velocity",  # относительная скорость
@@ -38,10 +38,15 @@ parameters = Constants(
     # КПД
     efficiency="efficiency",  # КПД
     effeff="total_efficiency",  # полный кпд
-    peff="pressure_efficiency",  # коэф. сохранения давления
-    effburn="efficiency_burn",  # КПД полноты сгорания топлива
+    p_eff="pressure_efficiency",  # коэф. сохранения давления
+    eff_burn="efficiency_burn",  # КПД полноты сгорания топлива
     power="power",  # мощность
 )
 
 EPSREL = 0.01  # относительная ошибка
 NITER = 25  # количество итераций
+
+"""
+Порядок расчета ТД параметров:
+G -> excess_oxidizing -> gas_const -> T* -> P* -> D* -> Cp -> k -> a* -> c
+"""

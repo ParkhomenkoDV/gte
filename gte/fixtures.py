@@ -15,13 +15,13 @@ air = Substance(
         gtep.gc: 287.14,
         gtep.TT: 300.0,
         gtep.PP: 101325.0,
-        gtep.Cp: 1006.0,
+        gtep.hcp: 1006.0,
         gtep.k: 1.4,
         gtep.c: 0.0,
     },
     functions={
         gtep.gc: lambda temperature: gas_const("air"),
-        gtep.Cp: lambda temperature: heat_capacity_p("air", temperature),
+        gtep.hcp: lambda temperature: heat_capacity_p("air", temperature),
     },
 )
 
@@ -58,12 +58,12 @@ exhaust = Substance(
         gtep.gc: 287.0,
         gtep.TT: 1500.0,
         gtep.PP: 101325.0 * 12,
-        gtep.Cp: 1300.0,
+        gtep.hcp: 1300.0,
         gtep.k: 1.33,
         gtep.c: 0.0,
     },
     functions={
         gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
-        gtep.Cp: lambda temperature, excess_oxidizing: hcp_exhaust(temperature, excess_oxidizing, stoichiometry("kerosene"), {"C": 0.85, "H": 0.15}),
+        gtep.hcp: lambda temperature, excess_oxidizing: hcp_exhaust(temperature, excess_oxidizing, stoichiometry("kerosene"), {"C": 0.85, "H": 0.15}),
     },
 )
