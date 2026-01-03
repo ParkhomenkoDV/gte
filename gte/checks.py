@@ -13,6 +13,11 @@ def check_pressure(pressure: float) -> bool:
     return 0 <= pressure
 
 
+def check_excess_oxidizing(excess_oxidizing: float) -> bool:
+    """Проверка коэф. избытка окислителя"""
+    return 0 <= excess_oxidizing
+
+
 def check_efficiency(efficiency: float) -> bool:
     """Проверка значения КПД"""
     return 0 <= efficiency <= 1
