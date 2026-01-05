@@ -2,7 +2,7 @@ import os
 import pickle
 from typing import Any, Callable, Dict, Tuple
 
-from numpy import isnan, nan
+from numpy import cos, isnan, linspace, nan, radians, sin
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust
@@ -37,6 +37,10 @@ class CombustionChamber(GTENode):
 
     variables = (gtep.eff_burn, gtep.p_eff)
     models: Dict[str, Any] = models
+    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
+        tuple(0.4 * cos(alpha) for alpha in linspace(0, radians(360), 360)),
+        tuple(0.4 * sin(alpha) for alpha in linspace(0, radians(360), 360)),
+    )
 
     @classmethod
     def __validate_fuel(cls, fuel: Substance) -> None:
@@ -54,7 +58,7 @@ class CombustionChamber(GTENode):
         assert fuel.functions.get(gtep.gc) is not None, KeyError(f"fuel has not function '{gtep.gc}'")
 
     def __init__(self, name="CombustionChamber", characteristic: Dict[str, Callable] = None):
-        GTENode.__init__(self, name=name)
+        GTENode.__init__(self, name, characteristic)
 
         assert isinstance(characteristic, dict), TypeError(f"{type(characteristic)=} must be dict")
         assert gtep.eff_burn in characteristic, KeyError(f"{gtep.eff_burn} not in {characteristic=}")
@@ -64,8 +68,8 @@ class CombustionChamber(GTENode):
         self.characteristic: Dict[str, Callable] = {gtep.eff_burn: eff_burn, gtep.p_eff: p_eff}
 
     def solve(self, inlet: Substance, fuel: Substance) -> Dict[str, Any]:
-        eff_burn = self.characteristic[gtep.eff_burn]()
-        p_eff = self.characteristic[gtep.p_eff]()
+        eff_burn = self.characteristic[gtep.eff_burn](inlet.parameters[gtep.mf])
+        p_eff = self.characteristic[gtep.p_eff](inlet.parameters[gtep.mf])
 
         outlet = self.calculate(inlet, fuel, parameters={gtep.eff_burn: eff_burn, gtep.p_eff: p_eff})
 

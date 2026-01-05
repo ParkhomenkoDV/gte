@@ -38,9 +38,13 @@ class Compressor(GTENode):
 
     variables = (gtep.effeff, gtep.pipi, gtep.power)
     models: Dict[str, Any] = models
+    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
+        (-0.4, +0.4, +0.4, -0.4, -0.4),
+        (+0.4, +0.2, -0.2, -0.4, +0.4),
+    )
 
     def __init__(self, name: str = "Compressor", characteristic: Dict[str, Callable] = None):
-        GTENode.__init__(self, name=name)
+        GTENode.__init__(self, name, characteristic)
 
         assert isinstance(characteristic, dict), TypeError(f"{type(characteristic)=} must be dict")
         assert gtep.effeff in characteristic, KeyError(f"{gtep.effeff} not in {characteristic=}")
@@ -64,10 +68,10 @@ class Compressor(GTENode):
 
         hcp, _ = integral_average(
             inlet.functions[gtep.hcp],
-            {
+            **{
                 tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
                 tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-                tdp.eo: (inlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
+                tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
             },
         )
 
@@ -140,11 +144,12 @@ class Compressor(GTENode):
         else:
             pass  # validate
 
-        inlet = args["inlet"]
+        inlet, outlet = args["inlet"], args["outlet"]
 
         ranges = {
             tdp.t: (inlet.parameters[gtep.TT], outlet_TT),
             tdp.p: (inlet.parameters[gtep.PP], outlet_PP),
+            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hc, _ = integral_average(inlet.functions[gtep.hcp], **ranges)

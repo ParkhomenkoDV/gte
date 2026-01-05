@@ -20,6 +20,7 @@ class GTENode(ABC):
 
     variables: Tuple[str, ...]  # переменные узла
     models: Dict[str, Any] = {}  # ML модели
+    figure: Tuple[Tuple[float, ...], Tuple[float, ...]]
 
     __slots__ = ["name", "characteristic"]  # list to add
 
@@ -27,7 +28,7 @@ class GTENode(ABC):
         assert isinstance(name, str), TypeError(f"{type(name)=} must be str")
         self.name: str = name
 
-        assert isinstance(characteristic), TypeError(f"{type(characteristic)=} must be dict")
+        assert isinstance(characteristic, dict), TypeError(f"{type(characteristic)=} must be dict")
         self.characteristic: Dict[str, Callable] = {}  # TODO
 
     def __str__(self) -> str:
@@ -37,7 +38,7 @@ class GTENode(ABC):
         if name == "name":
             assert isinstance(value, str), TypeError(f"{type(value)=} must be str")
         elif name == "characteristic":
-            assert isinstance(value), TypeError(f"{type(value)=} must be dict")
+            assert isinstance(value, dict), TypeError(f"{type(value)=} must be dict")
         super().__setattr__(name, value)
 
     def __delattr__(self, name: str) -> None:
