@@ -1,5 +1,5 @@
 # шаблоны типичных ошибок
-TYPE_ERROR: str = "type({})={} must be {}"
+TYPE_ERROR: str = "{} must be {}"
 SUBSTANCE_ATTRIBUTE_ERROR: str = "'{}' has not attribute '{}'"
 ITERATION_LIMIT_ERROR: str = "Iteration limit in {}"
 
