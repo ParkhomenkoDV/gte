@@ -36,7 +36,7 @@ for model in (gtep.pipi, gtep.effeff, gtep.power):
 class Compressor(GTENode):
     """Компрессор"""
 
-    variables = (gtep.effeff, gtep.pipi, gtep.power)
+    variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
     models: Dict[str, Any] = models
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (-0.4, +0.4, +0.4, -0.4, -0.4),

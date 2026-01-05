@@ -73,7 +73,7 @@ for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
 class Nozzle(GTENode):
     """Выходное устройство"""
 
-    variables = (gtep.p_eff, gtep.s_eff)
+    variables: Tuple[str, str] = (gtep.p_eff, gtep.s_eff)
     models: Dict[str, Any] = models
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (+0.4, -0.4, -0.4, +0.4),

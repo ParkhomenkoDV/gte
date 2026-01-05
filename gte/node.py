@@ -7,11 +7,11 @@ from thermodynamics import parameters as tdp
 
 try:  # Попытка относительного импорта
     from .config import parameters as gtep
-    from .errors import SUBSTANCE_ATTRIBUTE_ERROR
+    from .errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
     from .utils import call_with_kwargs
 except ImportError:  # Резервный абсолютный импорт
     from config import parameters as gtep
-    from errors import SUBSTANCE_ATTRIBUTE_ERROR
+    from errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
     from utils import call_with_kwargs
 
 
@@ -25,10 +25,10 @@ class GTENode(ABC):
     __slots__ = ["name", "characteristic"]  # list to add
 
     def __init__(self, name: str = "node", characteristic: Dict[str, Callable] = None) -> None:
-        assert isinstance(name, str), TypeError(f"{type(name)=} must be str")
+        assert isinstance(name, str), TYPE_ERROR.format(name, type(name), str)
         self.name: str = name
 
-        assert isinstance(characteristic, dict), TypeError(f"{type(characteristic)=} must be dict")
+        assert isinstance(characteristic, dict), TYPE_ERROR.format(characteristic, type(characteristic), dict)
         self.characteristic: Dict[str, Callable] = {}  # TODO
 
     def __str__(self) -> str:
@@ -36,9 +36,9 @@ class GTENode(ABC):
 
     def __setattr__(self, name, value) -> None:
         if name == "name":
-            assert isinstance(value, str), TypeError(f"{type(value)=} must be str")
+            assert isinstance(value, str), TYPE_ERROR.format(value, type(value), str)
         elif name == "characteristic":
-            assert isinstance(value, dict), TypeError(f"{type(value)=} must be dict")
+            assert isinstance(value, dict), TYPE_ERROR.format(value, type(value), dict)
         super().__setattr__(name, value)
 
     def __delattr__(self, name: str) -> None:
@@ -59,15 +59,15 @@ class GTENode(ABC):
         """Проверка обязательных параметров рабочего тела"""
         assert isinstance(substance, Substance), TypeError(f"type substance must be {Substance}")
         # validate parameters
-        assert gtep.mf in substance.parameters, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.m))
-        assert gtep.TT in substance.parameters, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
-        assert gtep.PP in substance.parameters, AttributeError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
+        assert gtep.mf in substance.parameters, SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.m)
+        assert gtep.TT in substance.parameters, SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT)
+        assert gtep.PP in substance.parameters, SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP)
         # validate functions
         tdp_keys = tdp.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():
-            assert name in tdp_keys, KeyError(f"function '{name}' not in {tdp_keys}")
+            assert name in tdp_keys, f"function '{name}' not in {tdp_keys}"
             for func_arg in function.__code__.co_varnames:
-                assert func_arg in tdp_keys, NameError(f"function '{name}' has arg '{func_arg}' not in {tdp_keys}")
+                assert func_arg in tdp_keys, f"function '{name}' has arg '{func_arg}' not in {tdp_keys}"
 
     @staticmethod
     def calculate_substance(substance: Substance) -> Substance:

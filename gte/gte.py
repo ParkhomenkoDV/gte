@@ -1,7 +1,7 @@
-from typing import Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 import matplotlib.pyplot as plt
-from numpy import cos, isnan, linspace, nan, prod, radians, sin
+from numpy import array, cos, isnan, linspace, nan, prod, radians, sin
 from scipy.optimize import root
 from substance import Substance
 from tqdm import tqdm
@@ -10,14 +10,14 @@ try:
     from .combustion_chamber import CombustionChamber
     from .compressor import Compressor
     from .config import parameters as gtep
+    from .nozzle import Nozzle
     from .turbine import Turbine
 except ImportError:
     from combustion_chamber import CombustionChamber
     from compressor import Compressor
     from config import parameters as gtep
+    from nozzle import Nozzle
     from turbine import Turbine
-
-# TODO: обучить модели регрессии по предсказанию НУ расчета
 
 
 class Variability:
@@ -61,32 +61,6 @@ class Variability:
                 self._set_combination(combination, main_obj)  # установка текущего параметра варьирования
             else:
                 self._set_combination(0, main_obj)
-
-
-class GTE_mode(Variability):
-    def __setattr__(self, key, value):
-        """# атмосферные условия
-        if key == 'T':  # статическая окружающая температура [К]
-            assert type(value) in (int, float, tuple, list)
-            assert 0 < value
-        elif key == 'P':  # статическое окружающее давление [Па]
-            assert type(value) in (int, float)
-            assert 0 <= value
-
-        # высотно-скоростные характеристики
-        elif key == 'H':  # высота полета [м]
-            assert type(value) in (int, float)
-        elif key == 'M':  # Мах полета []
-            assert type(value) in (int, float)
-            assert 0 <= value
-
-        elif key == 'R':
-            assert type(value) in (int, float)
-
-        else:
-            raise AttributeError('"T", "P", "H", "M"')"""
-
-        object.__setattr__(self, key, value)
 
 
 '''
@@ -265,148 +239,6 @@ class GTE_OLD(Variability):
 
         return result
 '''
-'''
-if __name__ == "__main__":
-    if 0:
-        gte = GTE_OLD("Jumo 004b")
-        gte.scheme = {1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()]}
-        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[1][3]]}
-
-        gte.contouring = {1: 1}
-
-        gte.mode.T = [288]
-        gte.mode.P = 101325
-        gte.mode.H = 0
-        gte.mode.M = 0
-
-        gte.mode.R = 10_000
-
-        gte.substance = Substance({"N2": 0.755, "O2": 0.2315, "Ar": 0.01292, "Ne": 0.000014, "H2": 0.000008})
-        gte.fuel = Substance({"C2H8N2": 1.0})
-
-        gte.scheme[1][0].σ = [0.98]
-        gte.scheme[1][0].g_leak = 0.005
-
-        gte.scheme[1][1].ππ = list(linspace(3, 9, 6 + 1))
-        gte.scheme[1][1].effeff = 0.86
-        gte.scheme[1][1].g_leak = 0.05
-
-        gte.scheme[1][2].T_fuel = 40 + 273.15
-        gte.scheme[1][2].η_burn = 0.99
-        gte.scheme[1][2].TT_o = 1200  # list(linspace(800, 1200, 4 + 1))
-        gte.scheme[1][2].T_lim = 1000
-        gte.scheme[1][2].σ = 0.94
-        gte.scheme[1][2].g_leak = 0
-
-        gte.scheme[1][3].effeff = 0.92
-        gte.scheme[1][3].η_mechanical = 0.99
-        gte.scheme[1][3].T_lim = 1000
-        gte.scheme[1][3].g_leak = 0.05
-
-        gte.scheme[1][4].PP_o = 101325
-        gte.scheme[1][4].eff = 0.96
-        gte.scheme[1][4].v_ = 0.98
-        gte.scheme[1][4].g_leak = 0.001
-
-        """
-        gte.validate_scheme()
-        gte.export_gte_main()
-        """
-
-    if 0:
-        gte = GTE_OLD("CFM-56")
-        gte.scheme = {
-            1: [Inlet(), Compressor(), CombustionChamber(), Turbine(), Outlet()],
-            2: [Inlet(), Compressor(), Outlet()],
-        }
-        gte.scheme.show()
-        gte.shafts = {1: [gte.scheme[1][1], gte.scheme[2][1], gte.scheme[1][3]]}
-
-        gte.m = {1: 1}
-
-        gte.mode.T = 288
-        gte.mode.P = 101325
-        gte.mode.H = 0
-        gte.mode.M = 0
-
-        gte.R = 10_000
-
-        gte.substance = Substance({"N2": 0.755, "O2": 0.2315, "Ar": 0.01292, "Ne": 0.000014, "H2": 0.000008})
-        gte.fuel = Substance({"KEROSENE": 1.0})
-
-        gte.scheme[1][0].σ = 0.98
-        gte.scheme[1][0].g_leak = 0.005
-
-        gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
-        gte.scheme[1][1].eff = 0.86
-        gte.scheme[1][1].g_leak = 0.05
-
-        gte.scheme[1][2].T_fuel = 40 + 273.15
-        gte.scheme[1][2].η_burn = 0.99
-        gte.scheme[1][2].TT_o = 1000
-        gte.scheme[1][2].T_lim = 1000
-        gte.scheme[1][2].σ = 0.94
-        gte.scheme[1][2].g_leak = 0
-
-        gte.scheme[1][3].eff = 0.92
-        gte.scheme[1][3].η_mechanical = 0.99
-        gte.scheme[1][3].T_lim = 1000
-        gte.scheme[1][3].g_leak = 0.05
-
-        gte.scheme[1][4].PP_o = 101325
-        gte.scheme[1][4].eff = 0.96
-        gte.scheme[1][4].v_ = 0.98
-        gte.scheme[1][4].g_leak = 0.001
-
-        gte.scheme[2][0].σ = 0.98
-        gte.scheme[2][0].g_leak = 0.005
-
-        gte.scheme[2][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
-        gte.scheme[2][1].eff = 0.86
-        gte.scheme[2][1].g_leak = 0.05
-
-        gte.scheme[2][2].PP_o = 101325
-        gte.scheme[2][2].eff = 0.96
-        gte.scheme[2][2].v_ = 0.98
-        gte.scheme[2][2].g_leak = 0.001
-
-    """gte.describe()
-    # gte.scheme.show()
-
-    for e in gte.solve():
-        e.summary()
-        print(e.dataframe())
-    """
-'''
-
-
-def get_figure(node, **kwargs) -> Tuple:
-    x0 = kwargs.get("x0", 0)
-    y0 = kwargs.get("y0", 0)
-    x, y = [], []
-
-    """if type(node) is Inlet:
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
-    if isinstance(node, Compressor):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.2, y0 - 0.2, y0 - 0.4, y0 + 0.4]
-    elif isinstance(node, CombustionChamber):
-        x = [0.4 * cos(alpha) + x0 for alpha in linspace(0, radians(360), 360)]
-        y = [0.4 * sin(alpha) + y0 for alpha in linspace(0, radians(360), 360)]
-    elif isinstance(node, Turbine):
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.2, y0 + 0.4, y0 - 0.4, y0 - 0.2, y0 + 0.2]
-    """elif type(node) == Outlet:
-        x = [x0 + 0.4, x0 - 0.4, x0 - 0.4, x0 + 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]
-    elif type(node) == HeatExchanger:
-        x = [x0 - 0.4, x0 + 0.4, x0 + 0.4, x0 - 0.4, x0 - 0.4]
-        y = [y0 + 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4, y0 + 0.4]
-    elif type(node) == Load:
-        x = [x0 - 0.4, x0, x0 + 0.4, x0 - 0.4]
-        y = [y0 - 0.4, y0 + 0.4, y0 - 0.4, y0 - 0.4]"""
-    return x, y
 
 
 class GTE:
@@ -414,7 +246,7 @@ class GTE:
 
     __slots__ = ("name", "scheme", "shafts")
 
-    def __init__(self, name: str, scheme: Dict, shafts: Tuple):
+    def __init__(self, name: str, scheme: Dict, shafts: Tuple) -> None:
         assert isinstance(name, str), TypeError(f"{type(name)=} must be str")
         self.name: str = name
 
@@ -451,7 +283,8 @@ class GTE:
             x0 = y0 = 0.5  # center
 
             for i, node in enumerate(self.scheme[contour]):
-                plt.plot(*get_figure(node, x0=x0, y0=y0), color="black", linewidth=3, label=f"{contour}.{i + 1}: {node.__class__.__name__}")
+                x, y = array(node.figure, dtype="float64")
+                plt.plot(x + x0, y + y0, color="black", linewidth=3, label=f"{contour}.{i + 1}: {node.__class__.__name__}")
                 plt.text(x0, y0, f"{contour}.{i + 1}", fontsize=12, fontweight="bold", ha="center", va="center")
                 x0 += 1
 
@@ -478,7 +311,7 @@ class GTE:
 
         plt.show()
 
-    def _equations(self):
+    def _equations(self, x: Tuple[float], args: Dict[str, Any]) -> List[float]:
         """sum(Compressor.power) = sum(Turbine.power)"""
         result = []
         for shaft in self.shafts:
@@ -491,58 +324,137 @@ class GTE:
             result.append(balance_power)
         return result
 
-    def solve(self, inlet: Substance, fuel: Substance):
-        for shaft in shafts:
-            n = 0  # количество узлов с неизвестной мощностью
-            power = 0  # суммарная можность известных узлов
-            for node in shaft:
-                if isnan(node.power):
-                    n += 1
-                elif isinstance(node, Turbine):
-                    power += node.predict(inlet, use_ml=False)[gtep.power]
-                elif isinstance(node, Compressor):
-                    power -= node.predict(inlet, use_ml=False)[gtep.power]
-            for node in shaft:
-                if isnan(node.power):
-                    node.power = power / n  # первое приближение мощнгсти
+    def calculate(self, inlet: Substance, fuel: Substance, log: bool = False) -> Substance:
+        """Поузловой термодинамический расчет двигателя 'в строчку'"""
+        if log:
+            for s in (inlet, fuel):
+                print(s.name)
+                for key, value in s.parameters.items():
+                    print(f"{key:<25}: {value}")
+                print()
 
         for contour in self.scheme:
-            while True:
-                for i, node in enumerate(self.scheme[contour]):
-                    print(f"{node}")
-                    if i == 0:
-                        if isinstance(node, CombustionChamber):
-                            node.solve(inlet, fuel)
-                        else:
-                            node.solve(inlet)
-                    else:
-                        if isinstance(node, CombustionChamber):
-                            node.solve(self.scheme[contour][i - 1].outlet, fuel)
-                        else:
-                            node.solve(self.scheme[contour][i - 1].outlet)
-                if all(null < 0.1 for null in self._equations()):
-                    break
+            if log:
+                print(f"{contour = }")
+
+            outlet = inlet  # выход из предыдущего узла
+            for i, node in enumerate(self.scheme[contour]):
+                if log:
+                    print(f"\t{i}: {node = }")
+
+                if isinstance(node, Compressor):
+                    outlet = node.solve(outlet, 5)["outlet"]
+                elif isinstance(node, CombustionChamber):
+                    outlet = node.solve(outlet, fuel)["outlet"]
+                elif isinstance(node, Turbine):
+                    outlet = node.solve(outlet, 5)["outlet"]
+                    """elif isinstance(node, outlet):
+                    outlet = node.solve(args)["outlet"]"""
+                else:
+                    raise Exception
+
+                if log:
+                    for key, value in outlet.parameters.items():
+                        print(f"\t\t{key:<25}: {value:.4f}")
+
+        return outlet
+
+    def solve(self, inlet: Substance, fuel: Substance, log: bool = False) -> Dict[str, Any]:
+        """Термодинамический расчет ГТД"""
+        while True:
+            self.calculate(inlet, fuel, log=log)
 
 
 if __name__ == "__main__":
     from fixtures import air, kerosene
 
-    c = Compressor()
-    setattr(c, gtep.pipi, 6)
-    setattr(c, gtep.effeff, 0.85)
+    c = Compressor(
+        "HPC",
+        characteristic={
+            gtep.effeff: lambda rotation_frequency, mass_flow: 0.85,
+            gtep.pipi: lambda rotation_frequency, mass_flow: 6,
+        },
+    )
 
-    cc = CombustionChamber()
-    setattr(cc, gtep.effburn, 0.99)
-    setattr(cc, gtep.peff, 0.95)
+    cc = CombustionChamber(
+        "CC",
+        characteristic={
+            gtep.eff_burn: lambda mass_flow: 0.99,
+            gtep.p_eff: lambda mass_flow: 0.95,
+        },
+    )
 
-    t = Turbine()
-    setattr(t, gtep.effeff, 0.9)
+    t = Turbine(
+        "HPT",
+        characteristic={
+            gtep.effeff: lambda rotation_frequency, mass_flow: 0.9,
+            gtep.pipi: lambda rotation_frequency, mass_flow: 3,
+        },
+    )
 
     scheme = {1: (c, cc, t)}
     shafts = [(scheme[1][0], scheme[1][2])]
 
     gte = GTE("Jumo 004b", scheme, shafts)
 
+    # gte.show()
+
+    gte.calculate(air, kerosene, log=True)
+
+    exit()
+
+    scheme = {
+        1: [Compressor(), CombustionChamber(), Turbine(), Nozzle()],
+        2: [Compressor(), Nozzle()],
+    }
+    shafts = {1: [gte.scheme[1][1], gte.scheme[2][1], gte.scheme[1][3]]}
+
+    gte = GTE("CFM-56", scheme, shafts)
+
     gte.show()
 
-    gte.solve(air, kerosene)
+    gte.mode.T = 288
+    gte.mode.P = 101325
+    gte.mode.H = 0
+    gte.mode.M = 0
+
+    gte.R = 10_000
+
+    gte.substance = Substance({"N2": 0.755, "O2": 0.2315, "Ar": 0.01292, "Ne": 0.000014, "H2": 0.000008})
+    gte.fuel = Substance({"KEROSENE": 1.0})
+
+    gte.scheme[1][0].σ = 0.98
+    gte.scheme[1][0].g_leak = 0.005
+
+    gte.scheme[1][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
+    gte.scheme[1][1].eff = 0.86
+    gte.scheme[1][1].g_leak = 0.05
+
+    gte.scheme[1][2].T_fuel = 40 + 273.15
+    gte.scheme[1][2].η_burn = 0.99
+    gte.scheme[1][2].TT_o = 1000
+    gte.scheme[1][2].T_lim = 1000
+    gte.scheme[1][2].σ = 0.94
+    gte.scheme[1][2].g_leak = 0
+
+    gte.scheme[1][3].eff = 0.92
+    gte.scheme[1][3].η_mechanical = 0.99
+    gte.scheme[1][3].T_lim = 1000
+    gte.scheme[1][3].g_leak = 0.05
+
+    gte.scheme[1][4].PP_o = 101325
+    gte.scheme[1][4].eff = 0.96
+    gte.scheme[1][4].v_ = 0.98
+    gte.scheme[1][4].g_leak = 0.001
+
+    gte.scheme[2][0].σ = 0.98
+    gte.scheme[2][0].g_leak = 0.005
+
+    gte.scheme[2][1].ππ = 6  # list(linspace(3, 43, 40 + 1))
+    gte.scheme[2][1].eff = 0.86
+    gte.scheme[2][1].g_leak = 0.05
+
+    gte.scheme[2][2].PP_o = 101325
+    gte.scheme[2][2].eff = 0.96
+    gte.scheme[2][2].v_ = 0.98
+    gte.scheme[2][2].g_leak = 0.001

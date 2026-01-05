@@ -35,7 +35,7 @@ for model in (gtep.TT, gtep.PP, gtep.pipi, gtep.effeff, gtep.power):
 class CombustionChamber(GTENode):
     """Камера сгорания"""
 
-    variables = (gtep.eff_burn, gtep.p_eff)
+    variables: Tuple[str, str] = (gtep.eff_burn, gtep.p_eff)
     models: Dict[str, Any] = models
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         tuple(0.4 * cos(alpha) for alpha in linspace(0, radians(360), 360)),
