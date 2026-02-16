@@ -1,0 +1,10 @@
+colorama
+tqdm
+numpy
+scipy
+matplotlib
+scikit-learn
+
+mathematics @ git+https://github.com/ParkhomenkoDV/mathematics.git@master
+thermodynamics @ git+https://github.com/ParkhomenkoDV/thermodynamics.git@master
+substance @ git+https://github.com/ParkhomenkoDV/substance.git@master
