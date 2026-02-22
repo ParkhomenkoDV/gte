@@ -26,7 +26,6 @@ parameters = Constants(
     c="absolute_velocity",  # абсолютная скорость
     u="portable_velocity",  # переносная скорость
     w="relative_velocity",  # относительная скорость
-    mf="mass_flow",  # массовый расход
     # безразмерные параметры
     pipi="total_pressure_ratio",  # степень повышения полного давления
     pi="static_pressure_ratio",  # степень повышения статического давления
