@@ -6,7 +6,7 @@ Library for thermodynamic calculation of the cycle of a gas turbine engine of **
 ## About
 - assemble the engine scheme
 - apply boundary conditions
-- calculate engine cycle by `calculate()` method 
+- solve engine cycle by `solve()` method 
 
 ```
             fuel
@@ -22,7 +22,7 @@ inlet -> |   gte   | -> outlet
 
 ## Installation
 ```python
-pip install --upgrade git+https://github.com/ParkhomenkoDV/gte.git@master
+pip install --upgrade git+https://github.com/ParkhomenkoDV/gte.git@main
 ```
 
 ## Usage
@@ -92,7 +92,23 @@ gte/
 |--- examples/  # tutorial
 |--- assets/images/  # docs images
 |--- gte/  # source code gte and gte nodes
+|    |--- nodes/
+|         |--- combustion_chamber/
+|              |--- combustion_chamber.py
+|         |--- compressor/
+|              |--- compressor.py
+|         |--- mixing_chamber.py
+|         |--- nozzle.py
+|         |--- selection.py
+|         |--- transfer.py
+|         |--- turbine/
+|              |--- turbine.py
+|    |--- gte_test.py
+|    |--- gte.py
+|    |--- utils_test.py
+|    |--- utils.py
 |--- .gitignore
+|--- Makefile
 |--- README.md  
 |--- requirements.txt
 |--- setup.py
@@ -113,9 +129,6 @@ gte/
 inlet -> | Compressor | -> outlet
          |            |
          +------------+
-                |
-                v
-              leak
 ```
 
 ## CombustionChamber
@@ -129,9 +142,6 @@ inlet -> | Compressor | -> outlet
 inlet -> | CombustionChamber | -> outlet
          |                   |
          +-------------------+
-                   |
-                   v
-                 leak
 ```
 
 ## Turbine
@@ -145,9 +155,6 @@ inlet -> | CombustionChamber | -> outlet
 inlet -> | Turbine | -> outlet
          |         |
          +---------+
-              |
-              v
-            leak
 ```
 
 ## Shaft
@@ -172,8 +179,8 @@ inlet_n -> |          |
 # TODO
 
 1. gte
-1. outlet
 1. show()
+1. nozzle
 1. MixingChamber
 1. cooling
 1. refactoring for speed
