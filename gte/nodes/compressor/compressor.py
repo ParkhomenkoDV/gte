@@ -49,8 +49,8 @@ class Compressor(GTENode):
 
     def plot_characteristic(
         self,
-        rotation_frequency: Union[Tuple[float], List[float], ArrayLike] = arange(0.80, 1.10, 0.05),
-        mass_flow: Union[Tuple[float], List[float], ArrayLike] = arange(0.5, 1.1, 0.05),
+        rotation_frequency: Union[Tuple[float], List[float], ArrayLike],
+        mass_flow: Union[Tuple[float], List[float], ArrayLike],
         figsize: Tuple[int, int] = (8, 10),
     ) -> plt.Figure:
         fg = plt.figure(figsize=figsize)
@@ -61,12 +61,12 @@ class Compressor(GTENode):
             ax.axis("equal")
             ax.set_xlabel(gtep.m, fontsize=12)
             ax.set_ylabel(name, fontsize=12)
+            ax.grid()
 
             for rf in rotation_frequency:
                 y = [func(**{gtep.rf: rf, gtep.m: m}) for m in mass_flow]
                 ax.plot(mass_flow, y, label=f"{rf=:.4f}")
 
-            ax.grid()
             ax.legend()
 
         fg.tight_layout()
@@ -258,8 +258,8 @@ class Compressor(GTENode):
             tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
-        hc, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
-        k = adiabatic_index(gc, hc)
+        hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
+        k = adiabatic_index(gc, hcp)
 
         return (pipi ** ((k - 1) / k) - 1) / (titi - 1)
 
@@ -286,9 +286,9 @@ class Compressor(GTENode):
             tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
             tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
-        hc, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
+        hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
 
-        return inlet.parameters[gtep.m] * hc * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
+        return inlet.parameters[gtep.m] * hcp * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
 
 
 if __name__ == "__main__":
@@ -314,7 +314,10 @@ if __name__ == "__main__":
         total_pressure_ratio=lambda rotation_frequency, mass: 6,
     )
 
-    c.plot_characteristic()
+    c.plot_characteristic(
+        rotation_frequency=arange(0.80, 1.10, 0.05),
+        mass_flow=arange(0.5, 1.1, 0.05),
+    )
     plt.show()
 
     result = c.solve(inlet, 0)
