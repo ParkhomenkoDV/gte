@@ -1,8 +1,9 @@
 import os
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import matplotlib.pyplot as plt
-from numpy import isnan, nan
+from numpy import arange, isnan, nan
+from numpy.typing import ArrayLike
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index
@@ -48,30 +49,28 @@ class Compressor(GTENode):
 
     def plot_characteristic(
         self,
-        rotation_frequency=(0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10),
-        mass_flow=(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1),
-    ) -> None:
-        fg = plt.figure(figsize=(8, 10))
+        rotation_frequency: Union[Tuple[float], List[float], ArrayLike] = arange(0.80, 1.10, 0.05),
+        mass_flow: Union[Tuple[float], List[float], ArrayLike] = arange(0.5, 1.1, 0.05),
+        figsize: Tuple[int, int] = (8, 10),
+    ) -> plt.Figure:
+        fg = plt.figure(figsize=figsize)
         gs = fg.add_gridspec(2, 1)  # строки, столбцы
 
-        for i, func in enumerate(self.characteristic.values()):
-            fg.add_subplot(gs[i, 0])
-            plt.axis("equal")
-            plt.xlabel(gtep.m, fontsize=12)
-            plt.ylabel(func.target, fontsize=12)
+        for i, (name, func) in enumerate(self.characteristic.items()):
+            ax = fg.add_subplot(gs[i, 0])
+            ax.axis("equal")
+            ax.set_xlabel(gtep.m, fontsize=12)
+            ax.set_ylabel(name, fontsize=12)
 
             for rf in rotation_frequency:
-                x, y = [], []
-                for m in mass_flow:
-                    x.append(m)
-                    y.append(func(**{gtep.rf: rf, gtep.m: m}))
-                plt.plot(x, y, label=f"{rf=:.4f}")
+                y = [func(**{gtep.rf: rf, gtep.m: m}) for m in mass_flow]
+                ax.plot(mass_flow, y, label=f"{rf=:.4f}")
 
-            plt.grid()
-            plt.legend()
+            ax.grid()
+            ax.legend()
 
-        plt.tight_layout()
-        plt.show()
+        fg.tight_layout()
+        return fg
 
     @classmethod
     def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]], use_ml: bool = True) -> Dict[str, float]:
@@ -314,5 +313,9 @@ if __name__ == "__main__":
         total_efficiency=lambda rotation_frequency, mass: 0.85,
         total_pressure_ratio=lambda rotation_frequency, mass: 6,
     )
+
+    c.plot_characteristic()
+    plt.show()
+
     result = c.solve(inlet, 0)
     print(result)
