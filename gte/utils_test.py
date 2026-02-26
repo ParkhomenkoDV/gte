@@ -2,9 +2,14 @@ import numpy as np
 import pytest
 
 try:
-    from .utils import call_with_kwargs, integral_average, integrate
+    from .utils import Interpolator, call_with_kwargs, integral_average, integrate
 except ImportError:
-    from utils import call_with_kwargs, integral_average, integrate
+    from utils import Interpolator, call_with_kwargs, integral_average, integrate
+
+
+def complex_function(x):
+    """Сложная непрерывная функция"""
+    return np.sin(x) + np.log(abs(x) + 1)
 
 
 class Test_call_with_kwargs:
@@ -104,11 +109,8 @@ class TestIntegrate:
     def test_integrate(self, benchmark):
         """Бенчмарк для функции integrate()"""
 
-        def f(x):
-            return ((np.sin(x) ** (2 * x)) / np.exp(np.arccos(x**0.5))) ** np.log(abs(x) + 1)
-
         def benchfunc(ranges):
-            integrate(f, **ranges)
+            integrate(complex_function, **ranges)
 
         benchmark(benchfunc, {"x": (-100, 100)})
 
@@ -301,13 +303,10 @@ class TestIntegralAverage:
     def test_integral_average(self, benchmark):
         """Бенчмарк для функции integral_average()"""
 
-        def f(x):
-            return (np.sin(x) / np.exp(x)) ** np.log(abs(x) + 1)
-
         def benchfunc(function, kwargs):
             integral_average(function, **kwargs)
 
-        benchmark(benchfunc, f, {"x": (-100, 100)})
+        benchmark(benchfunc, complex_function, {"x": (-100, 100)})
 
     def test_error_cases(self):
         """Тесты обработки ошибок"""
@@ -332,5 +331,161 @@ class TestIntegralAverage:
             integral_average(test_func, x=(0, 1, 2))
 
 
+def f1(x):
+    return float(np.sin(x))
+
+
+f1_data = [{"x": x, "z": f1(x)} for x in np.linspace(-1, 1, 21)]
+
+
+def f2(x, y):
+    return np.sin(x) * np.exp(y)
+
+
+f2_data = [{"x": x, "y": y, "z": f2(x, y)} for x in np.linspace(-1, 1, 21) for y in np.linspace(-1, 1, 21)]
+
+
+class TestInterpolator:
+    """Тесты для класса Interpolator"""
+
+    @pytest.mark.parametrize(
+        "datas, target, features, fill_value",
+        [
+            # 1D
+            (f1_data, "z", ["x"], np.nan),
+            (f1_data, "z", None, np.nan),
+            (f1_data, "z", ["x"], 0),
+            (f1_data, "z", None, 0),
+            # 2D
+            (f2_data, "z", ["x", "y"], np.nan),
+            (f2_data, "z", None, np.nan),
+            (f2_data, "z", ["x", "y"], 0),
+            (f2_data, "z", None, 0),
+        ],
+    )
+    def test_init(self, datas, target, features, fill_value):
+        """Тест инициализации"""
+
+        interpolator = Interpolator(datas, target, features, fill_value)
+
+        assert interpolator.target == target
+        if features is not None:
+            assert set(interpolator.features) == set(features)
+        assert interpolator.fill_value == fill_value or (np.isnan(interpolator.fill_value) and np.isnan(fill_value))
+        assert callable(interpolator.function)
+        assert callable(interpolator)
+
+        for data in datas:
+            result = interpolator(**data)
+            assert isinstance(result, float)
+            result == pytest.approx(data[target], rel=1e-6)
+
+    @pytest.mark.parametrize(
+        "datas, target, features, fill_value",
+        [
+            # 1D
+            (f1_data, "z", ["x"], np.nan),
+            (f1_data, "z", None, np.nan),
+            # 2D
+            (f2_data, "z", ["x", "y"], np.nan),
+            (f2_data, "z", None, np.nan),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_interpolator_init(self, benchmark, datas, target, features, fill_value):
+        """Бенчмарк метода init"""
+
+        def benchfunc(datas, target, features, fill_value):
+            Interpolator(datas, target, features, fill_value)
+
+        benchmark(benchfunc, datas, target, features, fill_value)
+
+    @pytest.mark.parametrize(
+        "datas,target,features,fill_value,expected_error",
+        [
+            ([{"x": 1, "y": 1, "z": 1}], "z", None, np.nan, ValueError),  # недостаточно данных
+            ("not a list", "z", None, np.nan, TypeError),  # неверный тип datas
+            (None, "z", None, np.nan, TypeError),  # datas = None
+            ([{"x": 1, "y": 1, "z": 1} for _ in range(5)], 123, None, np.nan, TypeError),  # неверный тип target
+            ([{"x": 1, "y": 1, "z": 1} for _ in range(5)], "z", [], np.nan, ValueError),  # пустой список features
+            ([{"x": 1, "y": 1, "z": 1} for _ in range(5)], "z", [1, 2, 3], np.nan, TypeError),  # features не из строк
+            ([{"x": 1, "y": 1, "z": 1} for _ in range(5)], "nonexistent", None, np.nan, KeyError),  # отсутствие target
+            ([{"x": 1, "y": 1, "z": 1} for _ in range(5)], "z", None, "invalid", TypeError),  # неверный fill_value
+            ([{"x": 1, "y": 1, "z": 1} for _ in range(5)], "z", ["x", "nonexistent"], np.nan, KeyError),  # отсутствия указанных features
+        ],
+    )
+    def test_init_error(self, datas, target, features, fill_value, expected_error):
+        """Тест ошибок при инициализации"""
+        with pytest.raises(expected_error):
+            Interpolator(datas, target, features=features, fill_value=fill_value)
+
+    def test_call_error(self):
+        """Тест пропущенных аргументов при вызове"""
+        interpolator = Interpolator(f2_data, "z")
+
+        with pytest.raises(KeyError):
+            interpolator(x=5)  # пропущен y
+
+        with pytest.raises(Exception):
+            interpolator(x="invalid", y=5)
+
+    @pytest.mark.parametrize(
+        "datas, target, features, fill_value",
+        [
+            # 1D
+            (f1_data, "z", None, np.nan),
+            # 2D
+            (f2_data, "z", None, np.nan),
+        ],
+    )
+    def test_extrapolation(self, datas, target, features, fill_value):
+        """Тест экстраполяции (возврат fill_value)"""
+        interpolator = Interpolator(datas, target, features=features, fill_value=fill_value)
+
+        for data in datas:
+            result = interpolator(**{k: 999_999_999 for k in data})
+            assert np.isnan(result)
+
+    @pytest.mark.parametrize(
+        "datas, target",
+        [
+            (f1_data, "z"),
+            (f2_data, "z"),
+        ],
+    )
+    def test_repr(self, datas, target):
+        """Тест строкового представления"""
+        interpolator = Interpolator(datas, target)
+        assert repr(interpolator) == target
+        assert str(interpolator) == target
+
+    @pytest.mark.parametrize(
+        "datas, target",
+        [
+            (f1_data, "z"),
+            (f2_data, "z"),
+        ],
+    )
+    def test_duplicates(self, datas, target):
+        """Тест обработки дублирующихся точек"""
+        # Создаем данные с дубликатами
+        data_with_duplicates = datas.copy()
+        data_with_duplicates.append(datas[0])
+
+        interpolator = Interpolator(data_with_duplicates, target)
+        result = interpolator(**datas[0])
+        assert isinstance(result, float)
+        assert result == pytest.approx(datas[0][target], rel=1e-6)
+
+    def test_different_feature_order(self):
+        """Тест разного порядка features при вызове"""
+        interpolator = Interpolator(f2_data, "z")
+
+        # Порядок не должен влиять на результат
+        result1 = interpolator(x=0.25, y=0.35)
+        result2 = interpolator(y=0.35, x=0.25)
+        assert result1 == result2
+
+
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "-s", "-x"])
+    pytest.main([__file__, "-v", "-s", "-x", "--benchmark-columns=min,max,mean,stddev,median,rounds,outliers", "--benchmark-sort=name", "--benchmark-min-rounds=10"])
