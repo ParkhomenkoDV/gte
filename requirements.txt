@@ -5,6 +5,6 @@ scipy
 matplotlib
 scikit-learn
 
-mathematics @ git+https://github.com/ParkhomenkoDV/mathematics.git@master
-thermodynamics @ git+https://github.com/ParkhomenkoDV/thermodynamics.git@master
-substance @ git+https://github.com/ParkhomenkoDV/substance.git@master
+mathematics @ git+https://github.com/ParkhomenkoDV/mathematics.git@main
+thermodynamics @ git+https://github.com/ParkhomenkoDV/thermodynamics.git@main
+substance @ git+https://github.com/ParkhomenkoDV/substance.git@main
