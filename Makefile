@@ -38,7 +38,7 @@ venv:
 	$(PYTHON) -m venv $(VENV_DIR)
 	@echo "$(BLUE)Virtual environment created in $(VENV_DIR)$(RESET)"
 	@echo "To activate, run:"
-	@echo "  source $(VENV_ACTIVATE)"
+	@echo "source $(VENV_ACTIVATE)"
 
 activate:
 	@echo "$(BLUE)Run this command to activate virtual environment:$(RESET)"
