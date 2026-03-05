@@ -63,7 +63,6 @@ class CombustionChamber(GTENode):
 
     def __init__(self, efficiency_burn: Callable, pressure_efficiency: Callable, name="CombustionChamber"):
         """Инициализация объекта камеры сгорания"""
-
         for function in (efficiency_burn, pressure_efficiency):
             check_characteristic(function, {gtep.m})
 
@@ -108,8 +107,8 @@ class CombustionChamber(GTENode):
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
         assert len(parameters) == 2, f"{len(parameters)=} must be 2"
-        for key, value in parameters.items():
-            assert key in (gtep.eff_burn, gtep.p_eff)
+        for parameter, value in parameters.items():
+            assert parameter in (gtep.eff_burn, gtep.p_eff)
             assert isinstance(value, (float, int)), TypeError(f"{type(value)=} must be numeric")
 
         if not isinstance(use_ml, bool):
