@@ -36,9 +36,9 @@ parameters = Constants(
     Nu="nusselt_number",  # число Нуссельта
     # КПД
     efficiency="efficiency",  # КПД
-    effeff="total_efficiency",  # полный кпд
+    effeff="total_efficiency",  # полный КПД
     eff_burn="efficiency_burn",  # КПД полноты сгорания топлива
-    s_eff="speed_efficiency",  # коэф. сохранения скорости
+    eff_speed="efficiency_speed",  # КПД скорости
     power="power",  # мощность
 )
 
