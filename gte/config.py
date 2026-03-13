@@ -40,6 +40,7 @@ parameters = Constants(
     eff_burn="efficiency_burn",  # КПД полноты сгорания топлива
     eff_speed="efficiency_speed",  # КПД скорости
     power="power",  # мощность
+    force="force",  # сила
 )
 
 EPSREL = 0.01  # относительная ошибка
