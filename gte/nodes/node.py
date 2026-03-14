@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Dict, Tuple, Union
 
 from substance import Substance
 from thermodynamics import adiabatic_index, critical_sonic_velocity
@@ -21,26 +21,44 @@ except ImportError:  # Резервный абсолютный импорт дл
 
 
 class GTENode(ABC):
-    """Абстрактный базовый класс узла ГТД"""
+    """Абстрактный базовый класс узла ГТД
+
+    Attributes:
+        variables: Кортеж названий переменных узла
+        n_vars: Количество необходимых параметров для решения
+        models: Словарь ML моделей для предсказаний
+        figure: Кортеж с данными для визуализации (x, y координаты)
+        name: Имя узла
+        parameters: Словарь с параметрами узла
+    """
 
     variables: Tuple[str, ...]  # переменные узла
+    n_vars: int = -1  # необходимое количество параметров для решения
     models: Dict[str, Any] = {}  # ML модели
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]]
 
-    __slots__ = ["name", "characteristic"]  # list to add
+    __slots__ = ("name", "parameters")
 
-    def __init__(self, characteristic: Dict[str, Callable], name: str = "node") -> None:
+    def __init__(self, parameters: Dict[str, float], name: str = "node") -> None:
+        """Инициализация объекта узла ГТД"""
+        self.parameters: Dict[str, float] = parameters
         self.name: str = name
-        self.characteristic: Dict[str, Callable] = characteristic
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}: {self.name}"
 
     def __setattr__(self, name, value) -> None:
         if name == "name":
-            assert isinstance(value, str), TYPE_ERROR.format(f"type({name})={type(value)}", str)
-        elif name == "characteristic":
-            assert isinstance(value, dict), TYPE_ERROR.format(f"type({name})={type(value)}", dict)
+            if not isinstance(value, str):
+                raise TypeError(TYPE_ERROR.format(f"type({name})={type(value)}", str))
+        elif name == "parameters":
+            if not isinstance(value, dict):
+                raise TypeError(TYPE_ERROR.format(f"type({name})={type(value)}", dict))
+            for parameter, v in value.items():
+                if parameter not in self.variables:
+                    raise ValueError(f"{parameter=} not in {self.variables}")
+                if not isinstance(v, (float, int)):
+                    raise TypeError(TYPE_ERROR.format(f"type(value)={type(v)}", "numeric"))
         super().__setattr__(name, value)
 
     def __delattr__(self, name: str) -> None:
@@ -51,24 +69,40 @@ class GTENode(ABC):
         else:
             super().__delattr__(name)
 
+    @property
+    def is_solvable(self) -> Tuple[bool, str]:
+        """Проверка возможности решения"""
+        if len(self.parameters) < self.n_vars:
+            return False, f"need to add {self.n_vars - len(self.parameters)} parameters"
+        elif len(self.parameters) > self.n_vars:
+            return False, f"need to delete {len(self.parameters) - self.n_vars} parameters"
+        else:
+            return True, ""
+
     @staticmethod
     def validate_substance(substance: Substance) -> None:
         """Проверка обязательных параметров рабочего тела"""
-        assert isinstance(substance, Substance), TypeError(f"type substance must be {Substance}")
+        if not isinstance(substance, Substance):
+            raise TypeError(TYPE_ERROR.format(f"{type(substance)=}", Substance))
         # validate parameters
-        assert gtep.m in substance.parameters, SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.m)
-        assert gtep.TT in substance.parameters, SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT)
-        assert gtep.PP in substance.parameters, SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP)
+        if gtep.m not in substance.parameters:
+            raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.m))
+        if gtep.TT not in substance.parameters:
+            raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
+        if gtep.PP not in substance.parameters:
+            raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
         # validate functions
         tdp_keys = tdp.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():
-            assert name in tdp_keys, f"function '{name}' not in {tdp_keys}"
+            if name not in tdp_keys:
+                raise KeyError(f"function '{name}' not in {tdp_keys}")
             for func_arg in function.__code__.co_varnames:
-                assert func_arg in tdp_keys, f"function '{name}' has argument '{func_arg}' not in {tdp_keys}"
+                if func_arg not in tdp_keys:
+                    raise KeyError(f"function '{name}' has argument '{func_arg}' not in {tdp_keys}")
 
     @classmethod
     @abstractmethod
-    def predict(cls, inlet: Substance, use_ml: bool = True) -> Dict[str, float]:
+    def predict(cls, inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         raise NotImplementedError
 
@@ -86,11 +120,6 @@ class GTENode(ABC):
         # расчет параметров узла
         # расчет выходных параметров
         # вывод выходных параметров
-        raise NotImplementedError
-
-    @abstractmethod
-    def solve(self, inlet: Substance) -> Dict[str, Any]:
-        """Термодинамический расчет узла по его характеристике и уравнениям _equations"""
         raise NotImplementedError
 
     @staticmethod
