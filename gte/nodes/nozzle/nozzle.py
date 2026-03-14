@@ -262,5 +262,3 @@ if __name__ == "__main__":
         print(f"{Nozzle.validate(inlet, outlet) = }")
         print(f"{Nozzle.check_real(inlet, outlet) = }")
         print()
-
-    n = Nozzle({})

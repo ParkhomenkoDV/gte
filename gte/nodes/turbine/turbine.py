@@ -269,5 +269,3 @@ if __name__ == "__main__":
         print(f"{Turbine.validate(inlet, outlet) = }")
         print(f"{Turbine.check_real(inlet, outlet) = }")
         print()
-
-    t = Turbine({})

@@ -243,5 +243,3 @@ if __name__ == "__main__":
     print(f"{CombustionChamber.validate(inlet, fuel, outlet) = }")
     print(f"{CombustionChamber.check_real(inlet, fuel, outlet) = }")
     print()
-
-    cc = CombustionChamber({})
