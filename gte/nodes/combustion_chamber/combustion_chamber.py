@@ -1,16 +1,14 @@
 import os
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Dict, Tuple, Union
 
-import matplotlib.pyplot as plt
-from numpy import arange, cos, isnan, linspace, nan, radians, sin
-from numpy.typing import ArrayLike
+from numpy import cos, isnan, linspace, nan, radians, sin
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust
 from thermodynamics import parameters as tdp
 
 try:
-    from ...checks import check_characteristic, check_efficiency, check_mass_flow, check_temperature
+    from ...checks import check_efficiency, check_mass_flow, check_temperature
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
@@ -22,7 +20,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.checks import check_characteristic, check_efficiency, check_mass_flow, check_temperature
+    from gte.checks import check_efficiency, check_mass_flow, check_temperature
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
@@ -33,12 +31,15 @@ except ImportError:
 class CombustionChamber(GTENode):
     """Камера сгорания"""
 
-    variables: Tuple[str, str] = (gtep.eff_burn, gtep.p_eff)
+    variables: Tuple[str, str] = (gtep.eff_burn, gtep.pipi)
+    n_vars: int = 2
     models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         tuple(0.4 * cos(alpha) for alpha in linspace(0, radians(360), 360, endpoint=True)),
         tuple(0.4 * sin(alpha) for alpha in linspace(0, radians(360), 360, endpoint=True)),
     )
+
+    __slots__ = ()  # нет новых атрибутов
 
     @classmethod
     def __validate_fuel(cls, fuel: Substance) -> None:
@@ -61,44 +62,12 @@ class CombustionChamber(GTENode):
         if fuel.functions.get(gtep.gc) is None:
             raise KeyError(f"fuel has not function '{gtep.gc}'")
 
-    def __init__(self, efficiency_burn: Callable, pressure_efficiency: Callable, name="CombustionChamber"):
+    def __init__(self, parameters: Dict[str, float], name="CombustionChamber"):
         """Инициализация объекта камеры сгорания"""
-        for function in (efficiency_burn, pressure_efficiency):
-            check_characteristic(function, {gtep.m})
-
-        GTENode.__init__(self, {gtep.eff_burn: efficiency_burn, gtep.p_eff: pressure_efficiency}, name)
-
-    def plot_characteristic(
-        self,
-        mass_flow: Union[Tuple[float], List[float], ArrayLike],
-        figsize: Tuple[int, int] = (8, 10),
-    ) -> plt.Figure:
-        fg = plt.figure(figsize=figsize)
-        gs = fg.add_gridspec(2, 1)  # строки, столбцы
-
-        for i, (name, func) in enumerate(self.characteristic.items()):
-            ax = fg.add_subplot(gs[i, 0])
-            ax.axis("equal")
-            ax.set_xlabel(gtep.m, fontsize=12)
-            ax.set_ylabel(name, fontsize=12)
-            ax.grid()
-
-            y = [func(**{gtep.m: m}) for m in mass_flow]
-            ax.plot(mass_flow, y)
-
-        fg.tight_layout()
-        return fg
-
-    def solve(self, inlet: Substance, fuel: Substance) -> Dict[str, Any]:
-        eff_burn = self.characteristic[gtep.eff_burn](inlet.parameters[gtep.m])
-        p_eff = self.characteristic[gtep.p_eff](inlet.parameters[gtep.m])
-
-        outlet = self.calculate(inlet, fuel, parameters={gtep.eff_burn: eff_burn, gtep.p_eff: p_eff})
-
-        return {"outlet": outlet}
+        GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, float | int], use_ml: bool = True) -> Dict[str, float]:
+    def predict(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, Union[float, int]], use_ml: bool = True) -> Dict[str, float]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
         GTENode.validate_substance(fuel)
@@ -106,9 +75,9 @@ class CombustionChamber(GTENode):
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
-        assert len(parameters) == 2, f"{len(parameters)=} must be 2"
+        assert len(parameters) == 2, f"{len(parameters)=} must be {cls.n_vars}"
         for parameter, value in parameters.items():
-            assert parameter in (gtep.eff_burn, gtep.p_eff)
+            assert parameter in cls.variables
             assert isinstance(value, (float, int)), TypeError(f"{type(value)=} must be numeric")
 
         if not isinstance(use_ml, bool):
@@ -116,7 +85,7 @@ class CombustionChamber(GTENode):
 
         prediction = {
             f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],  # TODO: model or formula
-            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] * parameters[gtep.p_eff],
+            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] * parameters[gtep.pipi],
         }
         return prediction
 
@@ -126,7 +95,7 @@ class CombustionChamber(GTENode):
         (m_i * enthalpy_i) + m_f * (Q*eff_burn + enthalpy_f) = (m_i + m_f) * enthalpy_o
         p_eff = P*_outlet / P*_inlet
         """
-        eff_burn, p_eff = args.get(gtep.eff_burn), args.get(gtep.p_eff)
+        eff_burn, p_eff = args.get(gtep.eff_burn), args.get(gtep.pipi)
         outlet_TT, outlet_PP = x[0], x[1]
 
         inlet, fuel, outlet = args["inlet"], args["fuel"], args["outlet"]
@@ -149,7 +118,7 @@ class CombustionChamber(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, float | int]) -> Substance:
+    def calculate(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, float | int]) -> Tuple[Dict[str, float], Substance]:
         prediction: Dict[str, float] = cls.predict(inlet, fuel, parameters, use_ml=False)
 
         outlet = Substance("exhaust")
@@ -177,15 +146,18 @@ class CombustionChamber(GTENode):
 
         outlet = GTENode.calculate_substance(outlet)
 
-        return outlet
+        eff_burn = parameters.get(gtep.eff_burn, cls.efficiency_burn(inlet, fuel, outlet))
+        pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, fuel, outlet))
+
+        return {gtep.eff_burn: eff_burn, gtep.pipi: pipi}, outlet
 
     @classmethod
     def validate(cls, inlet: Substance, fuel: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
         eff_burn = cls.efficiency_burn(inlet, fuel, outlet)
-        p_eff = cls.pressure_efficiency(inlet, fuel, outlet)
+        pipi = cls.total_pressure_ratio(inlet, fuel, outlet)
 
         x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
-        args = {"inlet": inlet, "fuel": fuel, "outlet": outlet, gtep.eff_burn: eff_burn, gtep.p_eff: p_eff}
+        args = {"inlet": inlet, "fuel": fuel, "outlet": outlet, gtep.eff_burn: eff_burn, gtep.pipi: pipi}
 
         result: Dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
@@ -243,7 +215,7 @@ class CombustionChamber(GTENode):
         return (outlet.parameters[gtep.m] * outlet_enthalpy - inlet.parameters[gtep.m] * inlet_enthalpy - fuel.parameters[gtep.m] * fuel_enthalpy) / (fuel.parameters[gtep.m] * fuel.parameters["lower_heat"])
 
     @classmethod
-    def pressure_efficiency(cls, inlet: Substance, fuel: Substance, outlet: Substance) -> float:
+    def total_pressure_ratio(cls, inlet: Substance, fuel: Substance, outlet: Substance) -> float:
         """Коэф. сохранения давления"""
         GTENode.validate_substance(inlet)
         GTENode.validate_substance(fuel)
@@ -259,22 +231,17 @@ if __name__ == "__main__":
     inlet.parameters[gtep.TT] = 600
     inlet.parameters[gtep.PP] = 101325 * 6
 
-    outlet = CombustionChamber.calculate(inlet, fuel, {gtep.eff_burn: 0.99, gtep.p_eff: 0.95})
+    cc = CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="test")
+    print(f"{cc.is_solvable=}")
+
+    vars, outlet = cc.calculate(inlet, fuel, cc.parameters)
 
     for k, v in outlet.parameters.items():
-        print(f"{k:<40}: {v}")
+        print(f"{k:<25}: {v:.4f}")
+    print(vars)
 
     print(f"{CombustionChamber.validate(inlet, fuel, outlet) = }")
     print(f"{CombustionChamber.check_real(inlet, fuel, outlet) = }")
     print()
 
-    cc = CombustionChamber(
-        efficiency_burn=lambda mass: 0.99,
-        pressure_efficiency=lambda mass: 0.95,
-    )
-
-    cc.plot_characteristic(mass_flow=arange(0.5, 1.1, 0.05))
-    plt.show()
-
-    result = cc.solve(inlet, fuel)
-    print(result)
+    cc = CombustionChamber({})

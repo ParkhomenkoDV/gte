@@ -39,6 +39,8 @@ class Nozzle(GTENode):
         (+0.4, +0.4, -0.4, -0.4),
     )
 
+    __slots__ = ()  # нет новых атрибутов
+
     def __init__(self, parameters: Dict[str, float], name: str = "Nozzle"):
         """Инициализация объекта сопла"""
         GTENode.__init__(self, parameters, name)
@@ -164,8 +166,8 @@ class Nozzle(GTENode):
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
 
         outlet.parameters[gtep.c] = parameters[gtep.eff_speed] * (2 * hcp * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k - 1) / k))) ** 0.5
+        outlet.parameters[gtep.T] = outlet.parameters[gtep.TT] - outlet.parameters[gtep.c] ** 2 / (2 * outlet.parameters[gtep.hcp])
 
-        # outlet.parameters[gtep.T] = outlet.parameters[gtep.TT] - outlet.parameters[gtep.c] ** 2 / (2 * outlet.parameters[gtep.hcp])
         eff_speed = parameters.get(gtep.eff_speed, cls.efficiency_speed(inlet, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
         force = parameters.get(gtep.force, cls.force(inlet, outlet))
@@ -174,11 +176,12 @@ class Nozzle(GTENode):
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+        eff_speed = cls.efficiency_speed(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
-        eff_speed = cls.speed_efficiency(inlet, outlet)
+        force = cls.force(inlet, outlet)
 
-        x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
-        args = {"inlet": inlet, "outlet": outlet, gtep.p_eff: pipi, gtep.eff_speed: eff_speed}
+        x0 = (outlet.parameters[gtep.PP], eff_speed, pipi, force)
+        args = {"inlet": inlet, "outlet": outlet, gtep.eff_speed: eff_speed, gtep.pipi: pipi, gtep.force: force}
 
         result: Dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
@@ -222,7 +225,7 @@ class Nozzle(GTENode):
         if not isinstance(outlet, Substance):
             raise TypeError(TYPE_ERROR.format(f"{type(outlet)=}", Substance))
 
-        return inlet.parameters.get(gtep.PP, nan) / outlet.parameters.get(gtep.PP, nan)
+        return outlet.parameters.get(gtep.PP, nan) / inlet.parameters.get(gtep.PP, nan)
 
     @classmethod
     def force(cls, inlet: Substance, outlet: Substance) -> float:
@@ -247,14 +250,17 @@ if __name__ == "__main__":
         {"parameters": {gtep.eff_speed: 0.99, gtep.force: 31_000}},
     )
     for test_case in test_cases:
-        vars, outlet = Nozzle.calculate(inlet, parameters=test_case["parameters"])
+        n = Nozzle(test_case["parameters"], name="test")
+        print(f"{n.is_solvable=}")
+
+        vars, outlet = n.calculate(inlet, parameters=n.parameters)
 
         for k, v in outlet.parameters.items():
-            print(f"{k:<40}: {v}")
+            print(f"{k:<25}: {v:.4f}")
         print(vars)
 
-        # print(f"{Nozzle.validate(inlet, outlet) = }")
-        # print(f"{Nozzle.check_real(inlet, outlet) = }")
+        print(f"{Nozzle.validate(inlet, outlet) = }")
+        print(f"{Nozzle.check_real(inlet, outlet) = }")
         print()
 
     n = Nozzle({})

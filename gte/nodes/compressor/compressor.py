@@ -1,16 +1,14 @@
 import os
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Dict, Tuple, Union
 
-import matplotlib.pyplot as plt
-from numpy import arange, isnan, nan
-from numpy.typing import ArrayLike
+from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index
 from thermodynamics import parameters as tdp
 
 try:
-    from ...checks import check_characteristic, check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
+    from ...checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
@@ -22,7 +20,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.checks import check_characteristic, check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
+    from gte.checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
@@ -34,95 +32,67 @@ class Compressor(GTENode):
     """Компрессор"""
 
     variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
+    n_vars: int = 2
     models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (-0.4, +0.4, +0.4, -0.4, -0.4),
         (+0.4, +0.2, -0.2, -0.4, +0.4),
     )
 
-    def __init__(self, total_efficiency: Callable, total_pressure_ratio: Callable, name: str = "Compressor"):
+    __slots__ = ()  # нет новых атрибутов
+
+    def __init__(self, parameters: Dict[str, float], name: str = "Compressor"):
         """Инициализация объекта компрессора"""
-        for function in (total_efficiency, total_pressure_ratio):
-            check_characteristic(function, {gtep.rf, gtep.m, gtep.TT, gtep.PP})
-
-        GTENode.__init__(self, {gtep.effeff: total_efficiency, gtep.pipi: total_pressure_ratio}, name)
-
-    def plot_characteristic(
-        self,
-        rotation_frequency: Union[Tuple[float], List[float], ArrayLike],
-        mass_flow: Union[Tuple[float], List[float], ArrayLike],
-        figsize: Tuple[int, int] = (8, 10),
-    ) -> plt.Figure:
-        fg = plt.figure(figsize=figsize)
-        gs = fg.add_gridspec(2, 1)  # строки, столбцы
-
-        for i, (name, func) in enumerate(self.characteristic.items()):
-            ax = fg.add_subplot(gs[i, 0])
-            ax.axis("equal")
-            ax.set_xlabel(gtep.m, fontsize=12)
-            ax.set_ylabel(name, fontsize=12)
-            ax.grid()
-
-            for rf in rotation_frequency:
-                y = [func(**{gtep.rf: rf, gtep.m: m}) for m in mass_flow]
-                ax.plot(mass_flow, y, label=f"{rf=:.4f}")
-
-            ax.legend()
-
-        fg.tight_layout()
-        return fg
+        GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]], use_ml: bool = True) -> Dict[str, float]:
+    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
-        if len(parameters) != 2:
-            raise ValueError(f"{len(parameters)=} must be 2")
+        if len(parameters) != cls.n_vars:
+            raise ValueError(f"{len(parameters)=} must be {cls.n_vars}")
         for parameter, value in parameters.items():
-            if parameter not in (gtep.pipi, gtep.effeff, gtep.power):
-                raise ValueError(f"{parameter=} not in {(gtep.pipi, gtep.effeff, gtep.power)}")
+            if parameter not in cls.variables:
+                raise ValueError(f"{parameter=} not in {cls.variables}")
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        if not isinstance(use_ml, bool):
-            raise TypeError(TYPE_ERROR.format(f"{type(use_ml)=}", bool))
+        inlet_params: Dict[str, float] = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
+        gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
+        hc_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
+        k_i: float = adiabatic_index(gc_i, hc_i)
 
-        inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
-        gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
-        hc_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
-        k_i = adiabatic_index(gc_i, hc_i)
+        outlet = Substance(
+            inlet.name,
+            inlet.composition,
+            parameters={
+                gtep.m: inlet.parameters[gtep.m],
+            },
+            functions=inlet.functions,
+        )
+        vars: Dict[str, float] = {}
 
-        prediction: Dict[str, float] = {}
         if gtep.pipi not in parameters:
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hc_i
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * ((prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT] - 1) * parameters[gtep.effeff] + 1) ** (k_i / (k_i - 1))
-            if use_ml:  # TODO
-                prediction[gtep.pipi] = prediction[f"outlet_{gtep.PP}"] / inlet.parameters[gtep.PP]
-            else:
-                prediction[gtep.pipi] = prediction[f"outlet_{gtep.PP}"] / inlet.parameters[gtep.PP]
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hc_i
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * ((outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1) * parameters[gtep.effeff] + 1) ** (k_i / (k_i - 1))
+            vars[gtep.pipi] = outlet.parameters[gtep.PP] / inlet.parameters[gtep.PP]
         elif gtep.effeff not in parameters:
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hc_i
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            if use_ml:  # TODO
-                prediction[gtep.effeff] = (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / (prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT] - 1)
-            else:
-                prediction[gtep.effeff] = (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / (prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT] - 1)
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hc_i
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
+            vars[gtep.effeff] = (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / (outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1)
         elif gtep.power not in parameters:
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] * (1 + parameters[gtep.pipi] ** ((k_i - 1) / k_i)) / parameters[gtep.effeff]
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            if use_ml:  # TODO
-                prediction[gtep.power] = inlet.parameters[gtep.m] * hc_i * (prediction[f"outlet_{gtep.TT}"] - inlet.parameters[gtep.TT])
-            else:
-                prediction[gtep.power] = inlet.parameters[gtep.m] * hc_i * (prediction[f"outlet_{gtep.TT}"] - inlet.parameters[gtep.TT])
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * (1 + parameters[gtep.pipi] ** ((k_i - 1) / k_i)) / parameters[gtep.effeff]
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
+            vars[gtep.power] = inlet.parameters[gtep.m] * hc_i * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
         else:
             raise ArithmeticError(f"{parameters=}")
 
-        order = (f"outlet_{gtep.TT}", f"outlet_{gtep.PP}", gtep.effeff, gtep.pipi, gtep.power)  # порядок выдачи и получения признаков
+        outlet = GTENode.calculate_substance(outlet)
 
-        return {k: prediction[k] for k in order if k in prediction}
+        return vars, outlet
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
@@ -160,8 +130,8 @@ class Compressor(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Substance:
-        prediction: Dict[str, float] = cls.predict(inlet, parameters, use_ml=False)
+    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
+        prediction, outlet_ = cls.predict(inlet, parameters)
 
         outlet = Substance(
             inlet.name,
@@ -173,40 +143,23 @@ class Compressor(GTENode):
         )
 
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
-        x0 = tuple(prediction.values())
+        x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
 
         result = root(cls._equations, x0, args, method="lm")
 
         outlet.parameters[gtep.TT], outlet.parameters[gtep.PP] = float(result.x[0]), float(result.x[1])
         outlet = GTENode.calculate_substance(outlet)
 
-        return outlet
+        effeff = parameters.get(gtep.effeff, cls.total_efficiency(inlet, outlet))
+        pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
+        power = parameters.get(gtep.power, cls.power(inlet, outlet))
 
-    def solve(self, inlet: Substance, rotation_frequency: float) -> Dict[str, Any]:
-        GTENode.validate_substance(inlet)
-
-        effeff = self.characteristic[gtep.effeff](rotation_frequency, inlet.parameters[gtep.m])
-        pipi = self.characteristic[gtep.pipi](rotation_frequency, inlet.parameters[gtep.m])
-
-        outlet = self.calculate(inlet, parameters={gtep.effeff: effeff, gtep.pipi: pipi})
-
-        hcp, _ = integral_average(
-            inlet.functions[gtep.hcp],
-            **{
-                tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-                tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-                tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
-            },
-        )
-
-        power = inlet.parameters[gtep.m] * hcp * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
-
-        return {"outlet": outlet, gtep.power: power}
+        return {gtep.effeff: effeff, gtep.pipi: pipi, gtep.power: power}, outlet
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
         effeff = cls.total_efficiency(inlet, outlet)
-        pipi = cls.pressure_ratio(inlet, outlet)
+        pipi = cls.total_pressure_ratio(inlet, outlet)
         power = cls.power(inlet, outlet)
 
         x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
@@ -235,7 +188,7 @@ class Compressor(GTENode):
         if not check_efficiency(effeff):
             return f"{effeff}"
 
-        pipi = cls.pressure_ratio(inlet, outlet)
+        pipi = cls.total_pressure_ratio(inlet, outlet)
         if not check_pressure_ratio(pipi):
             return f"{pipi}"
 
@@ -250,7 +203,7 @@ class Compressor(GTENode):
             raise TypeError(TYPE_ERROR.format(f"{type(outlet)=}", Substance))
 
         titi = outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT]
-        pipi = cls.pressure_ratio(inlet, outlet)
+        pipi = cls.total_pressure_ratio(inlet, outlet)
 
         ranges = {
             tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
@@ -264,7 +217,7 @@ class Compressor(GTENode):
         return (pipi ** ((k - 1) / k) - 1) / (titi - 1)
 
     @classmethod
-    def pressure_ratio(cls, inlet: Substance, outlet: Substance) -> float:
+    def total_pressure_ratio(cls, inlet: Substance, outlet: Substance) -> float:
         """Степень повышения полного давления"""
         if not isinstance(inlet, Substance):
             raise TypeError(TYPE_ERROR.format(f"{type(inlet)=}", Substance))
@@ -300,25 +253,15 @@ if __name__ == "__main__":
         {"parameters": {gtep.effeff: 0.85, gtep.power: 12 * 10**6}},
     )
     for test_case in test_cases:
-        outlet = Compressor.calculate(inlet, parameters=test_case["parameters"])
+        c = Compressor(test_case["parameters"], "test")
+        print(f"{c.is_solvable=}")
+
+        vars, outlet = c.calculate(inlet, parameters=c.parameters)
 
         for k, v in outlet.parameters.items():
-            print(f"{k:<40}: {v}")
+            print(f"{k:25}: {v:.4f}")
+        print(vars)
 
         print(f"{Compressor.validate(inlet, outlet) = }")
         print(f"{Compressor.check_real(inlet, outlet) = }")
         print()
-
-    c = Compressor(
-        total_efficiency=lambda rotation_frequency, mass: 0.85,
-        total_pressure_ratio=lambda rotation_frequency, mass: 6,
-    )
-
-    c.plot_characteristic(
-        rotation_frequency=arange(0.80, 1.10, 0.05),
-        mass_flow=arange(0.5, 1.1, 0.05),
-    )
-    plt.show()
-
-    result = c.solve(inlet, 0)
-    print(result)
