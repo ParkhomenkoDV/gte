@@ -62,8 +62,8 @@ class Compressor(GTENode):
 
         inlet_params: Dict[str, float] = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
         gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
-        hc_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
-        k_i: float = adiabatic_index(gc_i, hc_i)
+        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
+        k_i: float = adiabatic_index(gc_i, hcp_i)
 
         outlet = Substance(
             inlet.name,
@@ -76,17 +76,17 @@ class Compressor(GTENode):
         vars: Dict[str, float] = {}
 
         if gtep.pipi not in parameters:
-            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hc_i
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * ((outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1) * parameters[gtep.effeff] + 1) ** (k_i / (k_i - 1))
             vars[gtep.pipi] = outlet.parameters[gtep.PP] / inlet.parameters[gtep.PP]
         elif gtep.effeff not in parameters:
-            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hc_i
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
             vars[gtep.effeff] = (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / (outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1)
         elif gtep.power not in parameters:
-            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * (1 + parameters[gtep.pipi] ** ((k_i - 1) / k_i)) / parameters[gtep.effeff]
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * (1 + (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / parameters[gtep.effeff])
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            vars[gtep.power] = inlet.parameters[gtep.m] * hc_i * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
+            vars[gtep.power] = inlet.parameters[gtep.m] * hcp_i * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
         else:
             raise ArithmeticError(f"{parameters=}")
 
