@@ -12,7 +12,7 @@ try:
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
-    from ...utils import integrate
+    from ...utils import call_with_kwargs, integrate
     from ..node import GTENode
 except ImportError:
     import os
@@ -25,7 +25,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import GTENode
-    from gte.utils import integrate
+    from gte.utils import call_with_kwargs, integrate
 
 
 class CombustionChamber(GTENode):
@@ -67,7 +67,7 @@ class CombustionChamber(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, Union[float, int]], use_ml: bool = True) -> Dict[str, float]:
+    def predict(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
         GTENode.validate_substance(fuel)
@@ -75,19 +75,29 @@ class CombustionChamber(GTENode):
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
-        assert len(parameters) == 2, f"{len(parameters)=} must be {cls.n_vars}"
+        if len(parameters) != 2:
+            raise ValueError(f"{len(parameters)=} must be {cls.n_vars}")
         for parameter, value in parameters.items():
             assert parameter in cls.variables
             assert isinstance(value, (float, int)), TypeError(f"{type(value)=} must be numeric")
 
-        if not isinstance(use_ml, bool):
-            raise TypeError(TYPE_ERROR.format(f"{type(use_ml)=}", bool))
+        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)})
+        hc_f: float = call_with_kwargs(fuel.functions[gtep.hc], {tdp.t: fuel.parameters[gtep.TT], tdp.p: fuel.parameters[gtep.PP]})
 
-        prediction = {
-            f"outlet_{gtep.TT}": inlet.parameters[gtep.TT],  # TODO: model or formula
-            f"outlet_{gtep.PP}": inlet.parameters[gtep.PP] * parameters[gtep.pipi],
-        }
-        return prediction
+        T15 = T0 + 15  # начальная температура измерения теплоемкости энтальпии
+
+        outlet = Substance(
+            "outlet",
+            parameters={
+                gtep.TT: T15
+                + (inlet.parameters[gtep.m] * hcp_i * (inlet.parameters[gtep.TT] - T15) + fuel.parameters[gtep.m] * (hc_f * (fuel.parameters[gtep.TT] - T15) + fuel.parameters["lower_heat"] * parameters[gtep.eff_burn]))
+                / (inlet.parameters[gtep.m] + fuel.parameters[gtep.m])
+                / hcp_i,  # TODO: hcp_exhaust
+                gtep.PP: inlet.parameters[gtep.PP] * parameters[gtep.pipi],
+            },
+        )
+
+        return parameters, outlet
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
@@ -119,7 +129,7 @@ class CombustionChamber(GTENode):
 
     @classmethod
     def calculate(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, float | int]) -> Tuple[Dict[str, float], Substance]:
-        prediction: Dict[str, float] = cls.predict(inlet, fuel, parameters, use_ml=False)
+        prediction, outlet_ = cls.predict(inlet, fuel, parameters)
 
         outlet = Substance("exhaust")
         outlet.functions[gtep.gc] = fuel.functions[gtep.gc]
@@ -138,7 +148,7 @@ class CombustionChamber(GTENode):
         fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, fuel.parameters[gtep.TT])})
 
         args: Dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
-        x0 = tuple(prediction.values())
+        x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]]
 
         result = root(cls._equations, x0, args, method="lm")
 
