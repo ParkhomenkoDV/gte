@@ -129,7 +129,7 @@ class CombustionChamber(GTENode):
 
     @classmethod
     def calculate(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, float | int]) -> Tuple[Dict[str, float], Substance]:
-        prediction, outlet_ = cls.predict(inlet, fuel, parameters)
+        _, outlet_ = cls.predict(inlet, fuel, parameters)
 
         outlet = Substance("exhaust")
         outlet.functions[gtep.gc] = fuel.functions[gtep.gc]

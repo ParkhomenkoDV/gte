@@ -46,7 +46,7 @@ class Turbine(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]], use_ml: bool = True) -> Dict[str, float]:
+    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
 
@@ -60,42 +60,40 @@ class Turbine(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        if not isinstance(use_ml, bool):
-            raise TypeError(TYPE_ERROR.format(f"{type(use_ml)=}", bool))
-
         inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
         gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
         hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
         k_i = adiabatic_index(gc_i, hcp_i)
 
-        prediction: Dict[str, float] = {}
+        outlet = Substance(
+            inlet.name,
+            inlet.composition,
+            parameters={
+                gtep.m: inlet.parameters[gtep.m],
+                gtep.eo: inlet.parameters.get(gtep.eo),  # TODO посчитать через массу!
+            },
+            functions=inlet.functions,
+        )
+        vars: Dict[str, float] = {}
+
         if gtep.pipi not in parameters:
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * (1 - (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / parameters[gtep.effeff]) ** (k_i / (k_i - 1))
-            if use_ml:  # TODO
-                prediction[gtep.pipi] = prediction[f"outlet_{gtep.PP}"] / inlet.parameters[gtep.PP]
-            else:
-                prediction[gtep.pipi] = prediction[f"outlet_{gtep.PP}"] / inlet.parameters[gtep.PP]
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * (1 - (1 - outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT]) / parameters[gtep.effeff]) ** (k_i / (k_i - 1))
+            vars[gtep.pipi] = outlet.parameters[gtep.PP] / inlet.parameters[gtep.PP]
         elif gtep.effeff not in parameters:
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            if use_ml:  # TODO
-                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))
-            else:
-                prediction[gtep.effeff] = (1 - prediction[f"outlet_{gtep.TT}"] / inlet.parameters[gtep.TT]) / (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
+            vars[gtep.effeff] = (1 - outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT]) / (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))
         elif gtep.power not in parameters:
-            prediction[f"outlet_{gtep.TT}"] = inlet.parameters[gtep.TT] * (1 - parameters[gtep.effeff] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i)))
-            prediction[f"outlet_{gtep.PP}"] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            if use_ml:  # TODO
-                prediction[gtep.power] = inlet.parameters[gtep.m] * hcp_i * (prediction[f"outlet_{gtep.TT}"] - inlet.parameters[gtep.TT])
-            else:
-                prediction[gtep.power] = inlet.parameters[gtep.m] * hcp_i * (prediction[f"outlet_{gtep.TT}"] - inlet.parameters[gtep.TT])
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * (1 - parameters[gtep.effeff] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i)))
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
+            vars[gtep.power] = inlet.parameters[gtep.m] * hcp_i * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
         else:
             raise ArithmeticError(f"{parameters=}")
 
-        order = (f"outlet_{gtep.TT}", f"outlet_{gtep.PP}", gtep.effeff, gtep.pipi, gtep.power)  # порядок выдачи и получения признаков
+        outlet = GTENode.calculate_substance(outlet)
 
-        return {k: prediction[k] for k in order if k in prediction}
+        return vars, outlet
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
@@ -134,7 +132,7 @@ class Turbine(GTENode):
 
     @classmethod
     def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:  # TODO cooling
-        prediction: Dict[str, float] = cls.predict(inlet, parameters, use_ml=False)
+        prediction, outlet_ = cls.predict(inlet, parameters)
 
         outlet = Substance(
             inlet.name,
@@ -147,7 +145,7 @@ class Turbine(GTENode):
         )
 
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
-        x0 = tuple(prediction.values())
+        x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
 
         result = root(cls._equations, x0, args, method="lm")
 
