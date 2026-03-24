@@ -127,8 +127,8 @@ class GTE:
             plt.title(f"contour {contour}", fontsize=14)
             plt.xlim(0, len(self.__scheme[contour]))
             plt.ylim(0, 1)
-            plt.xticks(linspace(0, len(self.__scheme[contour]), len(self.__scheme[contour]) + 1))
-            plt.yticks(linspace(0, 1, 1 + 1))
+            plt.xticks(linspace(0, len(self.__scheme[contour]), len(self.__scheme[contour]) + 1), "")
+            plt.yticks(linspace(0, 1, 1 + 1), "")
 
             x0 = y0 = 0.5  # center
 
