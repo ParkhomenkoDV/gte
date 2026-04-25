@@ -1,0 +1,7 @@
+colorama
+numpy
+scipy
+matplotlib
+
+decorators @ git+https://github.com/ParkhomenkoDV/decorators.git@main
+thermodynamics @ git+https://github.com/ParkhomenkoDV/thermodynamics.git@main

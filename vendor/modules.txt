@@ -1,0 +1,6 @@
+# github.com/ParkhomenkoDV/substance v0.0.0-20260302095448-6aded75a2258
+## explicit; go 1.24.3
+github.com/ParkhomenkoDV/substance
+# github.com/ParkhomenkoDV/units v1.0.0
+## explicit; go 1.24
+github.com/ParkhomenkoDV/units
