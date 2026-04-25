@@ -88,30 +88,36 @@ See tutorial in `gte/examples/`
 ## Project structure
 ```
 gte/
-|--- docs/  # documentations
-|--- examples/  # tutorial
-|--- assets/images/  # docs images
-|--- gte/  # source code gte and gte nodes
-|    |--- nodes/
-|         |--- combustion_chamber/
-|              |--- combustion_chamber.py
-|         |--- compressor/
-|              |--- compressor.py
-|         |--- mixing_chamber.py
-|         |--- nozzle.py
-|         |--- selection.py
-|         |--- transfer.py
-|         |--- turbine/
-|              |--- turbine.py
-|    |--- gte_test.py
-|    |--- gte.py
-|    |--- utils_test.py
-|    |--- utils.py
-|--- .gitignore
-|--- Makefile
-|--- README.md  
-|--- requirements.txt
-|--- setup.py
+|-- docs/  # documentations
+|-- examples/  # tutorial
+|-- assets/images/  # docs images
+|-- gte/  # source code gte and gte nodes
+|   |-- nodes/
+|       |-- combustion_chamber/
+|           |-- combustion_chamber.py
+|           |-- combustionChamber.go
+|       |-- turbocompressor/
+|           |-- compressor/
+|               |-- compressor.py
+|               |-- compressor.go
+|           |-- turbine/
+|               |-- turbine.py
+|               |-- turbine.go
+|       |-- mixing_chamber.py
+|       |-- nozzle.py
+|           |-- nozzle.py
+|           |-- nozzle.go
+|       |-- selection.py
+|       |-- transfer.py
+|   |-- gte_test.py
+|   |-- gte.py
+|   |-- utils_test.py
+|   |-- utils.py
+|-- .gitignore
+|-- Makefile
+|-- README.md  
+|-- requirements.txt
+|-- setup.py
 ```
 
 ## Principles of implementation
@@ -120,42 +126,6 @@ gte/
 - minimum external [requirements](requirements.txt)
 
 # GTE nodes
-
-## Compressor
-
-```
-         +------------+
-         |            |
-inlet -> | Compressor | -> outlet
-         |            |
-         +------------+
-```
-
-## CombustionChamber
-
-```
-                 fuel
-                   |
-                   v
-         +-------------------+
-         |                   |
-inlet -> | CombustionChamber | -> outlet
-         |                   |
-         +-------------------+
-```
-
-## Turbine
-
-```
-           cooling
-              |
-              v
-         +---------+
-         |         |
-inlet -> | Turbine | -> outlet
-         |         |
-         +---------+
-```
 
 ## Shaft
 
@@ -179,8 +149,7 @@ inlet_n -> |          |
 # TODO
 
 1. gte
-1. show()
-1. nozzle
+1. transfer
 1. MixingChamber
 1. cooling
 1. refactoring for speed

@@ -6,9 +6,9 @@ try:
     from ..config import parameters as gtep
     from ..fixtures import air, exhaust, kerosene
     from .combustion_chamber.combustion_chamber import CombustionChamber
-    from .compressor.compressor import Compressor
     from .nozzle.nozzle import Nozzle
-    from .turbine.turbine import Turbine
+    from .turbocompressor.compressor.compressor import Compressor
+    from .turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -19,9 +19,9 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.fixtures import air, exhaust, kerosene
     from gte.nodes.combustion_chamber.combustion_chamber import CombustionChamber
-    from gte.nodes.compressor.compressor import Compressor
     from gte.nodes.nozzle import Nozzle
-    from gte.nodes.turbine.turbine import Turbine
+    from gte.nodes.turbocompressor.compressor.compressor import Compressor
+    from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class TestNode:

@@ -34,7 +34,7 @@ kerosene = Substance(
     "kerosene",
     composition={"C": 0.85, "H": 0.15},
     parameters={
-        gtep.m: 3,
+        gtep.m: 1,
         gtep.TT: 40 + T0,
         gtep.PP: 101_325,
         "stoichiometry": stoichiometry("kerosene"),

@@ -9,10 +9,10 @@ try:
     from .config import parameters as gtep
     from .errors import TYPE_ERROR
     from .nodes.combustion_chamber.combustion_chamber import CombustionChamber
-    from .nodes.compressor.compressor import Compressor
     from .nodes.node import GTENode
     from .nodes.nozzle.nozzle import Nozzle
-    from .nodes.turbine.turbine import Turbine
+    from .nodes.turbocompressor.compressor.compressor import Compressor
+    from .nodes.turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -22,10 +22,10 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.combustion_chamber.combustion_chamber import CombustionChamber
-    from gte.nodes.compressor.compressor import Compressor
     from gte.nodes.node import GTENode
     from gte.nodes.nozzle.nozzle import Nozzle
-    from gte.nodes.turbine.turbine import Turbine
+    from gte.nodes.turbocompressor.compressor.compressor import Compressor
+    from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class GTE:

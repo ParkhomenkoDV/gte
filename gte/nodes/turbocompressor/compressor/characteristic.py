@@ -1,10 +1,12 @@
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 
-from numpy import nan
+import matplotlib.pyplot as plt
+from numpy import array, nan
+from numpy.typing import ArrayLike
 
 try:
-    from ...config import parameters as gtep
-    from ...utils import Interpolator
+    from ....config import parameters as gtep
+    from ....utils import Interpolator
 except ImportError:
     import os
     import sys
@@ -15,8 +17,33 @@ except ImportError:
     from gte.utils import Interpolator
 
 
+"""
+def plot_characteristic(
+    rotation_frequency: Union[Tuple[float], List[float], ArrayLike],
+    mass_flow: Union[Tuple[float], List[float], ArrayLike],
+    figsize: Tuple[int, int] = (8, 10),
+) -> plt.Figure:
+    fg = plt.figure(figsize=figsize)
+    gs = fg.add_gridspec(2, 1)  # строки, столбцы
+
+    for i, (name, func) in enumerate(self.characteristic.items()):
+        ax = fg.add_subplot(gs[i, 0])
+        ax.set_xlabel(gtep.m, fontsize=12)
+        ax.set_ylabel(name, fontsize=12)
+        ax.grid()
+
+        for rf in rotation_frequency:
+            y = [func(**{gtep.rf: rf, gtep.m: m}) for m in mass_flow]
+            ax.plot(mass_flow, y, label=f"{rf=:.4f}")
+
+        ax.legend()
+
+    fg.tight_layout()
+    return fg
+"""
+
 # TODO: add mode
-characteristic_13_25: Tuple[Dict[str, float]] = (
+data_13_25: Tuple[Dict[str, float]] = (
     #
     {gtep.rf: 0.800, gtep.m: 0.590, gtep.effeff: 0.90, gtep.pipi: 0.820},
     {gtep.rf: 0.800, gtep.m: 0.640, gtep.effeff: 0.95, gtep.pipi: 0.800},
@@ -67,8 +94,8 @@ characteristic_13_25: Tuple[Dict[str, float]] = (
 
 characteristics: Dict[str, Dict[str, Callable]] = {
     "1.3..2.5": {
-        gtep.effeff: Interpolator(characteristic_13_25, gtep.effeff, features=(gtep.rf, gtep.m), fill_value=nan),
-        gtep.pipi: Interpolator(characteristic_13_25, gtep.pipi, features=(gtep.rf, gtep.m), fill_value=nan),
+        gtep.effeff: Interpolator(data_13_25, gtep.effeff, features=(gtep.rf, gtep.m), fill_value=nan),
+        gtep.pipi: Interpolator(data_13_25, gtep.pipi, features=(gtep.rf, gtep.m), fill_value=nan),
     },
     # TODO: add more
 }

@@ -1,0 +1,4 @@
+github.com/ParkhomenkoDV/substance v0.0.0-20260302095448-6aded75a2258 h1:UZlRa5WgIOTAd/LCed4UuMPevrNTAnPAps0v9MG5cZU=
+github.com/ParkhomenkoDV/substance v0.0.0-20260302095448-6aded75a2258/go.mod h1:B87RzgK9EeN9JdZs1dgyx/UPIVPRZVZLNgbUlpSzELY=
+github.com/ParkhomenkoDV/units v1.0.0 h1:MUtJiUq4sEkRrQ8ZHHWNSgiatpg5x3Rb9LXQufO2HY8=
+github.com/ParkhomenkoDV/units v1.0.0/go.mod h1:ZJl5cnueVlpkYP2th4zOn3IXGs6xrEQ0fxKDWUb1GpQ=
