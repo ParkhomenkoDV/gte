@@ -102,7 +102,7 @@ class GTE:
             shaft.append(node)
         self.shafts.append(shaft)
 
-        self.__finder: Dict = {}
+        self.__finder: Dict[GTENode, Tuple[int, int]] = {}
         for shaft in self.shafts:
             for node1 in shaft:
                 for contour, nodes in enumerate(self.__scheme):
@@ -116,12 +116,15 @@ class GTE:
 
     def plot(self, **kwargs) -> plt.Figure:
         """Визуализация схемы ГТД"""
-        fg = plt.figure(figsize=kwargs.get("figsize", (max(map(len, self.__scheme)) * 2, (len(self.__scheme) + 1 + 2) * 2)))
-        fg.suptitle("GTE scheme", fontsize=14, fontweight="bold")
-        gs = fg.add_gridspec(len(self.__scheme) + 1, 1)  # строки, столбцы
+        length = max(map(len, self.__scheme))  # длина ГТД в узлах
 
+        fg = plt.figure(figsize=kwargs.get("figsize", (length * 2, (len(self.__scheme) + 1 + 2) * 2)))
+        fg.suptitle("GTE scheme", fontsize=14, fontweight="bold")
+        gs = fg.add_gridspec(len(self.__scheme) + 1 + 1, 1)  # строки = контуры + валы + спецификация, столбцы
+
+        # прорисовка контуров
         for contour, nodes in enumerate(self.__scheme):
-            fg.add_subplot(gs[len(self.__scheme) - 1 - contour, 0])
+            fg.add_subplot(gs[(len(self.__scheme) - 1) - contour, 0])
             plt.grid(True)
             plt.axis("square")
             plt.title(f"contour {contour}", fontsize=14)
@@ -132,19 +135,49 @@ class GTE:
 
             x0 = y0 = 0.5  # center
 
-            for i, node in enumerate(nodes):
+            # прорисовка узлов
+            for place, node in enumerate(nodes):
                 x, y = array(node.figure, dtype="float64")
-                plt.plot(x + x0, y + y0, color="black", linewidth=3, label=f"{contour}.{i}: {node.__class__.__name__}")
-                plt.text(x0, y0, f"{contour}.{i}", fontsize=12, fontweight="bold", ha="center", va="center")
+                plt.plot(x + x0, y + y0, color="black", linewidth=3, label=f"{contour}.{place}: {node.__class__.__name__}")
+                plt.text(x0, y0, f"{contour}.{place}", color="black", fontsize=12, fontweight="bold", ha="center", va="center")
                 x0 += 1
 
-        fg.add_subplot(gs[len(self.__scheme), 0])
+        # прорисовка валов, оси вращения
+        fg.add_subplot(gs[(len(self.__scheme) - 1) + 1, 0])
+        plt.title("shafts", fontsize=14)
         plt.axis("off")
         plt.grid(False)
-        plt.xlim(0, max(map(len, self.__scheme)))
+        plt.xlim(0, length)
         plt.ylim(0, 1)
-        plt.plot([0, max(map(len, self.__scheme))], [0.5, 0.5], color="black", linewidth=1.5, linestyle="dashdot")
 
+        # прорисовка валов
+        for j, shaft in enumerate(self.shafts):
+            x = length / (len(shaft) + 1)
+            y = (j + 1) / (len(self.shafts) + 1)
+            for i, node in enumerate(shaft):
+                contour, place = self.__finder[node]
+                plt.plot([x, x * (i + 1)], (y, y), color="black", linewidth=2, linestyle="dashed")  # горизонтальная часть вала
+                plt.text(
+                    x * (i + 1),
+                    y,
+                    f"{contour}.{place}",
+                    color="black",
+                    fontsize=12,
+                    fontweight="bold",
+                    ha="center",
+                    va="center",
+                    bbox=dict(facecolor="white", edgecolor="none", alpha=1),
+                )
+
+        # прорисовка оси вращения
+        plt.plot((0, length), (0, 0), color="black", linewidth=2, linestyle="dashdot")
+
+        # прорисовка спецификации
+        fg.add_subplot(gs[(len(self.__scheme) - 1), 0])
+        plt.axis("off")
+        plt.grid(False)
+        plt.xlim(0, length)
+        plt.ylim(0, 1)
         fg.legend(
             title="Specification",
             title_fontsize=14,
@@ -163,14 +196,16 @@ class GTE:
 
     @property
     def check_solvable(self) -> Tuple[bool, str]:
-        x, y = 0, len(self.shafts) + len(self.requirements)
+        x, y = 0, len(self.shafts) + len(self.requirements)  # неизвестные, уравнения связи и требований
         for nodes in self.__scheme:
             for node in nodes:
                 x += node.n_vars - len(node.parameters)  # требуемое - имеющееся = необходимое
+
+        dif = abs(x - y)  # дисбаланс неизвестных и уравнений
         if x < y:
-            return False, f"need to add {y - x} equations"
+            return False, f"need to add {dif} equations or variables"
         elif x > y:
-            return False, f"need to delete {x - y} equations"
+            return False, f"need to delete {dif} equations or variables"
         else:
             return True, ""
 
@@ -302,7 +337,7 @@ if __name__ == "__main__":
         )
         test_cases = [{}]
 
-    if True:
+    if False:
         inlet.parameters[gtep.m] = 80
 
         gte = GTE(
@@ -355,6 +390,25 @@ if __name__ == "__main__":
                             }
                         )
 
+    if True:
+        inlet.parameters[gtep.m] = 100
+
+        gte = GTE(
+            [
+                (
+                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+                    CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+                    Turbine({gtep.effeff: 0.9}, name="HPT"),
+                    Turbine({gtep.effeff: 0.9}, name="LPT"),
+                    Nozzle({}, "N"),
+                ),
+                (Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),),
+            ]
+        )
+        gte.add_shaft([0, 0], [1, 0], [0, 4])
+        gte.add_shaft([0, 1], [0, 3])
+
     for s in (inlet, fuel):
         if not s:
             continue
@@ -364,14 +418,14 @@ if __name__ == "__main__":
         print()
 
     gte.plot()
-    # plt.show()
+    plt.show()
+
+    exit()
 
     for test_case in tqdm(test_cases, desc="Solving"):
         for k, v in test_case.items():
             gte[k[0]][k[1]].parameters = v
 
         result = gte.solve(inlet, fuel, verbose=False)
-
-        # print(gte)
 
         # print(gte.to_dict())
