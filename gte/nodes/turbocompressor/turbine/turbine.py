@@ -247,10 +247,7 @@ class Turbine(GTENode):
 
 
 if __name__ == "__main__":
-    from gte.fixtures import air as inlet
-
-    # inlet.parameters[gtep.TT] = 1500
-    # inlet.parameters[gtep.PP] *= 12
+    from gte.fixtures import exhaust as inlet
 
     test_cases = (
         {"parameters": {gtep.pipi: 1 / 3, gtep.effeff: 0.9}},

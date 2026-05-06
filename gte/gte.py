@@ -309,10 +309,10 @@ class GTE:
         return result
 
     # TODO
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "scheme": ";".join(self.__scheme for nodes in self.__scheme),
+            "scheme": str({i: [node.__class__.__name__ for node in contour] for i, contour in enumerate(self.__scheme)}),
         }
 
 
@@ -337,7 +337,7 @@ if __name__ == "__main__":
         )
         test_cases = [{}]
 
-    if False:
+    if True:
         inlet.parameters[gtep.m] = 80
 
         gte = GTE(
@@ -390,7 +390,7 @@ if __name__ == "__main__":
                             }
                         )
 
-    if True:
+    if False:
         inlet.parameters[gtep.m] = 100
 
         gte = GTE(
@@ -420,12 +420,10 @@ if __name__ == "__main__":
     gte.plot()
     plt.show()
 
-    exit()
-
     for test_case in tqdm(test_cases, desc="Solving"):
         for k, v in test_case.items():
             gte[k[0]][k[1]].parameters = v
 
         result = gte.solve(inlet, fuel, verbose=False)
 
-        # print(gte.to_dict())
+        print(gte.to_dict())

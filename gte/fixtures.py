@@ -1,5 +1,5 @@
 from substance import Substance
-from thermodynamics import T0, gas_const, gas_const_exhaust_fuel, heat_capacity_p, heat_capacity_p_exhaust, lower_heat, stoichiometry
+from thermodynamics import T0, gas_const, gas_const_exhaust_fuel, heat_capacity_p, heat_capacity_p_exhaust, heat_capacity_p_exhaust_eo1, lower_heat, stoichiometry
 
 try:
     from .config import parameters as gtep
@@ -46,15 +46,6 @@ kerosene = Substance(
     },
 )
 
-
-def hcp_exhaust(temperature, excess_oxidizing, stoichiometry, composition):
-    H2O = composition.get("H2O", 0)  # массовая доля волы в смеси
-    result = (1 - H2O) * (heat_capacity_p_exhaust(temperature, composition) + heat_capacity_p("air", temperature) * excess_oxidizing * stoichiometry)
-    result += H2O * excess_oxidizing * stoichiometry * heat_capacity_p("H2O", temperature)
-    result /= 1 - H2O + excess_oxidizing * stoichiometry
-    return result
-
-
 exhaust = Substance(
     "exhaust",
     parameters={
@@ -69,6 +60,13 @@ exhaust = Substance(
     },
     functions={
         gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
-        gtep.hcp: lambda temperature, excess_oxidizing: hcp_exhaust(temperature, excess_oxidizing, stoichiometry("kerosene"), {"C": 0.85, "H": 0.15}),
+        gtep.hcp: lambda temperature, excess_oxidizing: heat_capacity_p_exhaust(
+            heat_capacity_p_exhaust_eo1(temperature, {"C": 0.85, "H": 0.15}),
+            heat_capacity_p("air", temperature),
+            heat_capacity_p("H2O", temperature),
+            excess_oxidizing,
+            stoichiometry("kerosene"),
+            0,
+        ),
     },
 )

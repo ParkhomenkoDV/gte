@@ -4,7 +4,7 @@ from typing import Any, Dict, Tuple, Union
 from numpy import cos, isnan, linspace, nan, radians, sin
 from scipy.optimize import root
 from substance import Substance
-from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust
+from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust, heat_capacity_p_exhaust_eo1
 from thermodynamics import parameters as tdp
 
 try:
@@ -134,11 +134,14 @@ class CombustionChamber(GTENode):
         outlet = Substance("exhaust")
         outlet.functions[gtep.gc] = fuel.functions[gtep.gc]
 
-        stoichiometry = fuel.parameters["stoichiometry"]
         H2O = fuel.composition.get("H2O", 0)  # массовая доля волы в смеси
-        outlet.functions[gtep.hcp] = lambda temperature, excess_oxidizing: (
-            ((1 - H2O) * (heat_capacity_p_exhaust(temperature, fuel.composition) + inlet.functions[gtep.hcp](temperature) * excess_oxidizing * stoichiometry) + H2O * excess_oxidizing * stoichiometry * heat_capacity_p("H2O", temperature))
-            / (1 - H2O + excess_oxidizing * stoichiometry)
+        outlet.functions[gtep.hcp] = lambda temperature, excess_oxidizing: heat_capacity_p_exhaust(
+            heat_capacity_p_exhaust_eo1(temperature, fuel.composition),
+            inlet.functions[gtep.hcp](temperature),
+            heat_capacity_p("H2O", temperature),
+            excess_oxidizing,
+            fuel.parameters["stoichiometry"],
+            H2O,
         )
 
         outlet.parameters[gtep.m] = inlet.parameters[gtep.m] + fuel.parameters[gtep.m]
