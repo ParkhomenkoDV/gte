@@ -60,7 +60,7 @@ class Turbine(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
+        inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], gtep.eo: inlet.parameters.get(gtep.eo, nan)}
         gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
         hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
         k_i = adiabatic_index(gc_i, hcp_i)
@@ -70,7 +70,7 @@ class Turbine(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo),  # TODO посчитать через массу!
+                gtep.eo: inlet.parameters.get(gtep.eo, nan),  # TODO посчитать через массу!
             },
             functions=inlet.functions,
         )
@@ -118,7 +118,7 @@ class Turbine(GTENode):
         ranges = {
             tdp.t: (inlet.parameters[gtep.TT], outlet_TT),
             tdp.p: (inlet.parameters[gtep.PP], outlet_PP),
-            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            tdp.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
@@ -139,7 +139,7 @@ class Turbine(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo),  # TODO посчитать через массу!
+                gtep.eo: inlet.parameters.get(gtep.eo, nan),  # TODO посчитать через массу!
             },
             functions=inlet.functions,
         )
@@ -247,7 +247,10 @@ class Turbine(GTENode):
 
 
 if __name__ == "__main__":
-    from gte.fixtures import exhaust as inlet
+    from gte.fixtures import air as inlet
+
+    # inlet.parameters[gtep.TT] = 1500
+    # inlet.parameters[gtep.PP] *= 12
 
     test_cases = (
         {"parameters": {gtep.pipi: 1 / 3, gtep.effeff: 0.9}},
