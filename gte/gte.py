@@ -290,7 +290,7 @@ class GTE:
 
         return tuple(power_balances)
 
-    def solve(self, inlet: Substance, fuel: Substance = None, verbose: bool = False):
+    def solve(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
         if not self.check_solvable:
             raise ArithmeticError
@@ -298,21 +298,16 @@ class GTE:
         predictions = self.predict(inlet)
         x0 = tuple(prediction["value"] for prediction in predictions)
 
-        solution = root(self._equations, x0, {"inlet": inlet, "fuel": fuel, "prediction": predictions, "verbose": verbose}, method="lm")
+        resilt = root(self._equations, x0, {"inlet": inlet, "fuel": fuel, "prediction": predictions, "verbose": verbose}, method="lm")
 
-        result: Dict = {}
-        for i, prediction in enumerate(predictions):
-            contour, place, parameter, value = prediction["contour"], prediction["place"], prediction["parameter"], solution.x[i]
-            result[parameter] = float(value)
-            del self[contour][place].parameters[parameter]  # возврат к инициализированному состоянию
+        return resilt.success
 
-        return result
-
-    # TODO
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "scheme": str({i: [node.__class__.__name__ for node in contour] for i, contour in enumerate(self.__scheme)}),
+            "scheme": self.__scheme,
+            "shafts": self.shafts,
+            "requirements": self.requirements,
         }
 
 
@@ -424,6 +419,6 @@ if __name__ == "__main__":
         for k, v in test_case.items():
             gte[k[0]][k[1]].parameters = v
 
-        result = gte.solve(inlet, fuel, verbose=False)
-
-        print(gte.to_dict())
+        ok = gte.solve(inlet, fuel, verbose=False)
+        if not ok:
+            print(gte.to_dict())
