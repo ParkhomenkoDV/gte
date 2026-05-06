@@ -60,7 +60,7 @@ class Nozzle(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
+        inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo, nan)}
         gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
         hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
         k_i = adiabatic_index(gc_i, hcp_i)
@@ -70,7 +70,7 @@ class Nozzle(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo),
+                gtep.eo: inlet.parameters.get(gtep.eo, nan),
                 gtep.TT: inlet.parameters[gtep.TT],
             },
             functions=inlet.functions,
@@ -119,7 +119,7 @@ class Nozzle(GTENode):
             **{
                 tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
                 tdp.p: (inlet.parameters[gtep.PP], outlet_PP),
-                tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+                tdp.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
             },
         )
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
@@ -140,7 +140,7 @@ class Nozzle(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo),
+                gtep.eo: inlet.parameters.get(gtep.eo, nan),
                 gtep.TT: inlet.parameters[gtep.TT],
             },
             functions=inlet.functions,
@@ -211,7 +211,7 @@ class Nozzle(GTENode):
         ranges = {
             tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            tdp.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
