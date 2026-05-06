@@ -19,6 +19,9 @@ inlet -> |   gte   | -> outlet
          +---------+
 ```
 
+## Requirements
+
+![requirements](./requirements.txt)
 
 ## Installation
 ```python
