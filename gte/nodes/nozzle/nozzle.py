@@ -8,7 +8,7 @@ from thermodynamics import adiabatic_index
 from thermodynamics import parameters as tdp
 
 try:
-    from ...checks import check_mass_flow, check_temperature
+    from ...checks import check_mass_flow, check_pressure, check_temperature
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
@@ -20,7 +20,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.checks import check_mass_flow, check_temperature
+    from gte.checks import check_mass_flow, check_pressure, check_temperature
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
@@ -201,6 +201,11 @@ class Nozzle(GTENode):
             return f"inlet {gtep.TT} {inlet.parameters[gtep.TT]}"
         if not check_temperature(outlet.parameters[gtep.TT]):
             return f"outlet {gtep.TT} {outlet.parameters[gtep.TT]}"
+
+        if not check_pressure(inlet.parameters[gtep.PP]):
+            return f"inlet {gtep.PP} {inlet.parameters[gtep.PP]}"
+        if not check_pressure(outlet.parameters[gtep.PP]):
+            return f"outlet {gtep.PP} {outlet.parameters[gtep.PP]}"
 
         return ""
 
