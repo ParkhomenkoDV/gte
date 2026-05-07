@@ -30,8 +30,8 @@ class Channel(GTENode):
     n_vars: int = 2
     models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        (+0.4, -0.4, -0.4, +0.4),
-        (+0.4, +0.4, -0.4, -0.4),
+        ((-0.4, -0.4), (+0.4, +0.4)),
+        ((-0.4, +0.4), (-0.4, +0.4)),
     )
 
     __slots__ = ()  # нет новых атрибутов
