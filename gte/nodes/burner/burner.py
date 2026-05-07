@@ -28,7 +28,7 @@ except ImportError:
     from gte.utils import call_with_kwargs, integrate
 
 
-class CombustionChamber(GTENode):
+class Burner(GTENode):
     """Камера сгорания"""
 
     variables: Tuple[str, str] = (gtep.eff_burn, gtep.pipi)
@@ -62,7 +62,7 @@ class CombustionChamber(GTENode):
         if fuel.functions.get(gtep.gc) is None:
             raise KeyError(f"fuel has not function '{gtep.gc}'")
 
-    def __init__(self, parameters: Dict[str, float], name="CombustionChamber"):
+    def __init__(self, parameters: Dict[str, float], name="Burner"):
         """Инициализация объекта камеры сгорания"""
         GTENode.__init__(self, parameters, name)
 
@@ -244,7 +244,7 @@ if __name__ == "__main__":
     inlet.parameters[gtep.TT] = 600
     inlet.parameters[gtep.PP] = 101325 * 6
 
-    cc = CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="test")
+    cc = Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="test")
     print(f"{cc.is_solvable=}")
 
     vars, outlet = cc.calculate(inlet, fuel, cc.parameters)
@@ -253,6 +253,6 @@ if __name__ == "__main__":
         print(f"{k:<25}: {v:.4f}")
     print(vars)
 
-    print(f"{CombustionChamber.validate(inlet, fuel, outlet) = }")
-    print(f"{CombustionChamber.check_real(inlet, fuel, outlet) = }")
+    print(f"{Burner.validate(inlet, fuel, outlet) = }")
+    print(f"{Burner.check_real(inlet, fuel, outlet) = }")
     print()

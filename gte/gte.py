@@ -8,7 +8,8 @@ from substance import Substance
 try:
     from .config import parameters as gtep
     from .errors import TYPE_ERROR
-    from .nodes.combustion_chamber.combustion_chamber import CombustionChamber
+    from .nodes.burner.burner import Burner
+    from .nodes.channel.channel import Channel
     from .nodes.node import GTENode
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.turbocompressor.compressor.compressor import Compressor
@@ -21,7 +22,8 @@ except ImportError:
 
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.combustion_chamber.combustion_chamber import CombustionChamber
+    from gte.nodes.burner.burner import Burner
+    from gte.nodes.channel.channel import Channel
     from gte.nodes.node import GTENode
     from gte.nodes.nozzle.nozzle import Nozzle
     from gte.nodes.turbocompressor.compressor.compressor import Compressor
@@ -31,7 +33,7 @@ except ImportError:
 class GTE:
     """ГТД"""
 
-    NODES = (Compressor, CombustionChamber, Turbine, Nozzle)
+    NODES = (Compressor, Burner, Turbine, Nozzle, Channel)
 
     __slots__ = ("name", "_GTE__scheme", "shafts", "_GTE__finder", "requirements")
 
@@ -259,7 +261,7 @@ class GTE:
 
                 if isinstance(node, (Compressor, Turbine, Nozzle)):
                     var, outlet = node.calculate(outlet, node.parameters.copy())
-                elif isinstance(node, CombustionChamber):
+                elif isinstance(node, Burner):
                     var, outlet = node.calculate(outlet, fuel, node.parameters.copy())
                 else:
                     raise ValueError(f"no found {node=}")
@@ -334,7 +336,7 @@ if __name__ == "__main__":
             [
                 (
                     Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-                    CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+                    Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
                     Turbine({gtep.effeff: 0.9, gtep.pipi: 1 / 3}, name="HPT"),
                 ),
             ],
@@ -349,7 +351,7 @@ if __name__ == "__main__":
             [
                 (
                     Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-                    CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+                    Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
                     Turbine({gtep.effeff: 0.9}, name="HPT"),
                 ),
             ],
@@ -375,7 +377,7 @@ if __name__ == "__main__":
         inlet.parameters[gtep.m] = 50
 
         hpc = Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC")
-        cc = CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC")
+        cc = Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC")
         hpt = Turbine({gtep.effeff: 0.9}, name="HPT")
         n = Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N")
 
@@ -405,34 +407,42 @@ if __name__ == "__main__":
                 (
                     Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
                     Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-                    CombustionChamber({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+                    Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
                     Turbine({gtep.effeff: 0.9}, name="HPT"),
                     Turbine({gtep.effeff: 0.9}, name="LPT"),
                     Nozzle({gtep.eff_speed: 0.98}, "N"),
                 ),
-                (Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),),
+                (
+                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+                    Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
+                ),
             ]
         )
         gte.add_shaft([0, 0], [1, 0], [0, 4])
         gte.add_shaft([0, 1], [0, 3])
 
         test_cases = []
-        for c_0_0_pipi, c_0_0_effeff in product(arange(3, 5, 0.5), arange(0.86, 0.94, 0.01)):
+        for c_0_0_pipi, c_0_0_effeff in product(arange(1.1, 1.5, 0.5), arange(0.86, 0.94, 0.01)):
             for c_0_1_pipi, c_0_1_effeff in product(arange(6, 12, 1), arange(0.86, 0.9, 0.01)):
                 for eff_burn, cc_pipi in product(arange(0.95, 0.99, 0.01), arange(0.93, 0.97, 0.01)):
                     for t_0_3_effeff in arange(0.86, 0.9, 0.01):
                         for t_0_4_effeff in arange(0.88, 0.92, 0.01):
                             for n_0_5_eff_speed, n_0_5_pipi in product([0.98, 0.99], [1 / 1.8, 1 / 2.0]):
-                                test_cases.append(
-                                    {
-                                        (0, 0): {gtep.pipi: float(c_0_0_pipi), gtep.effeff: float(c_0_0_effeff)},
-                                        (0, 1): {gtep.pipi: float(c_0_0_pipi), gtep.effeff: float(c_0_1_effeff)},
-                                        (0, 2): {gtep.eff_burn: float(eff_burn), gtep.pipi: float(cc_pipi)},
-                                        (0, 3): {gtep.effeff: float(t_0_3_effeff)},
-                                        (0, 4): {gtep.effeff: float(t_0_4_effeff)},
-                                        (0, 5): {gtep.eff_speed: float(n_0_5_eff_speed), gtep.pipi: n_0_5_pipi},
-                                    }
-                                )
+                                for c_1_0_pipi, c_1_0_effeff in product(arange(3, 5, 0.5), arange(0.84, 0.9, 0.01)):
+                                    test_cases.append(
+                                        {
+                                            # 0 contour
+                                            (0, 0): {gtep.pipi: float(c_0_0_pipi), gtep.effeff: float(c_0_0_effeff)},
+                                            (0, 1): {gtep.pipi: float(c_0_1_pipi), gtep.effeff: float(c_0_1_effeff)},
+                                            (0, 2): {gtep.eff_burn: float(eff_burn), gtep.pipi: float(cc_pipi)},
+                                            (0, 3): {gtep.effeff: float(t_0_3_effeff)},
+                                            (0, 4): {gtep.effeff: float(t_0_4_effeff)},
+                                            (0, 5): {gtep.eff_speed: float(n_0_5_eff_speed), gtep.pipi: n_0_5_pipi},
+                                            # 1 contour
+                                            (1, 0): {gtep.pipi: float(c_1_0_pipi), gtep.effeff: c_1_0_effeff},
+                                            (1, 1): {gtep.titi: 1.05, gtep.pipi: 0.95},
+                                        }
+                                    )
 
     for s in (inlet, fuel):
         if not s:

@@ -5,7 +5,7 @@ try:
     from ..config import EPSREL
     from ..config import parameters as gtep
     from ..fixtures import air, exhaust, kerosene
-    from .combustion_chamber.combustion_chamber import CombustionChamber
+    from .burner.burner import Burner
     from .nozzle.nozzle import Nozzle
     from .turbocompressor.compressor.compressor import Compressor
     from .turbocompressor.turbine.turbine import Turbine
@@ -18,7 +18,7 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.fixtures import air, exhaust, kerosene
-    from gte.nodes.combustion_chamber.combustion_chamber import CombustionChamber
+    from gte.nodes.burner.burner import Burner
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.turbocompressor.compressor.compressor import Compressor
     from gte.nodes.turbocompressor.turbine.turbine import Turbine
@@ -27,7 +27,7 @@ except ImportError:
 class TestNode:
     """Тесты абстрактного класса GTENode"""
 
-    @pytest.mark.parametrize("Node", [Compressor, CombustionChamber, Turbine, Nozzle])
+    @pytest.mark.parametrize("Node", [Compressor, Burner, Turbine, Nozzle])
     def test_name(self, Node):
         node = Node({})  # empty parameters
         assert node.name == Node.__name__  # default
@@ -175,24 +175,24 @@ class TestCompressor:
 
 
 @pytest.fixture
-def combustion_chamber():
+def burner():
     """Создает экземпляр камеры сгорания"""
-    return CombustionChamber({}, "Test")
+    return Burner({}, "Test")
 
 
-class TestCombustionChamber:
-    """Тесты для класса CombustionChamber"""
+class TestBurner:
+    """Тесты для класса Burner"""
 
-    def test_init(self, combustion_chamber):
+    def test_init(self, burner):
         """Тест инициализации камеры сгорания"""
-        assert combustion_chamber.name == "Test"
+        assert burner.name == "Test"
 
     @pytest.mark.benchmark
-    def test_cc_init(self, benchmark):
+    def test_b_init(self, benchmark):
         """Бенчмарк инициализации камеры сгорания"""
 
         def benchfunc():
-            return CombustionChamber({}, "Bench")
+            return Burner({}, "Bench")
 
         benchmark(benchfunc)
 
@@ -207,9 +207,9 @@ class TestCombustionChamber:
             ),
         ],
     )
-    def test_predict(self, combustion_chamber, inlet, fuel, parameters, expected_outlet):
+    def test_predict(self, burner, inlet, fuel, parameters, expected_outlet):
         """Тест предсказания камеры сгорания"""
-        vars, outlet = combustion_chamber.predict(inlet, fuel, parameters)
+        vars, outlet = burner.predict(inlet, fuel, parameters)
         for k, v in parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
         for k, v in expected_outlet.parameters.items():
@@ -226,13 +226,13 @@ class TestCombustionChamber:
         ],
     )
     @pytest.mark.benchmark
-    def test_cc_predict(self, benchmark, combustion_chamber, inlet, fuel, parameters):
+    def test_b_predict(self, benchmark, burner, inlet, fuel, parameters):
         """Бенчмарк предсказания камеры сгорания"""
 
-        def benchfunc(combustion_chamber, inlet, fuel, parameters):
-            combustion_chamber.predict(inlet, fuel, parameters)
+        def benchfunc(burner, inlet, fuel, parameters):
+            burner.predict(inlet, fuel, parameters)
 
-        benchmark(benchfunc, combustion_chamber, inlet, fuel, parameters)
+        benchmark(benchfunc, burner, inlet, fuel, parameters)
 
     @pytest.mark.parametrize(
         "inlet, fuel, parameters, expected_outlet",
@@ -245,9 +245,9 @@ class TestCombustionChamber:
             ),
         ],
     )
-    def test_calculate(self, combustion_chamber, inlet, fuel, parameters, expected_outlet):
+    def test_calculate(self, burner, inlet, fuel, parameters, expected_outlet):
         """Тест предсказания камеры сгорания"""
-        vars, outlet = combustion_chamber.calculate(inlet, fuel, parameters)
+        vars, outlet = burner.calculate(inlet, fuel, parameters)
         for k, v in parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
         for k, v in expected_outlet.parameters.items():
@@ -264,13 +264,13 @@ class TestCombustionChamber:
         ],
     )
     @pytest.mark.benchmark
-    def test_cc_calculate(self, benchmark, combustion_chamber, inlet, fuel, parameters):
+    def test_b_calculate(self, benchmark, burner, inlet, fuel, parameters):
         """Бенчмарк расчета камеры сгорания"""
 
-        def benchfunc(combustion_chamber, inlet, fuel, parameters):
-            combustion_chamber.calculate(inlet, fuel, parameters)
+        def benchfunc(burner, inlet, fuel, parameters):
+            burner.calculate(inlet, fuel, parameters)
 
-        benchmark(benchfunc, combustion_chamber, inlet, fuel, parameters)
+        benchmark(benchfunc, burner, inlet, fuel, parameters)
 
 
 @pytest.fixture

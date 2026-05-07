@@ -6,7 +6,7 @@ try:
     from .config import parameters as gtep
     from .fixtures import air, exhaust, kerosene
     from .gte import GTE
-    from .nodes.combustion_chamber.combustion_chamber import CombustionChamber
+    from .nodes.burner.burner import Burner
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.turbocompressor.compressor.compressor import Compressor
     from .nodes.turbocompressor.turbine.turbine import Turbine
@@ -20,7 +20,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.fixtures import air, exhaust, kerosene
     from gte.gte import GTE
-    from gte.nodes.combustion_chamber.combustion_chamber import CombustionChamber
+    from gte.nodes.burner.burner import Burner
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.turbocompressor.compressor.compressor import Compressor
     from gte.nodes.turbocompressor.turbine.turbine import Turbine
@@ -32,8 +32,8 @@ class TestGTE:
     @pytest.mark.parametrize(
         "scheme, name",
         [
-            ([[Compressor({}), CombustionChamber({}), Turbine({})]], "AI-9"),
-            ([[Compressor({}), CombustionChamber({}), Turbine({}), Nozzle({})]], "Jumo 004"),
+            ([[Compressor({}), Burner({}), Turbine({})]], "AI-9"),
+            ([[Compressor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
         ],
     )
     def test_init(self, scheme, name):
@@ -44,8 +44,8 @@ class TestGTE:
     @pytest.mark.parametrize(
         "scheme, name",
         [
-            ([[Compressor({}), CombustionChamber({}), Turbine({})]], "AI-9"),
-            ([[Compressor({}), CombustionChamber({}), Turbine({}), Nozzle({})]], "Jumo 004"),
+            ([[Compressor({}), Burner({}), Turbine({})]], "AI-9"),
+            ([[Compressor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
         ],
     )
     @pytest.mark.benchmark
