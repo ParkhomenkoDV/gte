@@ -23,7 +23,7 @@ except ImportError:
     from gte.nodes.node import GTENode
 
 
-class Channel:
+class Channel(GTENode):
     """Канал"""
 
     variables: Tuple[str, str] = (gtep.titi, gtep.pipi)
