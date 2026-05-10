@@ -42,11 +42,10 @@ class Nozzle(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Nozzle"):
-        """Инициализация объекта сопла"""
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
 
@@ -132,8 +131,8 @@ class Nozzle(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
-        prediction, outlet_ = cls.predict(inlet, parameters)
+    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+        prediction, outlet_ = cls.predict(parameters, inlet)
 
         outlet = Substance(
             inlet.name,
@@ -258,7 +257,7 @@ if __name__ == "__main__":
         n = Nozzle(test_case["parameters"], name="test")
         print(f"{n.is_solvable=}")
 
-        vars, outlet = n.calculate(inlet, parameters=n.parameters)
+        vars, outlet = n.calculate(n.parameters, inlet)
 
         for k, v in outlet.parameters.items():
             print(f"{k:<25}: {v:.4f}")

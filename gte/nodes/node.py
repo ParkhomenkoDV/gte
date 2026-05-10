@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from math import nan
 from typing import Any, Dict, Tuple, Union
 
 from substance import Substance
@@ -96,13 +97,13 @@ class GTENode(ABC):
         for name, function in substance.functions.items():
             if name not in tdp_keys:
                 raise KeyError(f"function '{name}' not in {tdp_keys}")
-            for func_arg in function.__code__.co_varnames:
+            """for func_arg in function.__code__.co_varnames:
                 if func_arg not in tdp_keys:
-                    raise KeyError(f"function '{name}' has argument '{func_arg}' not in {tdp_keys}")
+                    raise KeyError(f"function '{name}' has argument '{func_arg}' not in {tdp_keys}")"""
 
     @classmethod
     @abstractmethod
-    def predict(cls, inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         raise NotImplementedError
 
@@ -127,7 +128,7 @@ class GTENode(ABC):
         """Расчет термодинамических параметров вещества по массе, температуре, давлению"""
         GTENode.validate_substance(substance)
 
-        parameters = {tdp.t: substance.parameters[gtep.TT], tdp.p: substance.parameters[gtep.PP], tdp.eo: substance.parameters.get(gtep.eo)}
+        parameters = {tdp.t: substance.parameters[gtep.TT], tdp.p: substance.parameters[gtep.PP], tdp.eo: substance.parameters.get(gtep.eo, nan)}
         substance.parameters[gtep.gc] = call_with_kwargs(substance.functions[gtep.gc], parameters)
         substance.parameters[gtep.hcp] = call_with_kwargs(substance.functions[gtep.hcp], parameters)
         substance.parameters[gtep.DD] = substance.parameters[gtep.PP] / (substance.parameters[gtep.gc] * substance.parameters[gtep.TT])

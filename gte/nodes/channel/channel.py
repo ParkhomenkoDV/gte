@@ -37,11 +37,10 @@ class Channel(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Channel"):
-        """Инициализация объекта канала"""
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
 
@@ -87,10 +86,8 @@ class Channel(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
-        _, outlet_ = cls.predict(inlet, parameters)
-
-        outlet = outlet_
+    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+        _, outlet = cls.predict(parameters, inlet)
 
         outlet = GTENode.calculate_substance(outlet)
 
@@ -163,7 +160,7 @@ if __name__ == "__main__":
         ch = Channel(test_case["parameters"], name="test")
         print(f"{ch.is_solvable=}")
 
-        vars, outlet = ch.calculate(inlet, parameters=ch.parameters)
+        vars, outlet = ch.calculate(ch.parameters, inlet)
 
         for k, v in outlet.parameters.items():
             print(f"{k:<25}: {v:.4f}")

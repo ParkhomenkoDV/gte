@@ -63,11 +63,10 @@ class Burner(GTENode):
             raise KeyError(f"fuel has not function '{gtep.gc}'")
 
     def __init__(self, parameters: Dict[str, float], name="Burner"):
-        """Инициализация объекта камеры сгорания"""
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
         GTENode.validate_substance(fuel)
@@ -128,8 +127,8 @@ class Burner(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, fuel: Substance, parameters: Dict[str, float | int]) -> Tuple[Dict[str, float], Substance]:
-        _, outlet_ = cls.predict(inlet, fuel, parameters)
+    def calculate(cls, parameters: Dict[str, float | int], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
+        _, outlet_ = cls.predict(parameters, inlet, fuel)
 
         outlet = Substance("exhaust")
         outlet.functions[gtep.gc] = fuel.functions[gtep.gc]
@@ -247,7 +246,7 @@ if __name__ == "__main__":
     cc = Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="test")
     print(f"{cc.is_solvable=}")
 
-    vars, outlet = cc.calculate(inlet, fuel, cc.parameters)
+    vars, outlet = cc.calculate(cc.parameters, inlet, fuel)
 
     for k, v in outlet.parameters.items():
         print(f"{k:<25}: {v:.4f}")

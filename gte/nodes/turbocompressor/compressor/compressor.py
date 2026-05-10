@@ -42,11 +42,10 @@ class Compressor(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Compressor"):
-        """Инициализация объекта компрессора"""
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
 
@@ -60,7 +59,7 @@ class Compressor(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        inlet_params: Dict[str, float] = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)}
+        inlet_params: Dict[str, float] = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo, nan)}
         gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
         hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
         k_i: float = adiabatic_index(gc_i, hcp_i)
@@ -130,8 +129,8 @@ class Compressor(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
-        prediction, outlet_ = cls.predict(inlet, parameters)
+    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+        prediction, outlet_ = cls.predict(parameters, inlet)
 
         outlet = Substance(
             inlet.name,
@@ -256,7 +255,7 @@ if __name__ == "__main__":
         c = Compressor(test_case["parameters"], "test")
         print(f"{c.is_solvable=}")
 
-        vars, outlet = c.calculate(inlet, parameters=c.parameters)
+        vars, outlet = c.calculate(c.parameters, inlet)
 
         for k, v in outlet.parameters.items():
             print(f"{k:25}: {v:.4f}")

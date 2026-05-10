@@ -42,11 +42,10 @@ class Turbine(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Turbine"):
-        """Инициализация объекта турбины"""
         GTENode.__init__(self, parameters, name)
 
     @classmethod
-    def predict(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
 
@@ -131,8 +130,8 @@ class Turbine(GTENode):
         )
 
     @classmethod
-    def calculate(cls, inlet: Substance, parameters: Dict[str, Union[float, int]]) -> Tuple[Dict[str, float], Substance]:  # TODO cooling
-        prediction, outlet_ = cls.predict(inlet, parameters)
+    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:  # TODO cooling
+        prediction, outlet_ = cls.predict(parameters, inlet)
 
         outlet = Substance(
             inlet.name,
@@ -258,7 +257,7 @@ if __name__ == "__main__":
         t = Turbine(test_case["parameters"], name="test")
         print(f"{t.is_solvable=}")
 
-        vars, outlet = t.calculate(inlet, parameters=t.parameters)
+        vars, outlet = t.calculate(t.parameters, inlet)
 
         for k, v in outlet.parameters.items():
             print(f"{k:<25}: {v:.4f}")

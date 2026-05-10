@@ -259,10 +259,10 @@ class GTE:
                 if verbose:
                     print(f"\t{i}: {node = }")
 
-                if isinstance(node, (Compressor, Turbine, Nozzle)):
-                    var, outlet = node.calculate(outlet, node.parameters.copy())
+                if isinstance(node, (Compressor, Turbine, Channel, Nozzle)):
+                    var, outlet = node.calculate(node.parameters.copy(), outlet)
                 elif isinstance(node, Burner):
-                    var, outlet = node.calculate(outlet, fuel, node.parameters.copy())
+                    var, outlet = node.calculate(node.parameters.copy(), outlet, fuel)
                 else:
                     raise ValueError(f"no found {node=}")
 
@@ -331,7 +331,7 @@ if __name__ == "__main__":
     from numpy import arange
     from tqdm import tqdm
 
-    if False:
+    if True:
         gte = GTE(
             [
                 (
@@ -399,7 +399,7 @@ if __name__ == "__main__":
                             }
                         )
 
-    if True:
+    if False:
         inlet.parameters[gtep.m] = 100
 
         gte = GTE(
