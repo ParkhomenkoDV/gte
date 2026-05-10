@@ -33,7 +33,16 @@ def call_with_kwargs(function: Callable, kwargs: Dict[str, Any]):
 
     arguments: Dict[str, Any] = {}
     for key, value in sig.parameters.items():
+        # Пропускаем специальные параметры
         if key in ("cls", "self"):
+            continue
+
+        # Обработка **kwargs параметра
+        if value.kind == inspect.Parameter.VAR_KEYWORD:
+            # Передаем все оставшиеся kwargs
+            for k, v in kwargs.items():
+                if k not in arguments:
+                    arguments[k] = v
             continue
 
         # Проверяем обязательные параметры (без значений по умолчанию)
