@@ -1,9 +1,8 @@
 import os
 from typing import Any, Dict, List, Tuple, Union
 
-from numpy import isnan, nan
+from numpy import isnan
 from substance import Substance
-from thermodynamics import parameters as tdp
 
 try:
     from ...checks import check_mass_flow, check_pressure, check_temperature
@@ -61,8 +60,7 @@ class Joiner(GTENode):
             GTENode.validate_substance(inlet)
 
             names.append(inlet.name)
-            inlet_params: Dict[str, float] = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo, nan)}
-            hcp = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
+            hcp = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
             m += inlet.parameters[gtep.m]
             eo += inlet.parameters.get(gtep.eo, 0)
             m_hcp += inlet.parameters[gtep.m] * hcp

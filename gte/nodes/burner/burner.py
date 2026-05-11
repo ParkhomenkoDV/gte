@@ -5,7 +5,6 @@ from numpy import cos, isnan, linspace, nan, radians, sin
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust, heat_capacity_p_exhaust_eo1
-from thermodynamics import parameters as tdp
 
 try:
     from ...checks import check_efficiency, check_mass_flow, check_temperature
@@ -80,8 +79,8 @@ class Burner(GTENode):
             assert parameter in cls.variables
             assert isinstance(value, (float, int)), TypeError(f"{type(value)=} must be numeric")
 
-        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo)})
-        hc_f: float = call_with_kwargs(fuel.functions[gtep.hc], {tdp.t: fuel.parameters[gtep.TT], tdp.p: fuel.parameters[gtep.PP]})
+        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
+        hc_f: float = call_with_kwargs(fuel.functions[gtep.hc], fuel.parameters)
 
         T15 = T0 + 15  # начальная температура измерения теплоемкости энтальпии
 
@@ -115,9 +114,9 @@ class Burner(GTENode):
                 * integrate(
                     outlet.functions[gtep.hcp],
                     **{
-                        tdp.t: (T0 + 15, outlet_TT),
-                        tdp.p: (101_325, outlet_PP),
-                        tdp.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
+                        gtep.TT: (T0 + 15, outlet_TT),
+                        gtep.PP: (101_325, outlet_PP),
+                        gtep.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
                     },
                 )[0]
             )
@@ -134,10 +133,10 @@ class Burner(GTENode):
         outlet.functions[gtep.gc] = fuel.functions[gtep.gc]
 
         H2O = fuel.composition.get("H2O", 0)  # массовая доля волы в смеси
-        outlet.functions[gtep.hcp] = lambda temperature, excess_oxidizing: heat_capacity_p_exhaust(
-            heat_capacity_p_exhaust_eo1(temperature, fuel.composition),
-            inlet.functions[gtep.hcp](temperature),
-            heat_capacity_p("H2O", temperature),
+        outlet.functions[gtep.hcp] = lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
+            heat_capacity_p_exhaust_eo1(total_temperature, fuel.composition),
+            inlet.functions[gtep.hcp](total_temperature),
+            heat_capacity_p("H2O", total_temperature),
             excess_oxidizing,
             fuel.parameters["stoichiometry"],
             H2O,
@@ -146,8 +145,8 @@ class Burner(GTENode):
         outlet.parameters[gtep.m] = inlet.parameters[gtep.m] + fuel.parameters[gtep.m]
         outlet.parameters[gtep.eo] = inlet.parameters[gtep.m] / fuel.parameters[gtep.m] / fuel.parameters["stoichiometry"]
 
-        inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{tdp.t: (T0 + 15, inlet.parameters[gtep.TT]), tdp.p: (101325, inlet.parameters[gtep.PP])})
-        fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, fuel.parameters[gtep.TT])})
+        inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP])})
+        fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
 
         args: Dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
         x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]]
@@ -213,14 +212,14 @@ class Burner(GTENode):
         GTENode.validate_substance(fuel)
         cls.__validate_fuel(fuel)
 
-        inlet_enthalpy, _ = integrate(inlet.functions[gtep.hcp], **{tdp.t: (T0 + 15, inlet.parameters[gtep.TT]), tdp.p: (101325, inlet.parameters[gtep.PP])})
-        fuel_enthalpy, _ = integrate(fuel.functions[gtep.hc], **{tdp.t: (T0 + 15, fuel.parameters[gtep.TT])})
+        inlet_enthalpy, _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP])})
+        fuel_enthalpy, _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
         outlet_enthalpy, _ = integrate(
             outlet.functions[gtep.hcp],
             **{
-                tdp.t: (T0 + 15, outlet.parameters[gtep.TT]),
-                tdp.p: (101_325, outlet.parameters[gtep.PP]),
-                tdp.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
+                gtep.TT: (T0 + 15, outlet.parameters[gtep.TT]),
+                gtep.PP: (101_325, outlet.parameters[gtep.PP]),
+                gtep.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
             },
         )
 

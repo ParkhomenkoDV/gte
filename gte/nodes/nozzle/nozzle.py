@@ -5,7 +5,6 @@ from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index
-from thermodynamics import parameters as tdp
 
 try:
     from ...checks import check_mass_flow, check_pressure, check_temperature
@@ -59,9 +58,8 @@ class Nozzle(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        inlet_params = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo, nan)}
-        gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
-        hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
+        gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet.parameters)
+        hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
         k_i = adiabatic_index(gc_i, hcp_i)
 
         outlet = Substance(
@@ -116,9 +114,9 @@ class Nozzle(GTENode):
         hcp, _ = integral_average(
             inlet.functions[gtep.hcp],
             **{
-                tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-                tdp.p: (inlet.parameters[gtep.PP], outlet_PP),
-                tdp.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
+                gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+                gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
+                gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
             },
         )
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
@@ -157,9 +155,9 @@ class Nozzle(GTENode):
         outlet = GTENode.calculate_substance(outlet)
 
         ranges = {
-            tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-            tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+            gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
@@ -213,9 +211,9 @@ class Nozzle(GTENode):
         """КПД сохранения скорости"""
         pipi = cls.total_pressure_ratio(inlet, outlet)  # + проверка
         ranges = {
-            tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-            tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            tdp.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
+            gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+            gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)

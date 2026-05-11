@@ -5,7 +5,6 @@ from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import adiabatic_index
-from thermodynamics import parameters as tdp
 
 try:
     from ....checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
@@ -59,9 +58,8 @@ class Compressor(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        inlet_params: Dict[str, float] = {tdp.t: inlet.parameters[gtep.TT], tdp.p: inlet.parameters[gtep.PP], tdp.eo: inlet.parameters.get(gtep.eo, nan)}
-        gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], inlet_params)
-        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet_params)
+        gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], inlet.parameters)
+        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
         k_i: float = adiabatic_index(gc_i, hcp_i)
 
         outlet = Substance(
@@ -114,9 +112,9 @@ class Compressor(GTENode):
         inlet, outlet = args["inlet"], args["outlet"]
 
         ranges = {
-            tdp.t: (inlet.parameters[gtep.TT], outlet_TT),
-            tdp.p: (inlet.parameters[gtep.PP], outlet_PP),
-            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.TT: (inlet.parameters[gtep.TT], outlet_TT),
+            gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
+            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
@@ -205,9 +203,9 @@ class Compressor(GTENode):
         pipi = cls.total_pressure_ratio(inlet, outlet)
 
         ranges = {
-            tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-            tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+            gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
@@ -234,9 +232,9 @@ class Compressor(GTENode):
             raise TypeError(TYPE_ERROR.format(f"{type(outlet)=}", Substance))
 
         ranges = {
-            tdp.t: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-            tdp.p: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            tdp.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+            gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
+            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
 
