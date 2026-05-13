@@ -5,7 +5,7 @@ import (
 
 	combustion_chamber "github.com/ParkhomenkoDV/gte/gte/nodes/burner"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/blade"
-	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/compressor"
+	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/rotor"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/turbine"
 	"github.com/ParkhomenkoDV/substance"
 	"github.com/ParkhomenkoDV/units"
@@ -22,7 +22,7 @@ func main() {
 	blade := blade.New(steel)
 	_ = blade
 
-	c := compressor.New("HPC", map[string]float64{})
+	c := rotor.New("HPC", map[string]float64{})
 	cc := combustion_chamber.New("CC", map[string]float64{})
 	t := turbine.New("HPT", map[string]float64{})
 

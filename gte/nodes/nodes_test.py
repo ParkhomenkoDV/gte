@@ -10,7 +10,7 @@ try:
     from .joiner.joiner import Joiner
     from .nozzle.nozzle import Nozzle
     from .splitter.splitter import Splitter
-    from .turbocompressor.compressor.compressor import Compressor
+    from .turbocompressor.rotor.rotor import Rotor
     from .turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
@@ -26,14 +26,14 @@ except ImportError:
     from gte.nodes.joiner.joiner import Joiner
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.splitter.splitter import Splitter
-    from gte.nodes.turbocompressor.compressor.compressor import Compressor
+    from gte.nodes.turbocompressor.rotor.rotor import Rotor
     from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class TestNode:
     """Тесты абстрактного класса GTENode"""
 
-    @pytest.mark.parametrize("Node", [Compressor, Burner, Turbine, Nozzle])
+    @pytest.mark.parametrize("Node", [Rotor, Burner, Turbine, Nozzle])
     def test_name(self, Node):
         node = Node({})  # empty parameters
         assert node.name == Node.__name__  # default
@@ -46,7 +46,13 @@ class TestNode:
 @pytest.fixture
 def compressor():
     """Создает экземпляр компрессора"""
-    return Compressor({}, "Test")
+    return Rotor({}, "Test")
+
+
+@pytest.fixture
+def turbine():
+    """Создает экземпляр турбины"""
+    return Turbine({}, "Test")
 
 
 class TestCompressor:
@@ -61,7 +67,7 @@ class TestCompressor:
         """Бенчмарк инициализации компрессора"""
 
         def benchfunc():
-            return Compressor({}, name="Bench")
+            return Rotor({}, name="Bench")
 
         benchmark(benchfunc)
 
@@ -178,111 +184,6 @@ class TestCompressor:
             compressor.calculate(parameters, inlet)
 
         benchmark(benchfunc, compressor, parameters, inlet)
-
-
-@pytest.fixture
-def burner():
-    """Создает экземпляр камеры сгорания"""
-    return Burner({}, "Test")
-
-
-class TestBurner:
-    """Тесты для класса Burner"""
-
-    def test_init(self, burner):
-        """Тест инициализации камеры сгорания"""
-        assert burner.name == "Test"
-
-    @pytest.mark.benchmark
-    def test_burner_init(self, benchmark):
-        """Бенчмарк инициализации камеры сгорания"""
-
-        def benchfunc():
-            return Burner({}, "Bench")
-
-        benchmark(benchfunc)
-
-    @pytest.mark.parametrize(
-        "parameters, inlet, fuel, expected_outlet",
-        [
-            (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
-                air,
-                kerosene,
-                Substance("outlet", parameters={gtep.TT: 1137.5, gtep.PP: 96_258}),
-            ),
-        ],
-    )
-    def test_predict(self, burner, parameters, inlet, fuel, expected_outlet):
-        """Тест предсказания камеры сгорания"""
-        vars, outlet = burner.predict(parameters, inlet, fuel)
-        for k, v in parameters.items():
-            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-
-    @pytest.mark.parametrize(
-        "parameters, inlet, fuel",
-        [
-            (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
-                air,
-                kerosene,
-            ),
-        ],
-    )
-    @pytest.mark.benchmark
-    def test_burner_predict(self, benchmark, burner, parameters, inlet, fuel):
-        """Бенчмарк предсказания камеры сгорания"""
-
-        def benchfunc(burner, parameters, inlet, fuel):
-            burner.predict(parameters, inlet, fuel)
-
-        benchmark(benchfunc, burner, parameters, inlet, fuel)
-
-    @pytest.mark.parametrize(
-        "parameters, inlet, fuel, expected_outlet",
-        [
-            (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
-                air,
-                kerosene,
-                Substance("outlet", parameters={gtep.TT: 1079, gtep.PP: 96_258}),
-            ),
-        ],
-    )
-    def test_calculate(self, burner, parameters, inlet, fuel, expected_outlet):
-        """Тест предсказания камеры сгорания"""
-        vars, outlet = burner.calculate(parameters, inlet, fuel)
-        for k, v in parameters.items():
-            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-
-    @pytest.mark.parametrize(
-        "parameters, inlet, fuel",
-        [
-            (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
-                air,
-                kerosene,
-            ),
-        ],
-    )
-    @pytest.mark.benchmark
-    def test_burner_calculate(self, benchmark, burner, parameters, inlet, fuel):
-        """Бенчмарк расчета камеры сгорания"""
-
-        def benchfunc(burner, parameters, inlet, fuel):
-            burner.calculate(parameters, inlet, fuel)
-
-        benchmark(benchfunc, burner, parameters, inlet, fuel)
-
-
-@pytest.fixture
-def turbine():
-    """Создает экземпляр турбины"""
-    return Turbine({}, "Test")
 
 
 class TestTurbine:
@@ -416,6 +317,105 @@ class TestTurbine:
 def nozzle():
     """Создает экземпляр сопла"""
     return Nozzle({}, "Test")
+
+
+@pytest.fixture
+def burner():
+    """Создает экземпляр камеры сгорания"""
+    return Burner({}, "Test")
+
+
+class TestBurner:
+    """Тесты для класса Burner"""
+
+    def test_init(self, burner):
+        """Тест инициализации камеры сгорания"""
+        assert burner.name == "Test"
+
+    @pytest.mark.benchmark
+    def test_burner_init(self, benchmark):
+        """Бенчмарк инициализации камеры сгорания"""
+
+        def benchfunc():
+            return Burner({}, "Bench")
+
+        benchmark(benchfunc)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, fuel, expected_outlet",
+        [
+            (
+                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                air,
+                kerosene,
+                Substance("outlet", parameters={gtep.TT: 1137.5, gtep.PP: 96_258}),
+            ),
+        ],
+    )
+    def test_predict(self, burner, parameters, inlet, fuel, expected_outlet):
+        """Тест предсказания камеры сгорания"""
+        vars, outlet = burner.predict(parameters, inlet, fuel)
+        for k, v in parameters.items():
+            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, fuel",
+        [
+            (
+                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                air,
+                kerosene,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_burner_predict(self, benchmark, burner, parameters, inlet, fuel):
+        """Бенчмарк предсказания камеры сгорания"""
+
+        def benchfunc(burner, parameters, inlet, fuel):
+            burner.predict(parameters, inlet, fuel)
+
+        benchmark(benchfunc, burner, parameters, inlet, fuel)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, fuel, expected_outlet",
+        [
+            (
+                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                air,
+                kerosene,
+                Substance("outlet", parameters={gtep.TT: 1079, gtep.PP: 96_258}),
+            ),
+        ],
+    )
+    def test_calculate(self, burner, parameters, inlet, fuel, expected_outlet):
+        """Тест предсказания камеры сгорания"""
+        vars, outlet = burner.calculate(parameters, inlet, fuel)
+        for k, v in parameters.items():
+            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, fuel",
+        [
+            (
+                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                air,
+                kerosene,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_burner_calculate(self, benchmark, burner, parameters, inlet, fuel):
+        """Бенчмарк расчета камеры сгорания"""
+
+        def benchfunc(burner, parameters, inlet, fuel):
+            burner.calculate(parameters, inlet, fuel)
+
+        benchmark(benchfunc, burner, parameters, inlet, fuel)
 
 
 class TestNozzle:

@@ -12,7 +12,7 @@ try:
     from .nodes.channel.channel import Channel
     from .nodes.node import GTENode
     from .nodes.nozzle.nozzle import Nozzle
-    from .nodes.turbocompressor.compressor.compressor import Compressor
+    from .nodes.turbocompressor.rotor.rotor import Rotor
     from .nodes.turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
@@ -26,14 +26,14 @@ except ImportError:
     from gte.nodes.channel.channel import Channel
     from gte.nodes.node import GTENode
     from gte.nodes.nozzle.nozzle import Nozzle
-    from gte.nodes.turbocompressor.compressor.compressor import Compressor
+    from gte.nodes.turbocompressor.rotor.rotor import Rotor
     from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class GTE:
     """ГТД"""
 
-    NODES = (Compressor, Burner, Turbine, Nozzle, Channel)
+    NODES = (Rotor, Burner, Turbine, Nozzle, Channel)
 
     __slots__ = ("name", "_GTE__scheme", "shafts", "_GTE__finder", "requirements")
 
@@ -85,7 +85,7 @@ class GTE:
 
     def add_shaft(self, *node_places) -> None:
         """Добавление вала как связи по балансу мощностей"""
-        shaft: List[Union[Compressor, Turbine]] = []
+        shaft: List[Union[Rotor, Turbine]] = []
         if len(node_places) == 0:
             raise ValueError("empty shaft")
         for node_place in node_places:
@@ -99,8 +99,8 @@ class GTE:
             if not (0 <= place <= len(self.__scheme[contour]) - 1):
                 raise ValueError(f"{place=} does not exist in {contour=}")
             node = self.__scheme[contour][place]
-            if not isinstance(node, (Compressor, Turbine)):
-                raise ValueError(f"{type(node_place)=} must be in {Compressor, Turbine}")
+            if not isinstance(node, (Rotor, Turbine)):
+                raise ValueError(f"{type(node_place)=} must be in {Rotor, Turbine}")
             shaft.append(node)
         self.shafts.append(shaft)
 
@@ -259,7 +259,7 @@ class GTE:
                 if verbose:
                     print(f"\t{i}: {node = }")
 
-                if isinstance(node, (Compressor, Turbine, Channel, Nozzle)):
+                if isinstance(node, (Rotor, Turbine, Channel, Nozzle)):
                     var, outlet = node.calculate(node.parameters.copy(), outlet)
                 elif isinstance(node, Burner):
                     var, outlet = node.calculate(node.parameters.copy(), outlet, fuel)
@@ -336,7 +336,7 @@ if __name__ == "__main__":
         gte = GTE(
             [
                 (
-                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+                    Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
                     Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
                     Turbine({gtep.effeff: 0.9, gtep.pipi: 1 / 3}, name="HPT"),
                 ),

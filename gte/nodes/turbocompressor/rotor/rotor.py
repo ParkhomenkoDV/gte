@@ -27,8 +27,8 @@ except ImportError:
     from gte.utils import call_with_kwargs, integral_average
 
 
-class Compressor(GTENode):
-    """Компрессор"""
+class Rotor(GTENode):
+    """Ротор"""
 
     variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
     n_vars: int = 2
@@ -40,7 +40,7 @@ class Compressor(GTENode):
 
     __slots__ = ()  # нет новых атрибутов
 
-    def __init__(self, parameters: Dict[str, float], name: str = "Compressor"):
+    def __init__(self, parameters: Dict[str, float], name: str = "Rotor"):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         {"parameters": {gtep.effeff: 0.85, gtep.power: 12 * 10**6}},
     )
     for test_case in test_cases:
-        c = Compressor(test_case["parameters"], "test")
+        c = Rotor(test_case["parameters"], "test")
         print(f"{c.is_solvable=}")
 
         vars, outlet = c.calculate(c.parameters, inlet)
@@ -259,6 +259,6 @@ if __name__ == "__main__":
             print(f"{k:25}: {v:.4f}")
         print(vars)
 
-        print(f"{Compressor.validate(inlet, outlet) = }")
-        print(f"{Compressor.check_real(inlet, outlet) = }")
+        print(f"{Rotor.validate(inlet, outlet) = }")
+        print(f"{Rotor.check_real(inlet, outlet) = }")
         print()

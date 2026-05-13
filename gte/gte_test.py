@@ -9,7 +9,7 @@ try:
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
     from .nodes.nozzle.nozzle import Nozzle
-    from .nodes.turbocompressor.compressor.compressor import Compressor
+    from .nodes.turbocompressor.rotor.rotor import Rotor
     from .nodes.turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
@@ -24,7 +24,7 @@ except ImportError:
     from gte.nodes.burner.burner import Burner
     from gte.nodes.channel.channel import Channel
     from gte.nodes.nozzle import Nozzle
-    from gte.nodes.turbocompressor.compressor.compressor import Compressor
+    from gte.nodes.turbocompressor.rotor.rotor import Rotor
     from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
@@ -34,13 +34,13 @@ class TestGTE:
     @pytest.mark.parametrize(
         "scheme, name",
         [
-            ([[Compressor({}), Burner({}), Turbine({})]], "AI-9"),
-            ([[Compressor({}), Burner({}), Turbine({}), Turbine({})]], "TV3-117"),
-            ([[Compressor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
+            ([[Rotor({}), Burner({}), Turbine({})]], "AI-9"),
+            ([[Rotor({}), Burner({}), Turbine({}), Turbine({})]], "TV3-117"),
+            ([[Rotor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
             (
                 [
-                    [Compressor({}), Compressor({}), Burner({}), Turbine({}), Turbine({}), Nozzle({})],
-                    [Compressor({}), Channel({})],
+                    [Rotor({}), Rotor({}), Burner({}), Turbine({}), Turbine({}), Nozzle({})],
+                    [Rotor({}), Channel({})],
                 ],
                 "AL-31F",
             ),
@@ -54,13 +54,13 @@ class TestGTE:
     @pytest.mark.parametrize(
         "scheme, name",
         [
-            ([[Compressor({}), Burner({}), Turbine({})]], "AI-9"),
-            ([[Compressor({}), Burner({}), Turbine({}), Turbine({})]], "TV3-117"),
-            ([[Compressor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
+            ([[Rotor({}), Burner({}), Turbine({})]], "AI-9"),
+            ([[Rotor({}), Burner({}), Turbine({}), Turbine({})]], "TV3-117"),
+            ([[Rotor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
             (
                 [
-                    [Compressor({}), Compressor({}), Burner({}), Turbine({}), Turbine({}), Nozzle({})],
-                    [Compressor({}), Channel({})],
+                    [Rotor({}), Rotor({}), Burner({}), Turbine({}), Turbine({}), Nozzle({})],
+                    [Rotor({}), Channel({})],
                 ],
                 "AL-31F",
             ),

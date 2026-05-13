@@ -1,8 +1,8 @@
-from .compressor import Compressor
+from .rotor import Rotor
 from .turbine import Turbine
 
 # import *
 __all__ = [
-    "Compressor",
+    "Rotor",
     "Turbine",
 ]

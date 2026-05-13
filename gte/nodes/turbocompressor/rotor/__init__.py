@@ -1,8 +1,8 @@
 from .characteristic import characteristics
-from .compressor import Compressor
+from .rotor import Rotor
 
 # import *
 __all__ = [
-    "Compressor",
+    "Rotor",
     "characteristics",
 ]

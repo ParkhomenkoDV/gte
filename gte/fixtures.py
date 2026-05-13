@@ -7,7 +7,7 @@ try:
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
     from .nodes.nozzle.nozzle import Nozzle
-    from .nodes.turbocompressor.compressor import Compressor
+    from .nodes.turbocompressor.rotor import Rotor
     from .nodes.turbocompressor.turbine import Turbine
 except ImportError:
     import os
@@ -20,7 +20,7 @@ except ImportError:
     from gte.nodes.burner import Burner
     from gte.nodes.channel import Channel
     from gte.nodes.nozzle import Nozzle
-    from gte.nodes.turbocompressor.compressor import Compressor
+    from gte.nodes.turbocompressor.rotor import Rotor
     from gte.nodes.turbocompressor.turbine import Turbine
 
 # Вещества
@@ -89,7 +89,7 @@ exhaust = Substance(
 ai9 = GTE(
     [
         (
-            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
             Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
             Turbine({gtep.effeff: 0.9}, name="HPT"),
         ),
@@ -102,7 +102,7 @@ ai9.add_shaft([0, 0], [0, 2])
 jumo004b = GTE(
     [
         (
-            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
             Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
             Turbine({gtep.effeff: 0.9}, name="HPT"),
             Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N"),
@@ -116,15 +116,15 @@ jumo004b.add_shaft([0, 0], [0, 2])
 al31f = GTE(
     [
         (
-            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
             Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
             Turbine({gtep.effeff: 0.9}, name="HPT"),
             Turbine({gtep.effeff: 0.9}, name="LPT"),
             Nozzle({gtep.eff_speed: 0.98}, "N"),
         ),
         (
-            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
             Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
         ),
     ]
