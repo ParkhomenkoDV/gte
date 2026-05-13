@@ -6,7 +6,10 @@ try:
     from ..config import parameters as gtep
     from ..fixtures import air, exhaust, kerosene
     from .burner.burner import Burner
+    from .channel.channel import Channel
+    from .joiner.joiner import Joiner
     from .nozzle.nozzle import Nozzle
+    from .splitter.splitter import Splitter
     from .turbocompressor.compressor.compressor import Compressor
     from .turbocompressor.turbine.turbine import Turbine
 except ImportError:
@@ -19,7 +22,10 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.fixtures import air, exhaust, kerosene
     from gte.nodes.burner.burner import Burner
+    from gte.nodes.channel.channel import Channel
+    from gte.nodes.joiner.joiner import Joiner
     from gte.nodes.nozzle import Nozzle
+    from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.compressor.compressor import Compressor
     from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
@@ -404,6 +410,348 @@ class TestTurbine:
             turbine.calculate(parameters, inlet)
 
         benchmark(benchfunc, turbine, parameters, inlet)
+
+
+@pytest.fixture
+def nozzle():
+    """Создает экземпляр сопла"""
+    return Nozzle({}, "Test")
+
+
+class TestNozzle:
+    """Тесты для класса Nozzle"""
+
+    def test_init(self, nozzle):
+        """Тест инициализации"""
+        assert nozzle.name == "Test"
+
+    @pytest.mark.benchmark
+    def test_nozzle_init(self, benchmark):
+        """Бенчмарк инициализации"""
+
+        def benchfunc():
+            return Nozzle({}, name="Bench")
+
+        benchmark(benchfunc)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, expected_parameters, expected_outlet",
+        [
+            (
+                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                exhaust,
+                {gtep.force: 34_439},
+                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+            ),
+            (
+                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                exhaust,
+                {gtep.pipi: 1 / 1.8},
+                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+            ),
+            (
+                {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
+                exhaust,
+                {gtep.eff_speed: 0.98},
+                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+            ),
+        ],
+    )
+    def test_predict(self, nozzle, parameters, inlet, expected_parameters, expected_outlet):
+        """Тест предсказания"""
+        vars, outlet = nozzle.predict(parameters, inlet)
+        for k, v in expected_parameters.items():
+            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet",
+        [
+            (
+                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                exhaust,
+            ),
+            (
+                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                exhaust,
+            ),
+            (
+                {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
+                exhaust,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_nozzle_predict(self, benchmark, nozzle, parameters, inlet):
+        def benchfunc(nozzle, parameters, inlet):
+            nozzle.predict(parameters, inlet)
+
+        benchmark(benchfunc, nozzle, parameters, inlet)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, expected_parameters, expected_outlet",
+        [
+            (
+                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                exhaust,
+                {gtep.force: 34_439},
+                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+            ),
+            (
+                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                exhaust,
+                {gtep.pipi: 1 / 1.8},
+                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+            ),
+            (
+                {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
+                exhaust,
+                {gtep.eff_speed: 0.98},
+                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+            ),
+        ],
+    )
+    def test_calculate(self, nozzle, parameters, inlet, expected_parameters, expected_outlet):
+        """Тест предсказания"""
+        vars, outlet = nozzle.calculate(parameters, inlet)
+        for k, v in expected_parameters.items():
+            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet",
+        [
+            (
+                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                exhaust,
+            ),
+            (
+                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                exhaust,
+            ),
+            (
+                {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
+                exhaust,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_nozzle_calculate(self, benchmark, nozzle, parameters, inlet):
+        def benchfunc(nozzle, parameters, inlet):
+            nozzle.calculate(parameters, inlet)
+
+        benchmark(benchfunc, nozzle, parameters, inlet)
+
+
+@pytest.fixture
+def channel():
+    """Создает экземпляр канала"""
+    return Channel({}, "Test")
+
+
+class TestChannel:
+    """Тесты для класса Channel"""
+
+    def test_init(self, channel):
+        """Тест инициализации"""
+        assert channel.name == "Test"
+
+    @pytest.mark.benchmark
+    def test_channel_init(self, benchmark):
+        """Бенчмарк инициализации"""
+
+        def benchfunc():
+            return Channel({}, name="Bench")
+
+        benchmark(benchfunc)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, expected_outlet",
+        [
+            (
+                {gtep.titi: 1.05, gtep.pipi: 0.95},
+                air,
+                Substance("outlet", parameters={gtep.TT: air.parameters[gtep.TT] * 1.05, gtep.PP: air.parameters[gtep.PP] * 0.95}),
+            ),
+        ],
+    )
+    def test_predict(self, channel, parameters, inlet, expected_outlet):
+        """Тест предсказания"""
+        _, outlet = channel.predict(parameters, inlet)
+
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet",
+        [
+            (
+                {gtep.titi: 1.05, gtep.pipi: 0.95},
+                air,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_channel_predict(self, benchmark, channel, parameters, inlet):
+        def benchfunc(channel, parameters, inlet):
+            channel.predict(parameters, inlet)
+
+        benchmark(benchfunc, channel, parameters, inlet)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, expected_outlet",
+        [
+            (
+                {gtep.titi: 1.05, gtep.pipi: 0.95},
+                air,
+                Substance("outlet", parameters={gtep.TT: air.parameters[gtep.TT] * 1.05, gtep.PP: air.parameters[gtep.PP] * 0.95}),
+            )
+        ],
+    )
+    def test_calculate(self, channel, parameters, inlet, expected_outlet):
+        """Тест предсказания"""
+        _, outlet = channel.calculate(parameters, inlet)
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet",
+        [
+            (
+                {gtep.titi: 1.05, gtep.pipi: 0.95},
+                air,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_channel_calculate(self, benchmark, channel, parameters, inlet):
+        def benchfunc(channel, parameters, inlet):
+            channel.calculate(parameters, inlet)
+
+        benchmark(benchfunc, channel, parameters, inlet)
+
+
+@pytest.fixture
+def splitter():
+    """Создает экземпляр камеры отбора"""
+    return Splitter({}, "Test")
+
+
+class TestSplitter:
+    """Тесты для класса Splitter"""
+
+    def test_init(self, splitter):
+        """Тест инициализации"""
+        assert splitter.name == "Test"
+
+    @pytest.mark.benchmark
+    def test_splitter_init(self, benchmark):
+        """Бенчмарк инициализации"""
+
+        def benchfunc():
+            return Splitter({}, name="Bench")
+
+        benchmark(benchfunc)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, expected_outlets",
+        [
+            (
+                {"splits": (1, 3, 6)},
+                air,
+                (
+                    Substance("air", parameters={p for p in air.parameters if p != gtep.m}.update({gtep.m: 5}), functions=air.functions),
+                    Substance("air", parameters={p for p in air.parameters if p != gtep.m}.update({gtep.m: 15}), functions=air.functions),
+                    Substance("air", parameters={p for p in air.parameters if p != gtep.m}.update({gtep.m: 30}), functions=air.functions),
+                ),
+            ),
+        ],
+    )
+    def test_predict(self, splitter, parameters, inlet, expected_outlets):
+        """Тест предсказания"""
+        _, outlets = splitter.predict(parameters, inlet)
+
+        for i, outlet in enumerate(outlets):
+            for k, v in expected_outlets[i].parameters.items():
+                assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet",
+        [
+            (
+                {"splits": (1, 3, 6)},
+                air,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_splitter_predict(self, benchmark, splitter, parameters, inlet):
+        def benchfunc(splitter, parameters, inlet):
+            splitter.predict(parameters, inlet)
+
+        benchmark(benchfunc, splitter, parameters, inlet)
+
+
+@pytest.fixture
+def joiner():
+    """Создает экземпляр камеры смешения"""
+    return Joiner({}, "Test")
+
+
+class TestJoiner:
+    """Тесты для класса Joiner"""
+
+    def test_init(self, joiner):
+        """Тест инициализации"""
+        assert joiner.name == "Test"
+
+    @pytest.mark.benchmark
+    def test_joiner_init(self, benchmark):
+        """Бенчмарк инициализации"""
+
+        def benchfunc():
+            return Joiner({}, name="Bench")
+
+        benchmark(benchfunc)
+
+    @pytest.mark.parametrize(
+        "inlets, expected_outlet",
+        [
+            (
+                (air, exhaust),
+                Substance(
+                    f"{air.name}+{exhaust.name}",
+                    parameters={
+                        gtep.m: air.parameters[gtep.m] + exhaust.parameters[gtep.m],
+                        gtep.TT: (air.parameters[gtep.m] * air.parameters[gtep.TT] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.TT] * exhaust.parameters[gtep.hcp])
+                        / (air.parameters[gtep.m] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.hcp]),
+                        gtep.PP: (air.parameters[gtep.m] * air.parameters[gtep.PP] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.PP]) / (air.parameters[gtep.m] + exhaust.parameters[gtep.m]),
+                    },
+                ),
+            ),
+        ],
+    )
+    def test_predict(self, joiner, inlets, expected_outlet):
+        """Тест предсказания"""
+        _, outlet = joiner.predict({}, *inlets)
+
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL * 2), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "inlets",
+        [
+            (air, exhaust),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_joiner_predict(self, benchmark, joiner, inlets):
+        def benchfunc(joiner, inlets):
+            joiner.predict({}, *inlets)
+
+        benchmark(benchfunc, joiner, inlets)
 
 
 if __name__ == "__main__":

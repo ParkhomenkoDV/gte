@@ -3,6 +3,12 @@ from thermodynamics import T0, gas_const, gas_const_exhaust_fuel, heat_capacity_
 
 try:
     from .config import parameters as gtep
+    from .gte import GTE
+    from .nodes.burner.burner import Burner
+    from .nodes.channel.channel import Channel
+    from .nodes.nozzle.nozzle import Nozzle
+    from .nodes.turbocompressor.compressor import Compressor
+    from .nodes.turbocompressor.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -10,7 +16,14 @@ except ImportError:
     sys.path.insert(0, os.getcwd())
 
     from gte.config import parameters as gtep
+    from gte.gte import GTE
+    from gte.nodes.burner import Burner
+    from gte.nodes.channel import Channel
+    from gte.nodes.nozzle import Nozzle
+    from gte.nodes.turbocompressor.compressor import Compressor
+    from gte.nodes.turbocompressor.turbine import Turbine
 
+# Вещества
 
 air = Substance(
     "air",
@@ -70,3 +83,51 @@ exhaust = Substance(
         ),
     },
 )
+
+# Двигатели
+
+ai9 = GTE(
+    [
+        (
+            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Turbine({gtep.effeff: 0.9}, name="HPT"),
+        ),
+    ],
+    name="AI-9",
+)
+ai9.add_shaft([0, 0], [0, 2])
+
+
+jumo004b = GTE(
+    [
+        (
+            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Turbine({gtep.effeff: 0.9}, name="HPT"),
+            Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N"),
+        ),
+    ],
+    name="Jumo-009",
+)
+jumo004b.add_shaft([0, 0], [0, 2])
+
+
+al31f = GTE(
+    [
+        (
+            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Turbine({gtep.effeff: 0.9}, name="HPT"),
+            Turbine({gtep.effeff: 0.9}, name="LPT"),
+            Nozzle({gtep.eff_speed: 0.98}, "N"),
+        ),
+        (
+            Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
+        ),
+    ]
+)
+al31f.add_shaft([0, 0], [1, 0], [0, 4])  # ВВД
+al31f.add_shaft([0, 1], [0, 3])  # ВНД

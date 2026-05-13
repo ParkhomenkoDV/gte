@@ -58,19 +58,25 @@ class Splitter(GTENode):
         inlet = GTENode.calculate_substance(inlet)
 
         splits = parameters["splits"]
+        if not isinstance(splits, (tuple, list)):
+            raise TypeError(TYPE_ERROR.format(f"{type(splits)}", tuple))
+        for split in splits:
+            if not isinstance(split, (int, float)):
+                raise TypeError(TYPE_ERROR.format(f"{type(split)}", float))
 
-        total = sum(splits)
+        total = sum(splits)  # общая масса
+
         outlets = []
-        for i, split in enumerate(splits):
-            splits[i] = split / total  # нормализация
+        for split in splits:
+            fraction = split / total  # нормализация
 
             outlet = deepcopy(inlet)
-            outlet.parameters[gtep.m] *= splits[i]
+            outlet.parameters[gtep.m] *= fraction
             outlets.append(outlet)
 
         vars: Dict[str, float] = {}
 
-        return vars, outlets
+        return vars, tuple(outlets)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
@@ -129,7 +135,7 @@ class Splitter(GTENode):
 if __name__ == "__main__":
     from gte.fixtures import air as inlet
 
-    test_cases = ({"parameters": {"splits": [2, 4, 6]}},)
+    test_cases = ({"parameters": {"splits": [1, 3, 6]}},)
     for test_case in test_cases:
         s = Splitter(test_case["parameters"], "test")
         print(f"{s.is_solvable=}")

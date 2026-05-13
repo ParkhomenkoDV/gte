@@ -326,6 +326,7 @@ class GTE:
 if __name__ == "__main__":
     from itertools import product
 
+    from fixtures import ai9, al31f, jumo004b
     from fixtures import air as inlet
     from fixtures import kerosene as fuel
     from numpy import arange
@@ -347,17 +348,7 @@ if __name__ == "__main__":
     if False:
         inlet.parameters[gtep.m] = 80
 
-        gte = GTE(
-            [
-                (
-                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-                    Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-                    Turbine({gtep.effeff: 0.9}, name="HPT"),
-                ),
-            ],
-            name="AI-9",
-        )
-        gte.add_shaft([0, 0], [0, 2])
+        gte = ai9
 
         test_cases = []
         for c_pipi in arange(0.85, 0.95, 0.01):
@@ -376,13 +367,8 @@ if __name__ == "__main__":
     if False:
         inlet.parameters[gtep.m] = 50
 
-        hpc = Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC")
-        cc = Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC")
-        hpt = Turbine({gtep.effeff: 0.9}, name="HPT")
-        n = Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N")
+        gte = jumo004b
 
-        gte = GTE([(hpc, cc, hpt, n)], name="Jumo 004b")
-        gte.add_shaft([0, 0], [0, 2])
         gte.add_equation(0, 3, gtep.force, 30_000)
 
         test_cases = []
@@ -402,24 +388,7 @@ if __name__ == "__main__":
     if False:
         inlet.parameters[gtep.m] = 100
 
-        gte = GTE(
-            [
-                (
-                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-                    Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-                    Turbine({gtep.effeff: 0.9}, name="HPT"),
-                    Turbine({gtep.effeff: 0.9}, name="LPT"),
-                    Nozzle({gtep.eff_speed: 0.98}, "N"),
-                ),
-                (
-                    Compressor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-                    Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
-                ),
-            ]
-        )
-        gte.add_shaft([0, 0], [1, 0], [0, 4])
-        gte.add_shaft([0, 1], [0, 3])
+        gte = al31f
 
         test_cases = []
         for c_0_0_pipi, c_0_0_effeff in product(arange(1.1, 1.5, 0.5), arange(0.86, 0.94, 0.01)):
