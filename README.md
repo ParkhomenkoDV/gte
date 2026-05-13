@@ -21,7 +21,7 @@ inlet -> |   gte   | -> outlet
 
 ## Requirements
 
-![requirements](./requirements.txt)
+![requirements](requirements.txt)
 
 ## Installation
 ```python
@@ -91,44 +91,44 @@ See tutorial in `gte/examples/`
 ## Project structure
 ```
 gte/
-|-- docs/  # documentations
-|-- examples/  # tutorial
-|-- assets/images/  # docs images
-|-- gte/  # source code gte and gte nodes
-|   |-- nodes/
-|       |-- burner/
+|-- docs/                 # documentations
+|-- examples/             # tutorial
+|-- assets/images/        # images
+|-- gte/                  # source code gte and gte nodes
+|   └-- nodes/
+|       └-- burner/
 |           |-- burner.py
-|           |-- burner.go
-|       |-- channel/
+|           └-- burner.go
+|       └-- channel/
 |           |-- channel.py
-|           |-- channel.go
-|       |-- joiner/
+|           └-- channel.go
+|       └-- joiner/
 |           |-- joiner.py
-|           |-- joiner.go
-|       |-- nozzle.py
+|           └-- joiner.go
+|       └-- nozzle.py
 |           |-- nozzle.py
-|           |-- nozzle.go
-|       |-- splitter.py
+|           └-- nozzle.go
+|       └-- splitter.py
 |           |-- splitter.py
-|           |-- splitter.go
-|       |-- turbocompressor/
-|           |-- compressor/
+|           └-- splitter.go
+|       └-- turbocompressor/
+|           └-- compressor/
 |               |-- compressor.py
-|               |-- compressor.go
-|           |-- turbine/
+|               └-- compressor.go
+|           └-- turbine/
 |               |-- turbine.py
-|               |-- turbine.go
+|               └-- turbine.go
 |   |-- checks.py
 |   |-- config.py
 |   |-- gte_test.py
 |   |-- gte.py
 |   |-- utils_test.py
-|   |-- utils.py
+|   └-- utils.py
 |-- .gitignore
 |-- Makefile
 |-- README.md  
 |-- requirements.txt
-|-- setup.py
+└-- setup.py
 ```
 
 ## Principles of implementation
@@ -150,7 +150,7 @@ Compressor_1 ... Compressor_n Turbine_1 ... Turbine_n Load_1 ... Load_n
 
 # TODO
 
-1. cooling
+1. transfer
 1. refactoring for speed
 
 # Benchmarks
