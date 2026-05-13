@@ -112,12 +112,12 @@ gte/
 |           |-- splitter.py
 |           └-- splitter.go
 |       └-- turbocompressor/
-|           └-- compressor/
-|               |-- compressor.py
-|               └-- compressor.go
-|           └-- turbine/
-|               |-- turbine.py
-|               └-- turbine.go
+|           └-- rotor/
+|               |-- rotor.py
+|               └-- rotor.go
+|           └-- stator/
+|               |-- stator.py
+|               └-- stator.go
 |   |-- checks.py
 |   |-- config.py
 |   |-- gte_test.py
@@ -135,18 +135,6 @@ gte/
 - physicality and reality
 - speed
 - minimum external [requirements](requirements.txt)
-
-# GTE nodes
-
-## Shaft
-
-```
-Compressor_1 ... Compressor_n Turbine_1 ... Turbine_n Load_1 ... Load_n
-     |                |           |             |        |          |
-      --------------------------------------------------------------
-                                   Shaft
-```
-
 
 # TODO
 

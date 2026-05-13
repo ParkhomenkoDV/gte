@@ -112,6 +112,29 @@ jumo004b = GTE(
 jumo004b.add_shaft([0, 0], [0, 2])
 
 
+rr_trent = GTE(
+    [
+        (
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="MPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="MPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
+            Nozzle({gtep.eff_speed: 0.98}, "N"),
+        ),
+        (
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
+        ),
+    ]
+)
+rr_trent.add_shaft([0, 0], [1, 0], [0, 6])  # ВНД
+rr_trent.add_shaft([0, 1], [0, 5])  # ВСД
+rr_trent.add_shaft([0, 2], [0, 4])  # ВВД
+
+
 al31f = GTE(
     [
         (
@@ -128,5 +151,5 @@ al31f = GTE(
         ),
     ]
 )
-al31f.add_shaft([0, 0], [1, 0], [0, 4])  # ВВД
-al31f.add_shaft([0, 1], [0, 3])  # ВНД
+al31f.add_shaft([0, 0], [1, 0], [0, 4])  # ВНД
+al31f.add_shaft([0, 1], [0, 3])  # ВВД
