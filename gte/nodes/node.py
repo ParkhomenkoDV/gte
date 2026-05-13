@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple, Union
+from itertools import product
+from typing import Any, Dict, Generator, Tuple, Union
 
 from substance import Substance
 from thermodynamics import adiabatic_index, critical_sonic_velocity
@@ -77,6 +78,25 @@ class GTENode(ABC):
             return False, f"need to delete {len(self.parameters) - self.n_vars} parameters"
         else:
             return True, ""
+
+    @classmethod
+    def generator(cls, **parameters) -> Generator:
+        """Генератор решаемых узлов"""
+        if len(parameters) != cls.n_vars:
+            raise ArithmeticError(f"{len(parameters)=} must be equal {cls.n_vars=}")
+        for parameter, value in parameters.items():
+            if parameter not in cls.variables:
+                raise KeyError(f"{parameter=} not in {cls.variables}")
+            if not isinstance(value, (tuple, list)):
+                raise TypeError(f"{type(value)=} must be tuple")
+            if len(value) == 0:
+                raise ValueError(f"{len(value)=} must be > 0")
+
+        keys = tuple(parameters.keys())
+        values = tuple(parameters[key] for key in keys)
+        for name, combination in enumerate(product(*values)):
+            params = dict(zip(keys, combination))
+            yield cls(params, f"{name}")
 
     @staticmethod
     def validate_substance(substance: Substance) -> None:

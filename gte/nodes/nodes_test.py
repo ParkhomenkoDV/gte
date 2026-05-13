@@ -1,3 +1,5 @@
+from math import prod
+
 import pytest
 from substance import Substance
 
@@ -31,7 +33,7 @@ except ImportError:
 class TestNode:
     """Тесты абстрактного класса GTENode"""
 
-    @pytest.mark.parametrize("Node", [Rotor, Burner, Nozzle])
+    @pytest.mark.parametrize("Node", [Rotor, Burner, Nozzle, Channel])
     def test_name(self, Node):
         node = Node({})  # empty parameters
         assert node.name == Node.__name__  # default
@@ -39,6 +41,45 @@ class TestNode:
         assert node.name == "Test"  # reset
         node = Node({}, name="Node")
         assert node.name == "Node"  # __init__
+
+    @pytest.mark.parametrize(
+        "Node, parameters",
+        [
+            # Rotor
+            (Rotor, {gtep.effeff: [0.8, 0.85, 0.9], gtep.pipi: [6, 7, 8, 9, 10, 11, 12]}),
+            (Rotor, {gtep.effeff: [0.8, 0.85, 0.9], gtep.power: [6 * 10**6, 8 * 10**6, 10 * 10**6, 12 * 10**6]}),
+            (Rotor, {gtep.pipi: [6, 7, 8, 9, 10, 11, 12], gtep.power: [6 * 10**6, 8 * 10**6, 10 * 10**6, 12 * 10**6]}),
+            # Burner
+            (Burner, {gtep.eff_burn: [0.98, 0.99], gtep.pipi: [0.94, 0.95, 0.96]}),
+            # Nozzle
+            (Nozzle, {gtep.eff_speed: [0.98, 0.99], gtep.pipi: [1 / 1.2, 1 / 1.3, 1 / 1.4, 1 / 1.5, 1 / 1.6, 1 / 1.7, 1 / 1.8]}),
+            (Nozzle, {gtep.eff_speed: [0.98, 0.99], gtep.force: [30_000, 40_000, 50_000, 60_000, 70_000, 80_000]}),
+            (Nozzle, {gtep.force: [30_000, 40_000, 50_000, 60_000, 70_000, 80_000], gtep.pipi: [1 / 1.2, 1 / 1.3, 1 / 1.4, 1 / 1.5, 1 / 1.6, 1 / 1.7, 1 / 1.8]}),
+            # Channel
+            (Channel, {gtep.titi: [0.8, 0.9, 1.0, 1.1, 1.2], gtep.pipi: [0.8, 0.9, 1.0, 1.1, 1.2]}),
+        ],
+    )
+    def test_generator(self, Node, parameters):
+        generator = Node.generator(**parameters)
+        assert hasattr(generator, "__next__")
+
+        result = list(generator)
+
+        assert len(result) == prod(len(v) for v in parameters.values())
+
+    @pytest.mark.parametrize(
+        "Node, parameters",
+        [
+            (Channel, {gtep.titi: [0.8, 0.9, 1.0, 1.1, 1.2]}),  # недостаточно парметров
+            (Channel, {gtep.titi: [0.8, 0.9, 1.0, 1.1, 1.2], gtep.pipi: [0.8, 0.9, 1.0, 1.1, 1.2], gtep.effeff: [0.8, 0.85, 0.9]}),  # предостаточно парметров
+            (Channel, {"titi": 1.0, "pipi": 1.0}),  # неизвестный параметр
+            (Channel, {gtep.titi: 1.0, gtep.pipi: 1.0}),  # не итерабельный параметр
+            (Channel, {gtep.titi: [], gtep.pipi: [0.8, 0.9, 1.0, 1.1, 1.2]}),
+        ],
+    )
+    def test_generator_error(self, Node, parameters):
+        with pytest.raises(Exception):
+            list(Node.generator(**parameters))
 
 
 @pytest.fixture
