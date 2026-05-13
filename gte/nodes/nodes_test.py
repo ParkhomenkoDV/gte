@@ -11,7 +11,6 @@ try:
     from .nozzle.nozzle import Nozzle
     from .splitter.splitter import Splitter
     from .turbocompressor.rotor.rotor import Rotor
-    from .turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -27,13 +26,12 @@ except ImportError:
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor.rotor import Rotor
-    from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class TestNode:
     """Тесты абстрактного класса GTENode"""
 
-    @pytest.mark.parametrize("Node", [Rotor, Burner, Turbine, Nozzle])
+    @pytest.mark.parametrize("Node", [Rotor, Burner, Nozzle])
     def test_name(self, Node):
         node = Node({})  # empty parameters
         assert node.name == Node.__name__  # default
@@ -44,27 +42,21 @@ class TestNode:
 
 
 @pytest.fixture
-def compressor():
-    """Создает экземпляр компрессора"""
+def rotor():
+    """Создает экземпляр ротора"""
     return Rotor({}, "Test")
 
 
-@pytest.fixture
-def turbine():
-    """Создает экземпляр турбины"""
-    return Turbine({}, "Test")
+class TestRotor:
+    """Тесты для класса Rotor"""
 
-
-class TestCompressor:
-    """Тесты для класса Compressor"""
-
-    def test_init(self, compressor):
-        """Тест инициализации компрессора"""
-        assert compressor.name == "Test"
+    def test_init(self, rotor):
+        """Тест инициализации"""
+        assert rotor.name == "Test"
 
     @pytest.mark.benchmark
-    def test_compressor_init(self, benchmark):
-        """Бенчмарк инициализации компрессора"""
+    def test_rotor_init(self, benchmark):
+        """Бенчмарк инициализации"""
 
         def benchfunc():
             return Rotor({}, name="Bench")
@@ -74,6 +66,7 @@ class TestCompressor:
     @pytest.mark.parametrize(
         "parameters, inlet, expected_parameters, expected_outlet",
         [
+            # compressor
             (
                 {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
                 air,
@@ -92,11 +85,30 @@ class TestCompressor:
                 {gtep.power: 11_862_134},
                 Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),
             ),
+            # turbine
+            (
+                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                exhaust,
+                {gtep.pipi: 1 / 4.16},
+                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 292837.9}),
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                exhaust,
+                {gtep.effeff: 1 / 0.9203},
+                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 303975.0}),
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                exhaust,
+                {gtep.power: -23_468_473},
+                Substance("outlet", parameters={gtep.TT: 1121.8, gtep.PP: 303975.0}),
+            ),
         ],
     )
-    def test_predict(self, compressor, parameters, inlet, expected_parameters, expected_outlet):
+    def test_predict(self, rotor, parameters, inlet, expected_parameters, expected_outlet):
         """Тест предсказания компресоора"""
-        vars, outlet = compressor.predict(parameters, inlet)
+        vars, outlet = rotor.predict(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
         for k, v in expected_outlet.parameters.items():
@@ -105,6 +117,7 @@ class TestCompressor:
     @pytest.mark.parametrize(
         "parameters, inlet",
         [
+            # compressor
             (
                 {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
                 air,
@@ -117,20 +130,34 @@ class TestCompressor:
                 {gtep.pipi: 6.0, gtep.effeff: 0.85},  # power
                 air,
             ),
+            # turbine
+            (
+                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                exhaust,
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                exhaust,
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                exhaust,
+            ),
         ],
     )
     @pytest.mark.benchmark
-    def test_compressor_predict(self, benchmark, compressor, parameters, inlet):
+    def test_rotor_predict(self, benchmark, rotor, parameters, inlet):
         """Бенчмарк предсказания компрессора"""
 
-        def benchfunc(compressor, parameters, inlet):
-            compressor.predict(parameters, inlet)
+        def benchfunc(rotor, parameters, inlet):
+            rotor.predict(parameters, inlet)
 
-        benchmark(benchfunc, compressor, parameters, inlet)
+        benchmark(benchfunc, rotor, parameters, inlet)
 
     @pytest.mark.parametrize(
         "parameters, inlet, expected_parameters, expected_outlet",
         [
+            # compressor
             (
                 {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
                 air,
@@ -149,11 +176,30 @@ class TestCompressor:
                 {gtep.power: 11_816_242},
                 Substance("outlet", parameters={gtep.TT: 532.3, gtep.PP: 607_950.0}),
             ),
+            # turbine
+            (
+                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                exhaust,
+                {gtep.pipi: 1 / 4.16},
+                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 292837.9}),
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                exhaust,
+                {gtep.effeff: 1 / 0.9232},
+                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 303975.0}),
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                exhaust,
+                {gtep.power: -23_396_982},
+                Substance("outlet", parameters={gtep.TT: 1121.8, gtep.PP: 303975.0}),
+            ),
         ],
     )
-    def test_calculate(self, compressor, parameters, inlet, expected_parameters, expected_outlet):
+    def test_calculate(self, rotor, parameters, inlet, expected_parameters, expected_outlet):
         """Тест расчета компресоора"""
-        vars, outlet = compressor.calculate(parameters, inlet)
+        vars, outlet = rotor.calculate(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
         for k, v in expected_outlet.parameters.items():
@@ -162,6 +208,7 @@ class TestCompressor:
     @pytest.mark.parametrize(
         "parameters, inlet",
         [
+            # compressor
             (
                 {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
                 air,
@@ -174,149 +221,29 @@ class TestCompressor:
                 {gtep.pipi: 6.0, gtep.effeff: 0.85},  # power
                 air,
             ),
+            # turbine
+            (
+                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                exhaust,
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                exhaust,
+            ),
+            (
+                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                exhaust,
+            ),
         ],
     )
     @pytest.mark.benchmark
-    def test_compressor_calculate(self, benchmark, compressor, parameters, inlet):
+    def test_rotor_calculate(self, benchmark, rotor, parameters, inlet):
         """Бенчмарк предсказания компрессора"""
 
-        def benchfunc(compressor, parameters, inlet):
-            compressor.calculate(parameters, inlet)
+        def benchfunc(rotor, parameters, inlet):
+            rotor.calculate(parameters, inlet)
 
-        benchmark(benchfunc, compressor, parameters, inlet)
-
-
-class TestTurbine:
-    """Тесты для класса Turbine"""
-
-    def test_init(self, turbine):
-        """Тест инициализации турбины"""
-        assert turbine.name == "Test"
-
-    @pytest.mark.benchmark
-    def test_turbine_init(self, benchmark):
-        """Бенчмарк инициализации турбины"""
-
-        def benchfunc():
-            return Turbine({}, name="Bench")
-
-        benchmark(benchfunc)
-
-    @pytest.mark.parametrize(
-        "parameters, inlet, expected_parameters, expected_outlet",
-        [
-            (
-                {gtep.power: -24 * 10**6, gtep.effeff: 0.9},
-                exhaust,
-                {gtep.pipi: 1 / 4.16},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 292837.9}),
-            ),
-            (
-                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
-                exhaust,
-                {gtep.effeff: 0.9203},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 303975.0}),
-            ),
-            (
-                {gtep.pipi: 1 / 4.0, gtep.effeff: 0.9},
-                exhaust,
-                {gtep.power: -23_468_473},
-                Substance("outlet", parameters={gtep.TT: 1121.8, gtep.PP: 303975.0}),
-            ),
-        ],
-    )
-    def test_predict(self, turbine, parameters, inlet, expected_parameters, expected_outlet):
-        """Тест предсказания турбины"""
-        vars, outlet = turbine.predict(parameters, inlet)
-        for k, v in expected_parameters.items():
-            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-
-    @pytest.mark.parametrize(
-        "parameters, inlet",
-        [
-            (
-                {gtep.power: 24 * 10**6, gtep.effeff: 0.9},
-                exhaust,
-            ),
-            (
-                {gtep.pipi: 4.0, gtep.power: 24 * 10**6},
-                exhaust,
-            ),
-            (
-                {gtep.pipi: 4.0, gtep.effeff: 0.9},
-                exhaust,
-            ),
-        ],
-    )
-    @pytest.mark.benchmark
-    def test_turbine_predict(self, benchmark, turbine, parameters, inlet):
-        def benchfunc(turbine, parameters, inlet):
-            turbine.predict(parameters, inlet)
-
-        benchmark(benchfunc, turbine, parameters, inlet)
-
-    @pytest.mark.parametrize(
-        "parameters, inlet, expected_parameters, expected_outlet",
-        [
-            (
-                {gtep.power: -24 * 10**6, gtep.effeff: 0.9},
-                exhaust,
-                {gtep.pipi: 1 / 4.16},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 292837.9}),
-            ),
-            (
-                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
-                exhaust,
-                {gtep.effeff: 0.9232},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 303975.0}),
-            ),
-            (
-                {gtep.pipi: 1 / 4.0, gtep.effeff: 0.9},
-                exhaust,
-                {gtep.power: -23_396_982},
-                Substance("outlet", parameters={gtep.TT: 1121.8, gtep.PP: 303975.0}),
-            ),
-        ],
-    )
-    def test_calculate(self, turbine, parameters, inlet, expected_parameters, expected_outlet):
-        """Тест предсказания турбины"""
-        vars, outlet = turbine.calculate(parameters, inlet)
-        for k, v in expected_parameters.items():
-            assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-
-    @pytest.mark.parametrize(
-        "parameters, inlet",
-        [
-            (
-                {gtep.power: 24 * 10**6, gtep.effeff: 0.9},
-                exhaust,
-            ),
-            (
-                {gtep.pipi: 4.0, gtep.power: 24 * 10**6},
-                exhaust,
-            ),
-            (
-                {gtep.pipi: 4.0, gtep.effeff: 0.9},
-                exhaust,
-            ),
-        ],
-    )
-    @pytest.mark.benchmark
-    def test_turbine_calculate(self, benchmark, turbine, parameters, inlet):
-        def benchfunc(turbine, parameters, inlet):
-            turbine.calculate(parameters, inlet)
-
-        benchmark(benchfunc, turbine, parameters, inlet)
-
-
-@pytest.fixture
-def nozzle():
-    """Создает экземпляр сопла"""
-    return Nozzle({}, "Test")
+        benchmark(benchfunc, rotor, parameters, inlet)
 
 
 @pytest.fixture
@@ -416,6 +343,12 @@ class TestBurner:
             burner.calculate(parameters, inlet, fuel)
 
         benchmark(benchfunc, burner, parameters, inlet, fuel)
+
+
+@pytest.fixture
+def nozzle():
+    """Создает экземпляр сопла"""
+    return Nozzle({}, "Test")
 
 
 class TestNozzle:

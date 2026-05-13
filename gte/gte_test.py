@@ -10,7 +10,6 @@ try:
     from .nodes.channel.channel import Channel
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.turbocompressor.rotor.rotor import Rotor
-    from .nodes.turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -25,7 +24,6 @@ except ImportError:
     from gte.nodes.channel.channel import Channel
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.turbocompressor.rotor.rotor import Rotor
-    from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class TestGTE:
@@ -34,12 +32,12 @@ class TestGTE:
     @pytest.mark.parametrize(
         "scheme, name",
         [
-            ([[Rotor({}), Burner({}), Turbine({})]], "AI-9"),
-            ([[Rotor({}), Burner({}), Turbine({}), Turbine({})]], "TV3-117"),
-            ([[Rotor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
+            ([[Rotor({}), Burner({}), Rotor({})]], "AI-9"),
+            ([[Rotor({}), Burner({}), Rotor({}), Rotor({})]], "TV3-117"),
+            ([[Rotor({}), Burner({}), Rotor({}), Nozzle({})]], "Jumo 004"),
             (
                 [
-                    [Rotor({}), Rotor({}), Burner({}), Turbine({}), Turbine({}), Nozzle({})],
+                    [Rotor({}), Rotor({}), Burner({}), Rotor({}), Rotor({}), Nozzle({})],
                     [Rotor({}), Channel({})],
                 ],
                 "AL-31F",
@@ -54,12 +52,12 @@ class TestGTE:
     @pytest.mark.parametrize(
         "scheme, name",
         [
-            ([[Rotor({}), Burner({}), Turbine({})]], "AI-9"),
-            ([[Rotor({}), Burner({}), Turbine({}), Turbine({})]], "TV3-117"),
-            ([[Rotor({}), Burner({}), Turbine({}), Nozzle({})]], "Jumo 004"),
+            ([[Rotor({}), Burner({}), Rotor({})]], "AI-9"),
+            ([[Rotor({}), Burner({}), Rotor({}), Rotor({})]], "TV3-117"),
+            ([[Rotor({}), Burner({}), Rotor({}), Nozzle({})]], "Jumo 004"),
             (
                 [
-                    [Rotor({}), Rotor({}), Burner({}), Turbine({}), Turbine({}), Nozzle({})],
+                    [Rotor({}), Rotor({}), Burner({}), Rotor({}), Rotor({}), Nozzle({})],
                     [Rotor({}), Channel({})],
                 ],
                 "AL-31F",

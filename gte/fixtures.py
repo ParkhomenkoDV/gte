@@ -8,7 +8,6 @@ try:
     from .nodes.channel.channel import Channel
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.turbocompressor.rotor import Rotor
-    from .nodes.turbocompressor.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -21,7 +20,7 @@ except ImportError:
     from gte.nodes.channel import Channel
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.turbocompressor.rotor import Rotor
-    from gte.nodes.turbocompressor.turbine import Turbine
+
 
 # Вещества
 
@@ -91,7 +90,7 @@ ai9 = GTE(
         (
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
             Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Turbine({gtep.effeff: 0.9}, name="HPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
         ),
     ],
     name="AI-9",
@@ -104,7 +103,7 @@ jumo004b = GTE(
         (
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
             Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Turbine({gtep.effeff: 0.9}, name="HPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
             Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N"),
         ),
     ],
@@ -119,8 +118,8 @@ al31f = GTE(
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
             Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Turbine({gtep.effeff: 0.9}, name="HPT"),
-            Turbine({gtep.effeff: 0.9}, name="LPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
             Nozzle({gtep.eff_speed: 0.98}, "N"),
         ),
         (

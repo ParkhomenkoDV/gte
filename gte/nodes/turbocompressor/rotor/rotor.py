@@ -7,7 +7,7 @@ from substance import Substance
 from thermodynamics import adiabatic_index
 
 try:
-    from ....checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
+    from ....checks import check_mass_flow, check_temperature
     from ....config import EPSREL
     from ....config import parameters as gtep
     from ....errors import TYPE_ERROR
@@ -19,7 +19,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.checks import check_efficiency, check_mass_flow, check_pressure_ratio, check_temperature
+    from gte.checks import check_mass_flow, check_temperature
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
@@ -34,8 +34,8 @@ class Rotor(GTENode):
     n_vars: int = 2
     models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        (-0.4, +0.4, +0.4, -0.4, -0.4),
-        (+0.4, +0.2, -0.2, -0.4, +0.4),
+        (0.0, 0.0, -0.2, -0.2, +0.2, +0.2, 0.0),
+        (-0.4, -0.1, -0.1, +0.4, +0.4, -0.1, -0.1),
     )
 
     __slots__ = ()  # нет новых атрибутов
@@ -67,6 +67,7 @@ class Rotor(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
+                gtep.eo: inlet.parameters.get(gtep.eo, nan),
             },
             functions=inlet.functions,
         )
@@ -135,6 +136,7 @@ class Rotor(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
+                gtep.eo: inlet.parameters.get(gtep.eo, nan),  # TODO посчитать через массу!
             },
             functions=inlet.functions,
         )
@@ -180,14 +182,6 @@ class Rotor(GTENode):
             return f"inlet {gtep.TT} {inlet.parameters[gtep.TT]}"
         if not check_temperature(outlet.parameters[gtep.TT]):
             return f"outlet {gtep.TT} {outlet.parameters[gtep.TT]}"
-
-        effeff = cls.total_efficiency(inlet, outlet)
-        if not check_efficiency(effeff):
-            return f"{effeff}"
-
-        pipi = cls.total_pressure_ratio(inlet, outlet)
-        if not check_pressure_ratio(pipi):
-            return f"{pipi}"
 
         return ""
 
@@ -242,23 +236,28 @@ class Rotor(GTENode):
 
 
 if __name__ == "__main__":
-    from gte.fixtures import air as inlet
+    from gte.fixtures import air, exhaust
 
     test_cases = (
-        {"parameters": {gtep.pipi: 6, gtep.effeff: 0.85}},
-        {"parameters": {gtep.pipi: 6, gtep.power: 12 * 10**6}},
-        {"parameters": {gtep.effeff: 0.85, gtep.power: 12 * 10**6}},
+        # compressor
+        {"parameters": {gtep.pipi: 6, gtep.effeff: 0.85}, "inlet": air},
+        {"parameters": {gtep.pipi: 6, gtep.power: 12 * 10**6}, "inlet": air},
+        {"parameters": {gtep.effeff: 0.85, gtep.power: 12 * 10**6}, "inlet": air},
+        # turbine
+        {"parameters": {gtep.effeff: 1 / 0.9, gtep.power: -24 * 10**6}, "inlet": exhaust},
+        {"parameters": {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6}, "inlet": exhaust},
+        {"parameters": {gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 4.0}, "inlet": exhaust},
     )
     for test_case in test_cases:
         c = Rotor(test_case["parameters"], "test")
         print(f"{c.is_solvable=}")
 
-        vars, outlet = c.calculate(c.parameters, inlet)
+        vars, outlet = c.calculate(c.parameters, test_case["inlet"])
 
         for k, v in outlet.parameters.items():
             print(f"{k:25}: {v:.4f}")
         print(vars)
 
-        print(f"{Rotor.validate(inlet, outlet) = }")
-        print(f"{Rotor.check_real(inlet, outlet) = }")
+        print(f"{Rotor.validate(test_case["inlet"], outlet) = }")
+        print(f"{Rotor.check_real(test_case["inlet"], outlet) = }")
         print()

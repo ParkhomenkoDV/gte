@@ -13,7 +13,6 @@ try:
     from .nodes.node import GTENode
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.turbocompressor.rotor.rotor import Rotor
-    from .nodes.turbocompressor.turbine.turbine import Turbine
 except ImportError:
     import os
     import sys
@@ -27,13 +26,12 @@ except ImportError:
     from gte.nodes.node import GTENode
     from gte.nodes.nozzle.nozzle import Nozzle
     from gte.nodes.turbocompressor.rotor.rotor import Rotor
-    from gte.nodes.turbocompressor.turbine.turbine import Turbine
 
 
 class GTE:
     """ГТД"""
 
-    NODES = (Rotor, Burner, Turbine, Nozzle, Channel)
+    NODES = (Rotor, Burner, Rotor, Nozzle, Channel)
 
     __slots__ = ("name", "_GTE__scheme", "shafts", "_GTE__finder", "requirements")
 
@@ -85,7 +83,7 @@ class GTE:
 
     def add_shaft(self, *node_places) -> None:
         """Добавление вала как связи по балансу мощностей"""
-        shaft: List[Union[Rotor, Turbine]] = []
+        shaft: List[Rotor] = []
         if len(node_places) == 0:
             raise ValueError("empty shaft")
         for node_place in node_places:
@@ -99,8 +97,8 @@ class GTE:
             if not (0 <= place <= len(self.__scheme[contour]) - 1):
                 raise ValueError(f"{place=} does not exist in {contour=}")
             node = self.__scheme[contour][place]
-            if not isinstance(node, (Rotor, Turbine)):
-                raise ValueError(f"{type(node_place)=} must be in {Rotor, Turbine}")
+            if not isinstance(node, Rotor):
+                raise ValueError(f"{type(node_place)=} must be in {Rotor}")
             shaft.append(node)
         self.shafts.append(shaft)
 
@@ -121,7 +119,7 @@ class GTE:
         length = max(map(len, self.__scheme))  # длина ГТД в узлах
 
         fg = plt.figure(figsize=kwargs.get("figsize", (length * 2, (len(self.__scheme) + 1 + 2) * 2)))
-        fg.suptitle("GTE scheme", fontsize=14, fontweight="bold")
+        fg.suptitle(f"'{self.name}' scheme", fontsize=14, fontweight="bold")
         gs = fg.add_gridspec(len(self.__scheme) + 1 + 1, 1)  # строки = контуры + валы + спецификация, столбцы
 
         # прорисовка контуров
@@ -259,7 +257,7 @@ class GTE:
                 if verbose:
                     print(f"\t{i}: {node = }")
 
-                if isinstance(node, (Rotor, Turbine, Channel, Nozzle)):
+                if isinstance(node, (Rotor, Rotor, Channel, Nozzle)):
                     var, outlet = node.calculate(node.parameters.copy(), outlet)
                 elif isinstance(node, Burner):
                     var, outlet = node.calculate(node.parameters.copy(), outlet, fuel)
@@ -338,7 +336,7 @@ if __name__ == "__main__":
                 (
                     Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
                     Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-                    Turbine({gtep.effeff: 0.9, gtep.pipi: 1 / 3}, name="HPT"),
+                    Rotor({gtep.effeff: 0.9, gtep.pipi: 1 / 3}, name="HPT"),
                 ),
             ],
             name="Simple",
