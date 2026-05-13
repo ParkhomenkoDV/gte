@@ -128,7 +128,7 @@ class Turbine(GTENode):
         )
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:  # TODO cooling
+    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         prediction, outlet_ = cls.predict(parameters, inlet)
 
         outlet = Substance(
@@ -207,13 +207,13 @@ class Turbine(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(gc, hcp)
 
-        return (1 - titi) / (1 - pipi ** ((k - 1) / k))
+        return (titi - 1) / (pipi ** ((k - 1) / k) - 1)
 
     @classmethod
     def total_pressure_ratio(cls, inlet: Substance, outlet: Substance) -> float:
