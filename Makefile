@@ -44,8 +44,12 @@ activate:
 	@echo "$(BLUE)Run this command to activate virtual environment:$(RESET)"
 	@echo "source $(VENV_ACTIVATE)"
 
+pip:
+	@echo "$(BLUE)Installing pip...$(RESET)"
+	pip install --upgrade pip
+
 install:
-	@echo "$(BLUE)Installing production dependencies...$(RESET)"
+	@echo "$(BLUE)Installing dependencies...$(RESET)"
 	$(PIP_PATH) install --upgrade -r $(REQUIREMENTS)
 	$(PIP_PATH) install --upgrade black flake8 pylint isort pytest pytest-benchmark
 
