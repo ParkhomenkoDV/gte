@@ -446,7 +446,7 @@ class TestNozzle:
         ],
     )
     def test_calculate(self, nozzle, parameters, inlet, expected_parameters, expected_outlet):
-        """Тест предсказания"""
+        """Тест расчетв"""
         vars, outlet = nozzle.calculate(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
@@ -544,7 +544,7 @@ class TestChannel:
         ],
     )
     def test_calculate(self, channel, parameters, inlet, expected_outlet):
-        """Тест предсказания"""
+        """Тест расчетв"""
         _, outlet = channel.calculate(parameters, inlet)
         for k, v in expected_outlet.parameters.items():
             assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
@@ -560,6 +560,8 @@ class TestChannel:
     )
     @pytest.mark.benchmark
     def test_channel_calculate(self, benchmark, channel, parameters, inlet):
+        """Бенчмарк расчета"""
+
         def benchfunc(channel, parameters, inlet):
             channel.calculate(parameters, inlet)
 
@@ -621,6 +623,48 @@ class TestSplitter:
     )
     @pytest.mark.benchmark
     def test_splitter_predict(self, benchmark, splitter, parameters, inlet):
+        """Бенчмарк предсказания"""
+
+        def benchfunc(splitter, parameters, inlet):
+            splitter.predict(parameters, inlet)
+
+        benchmark(benchfunc, splitter, parameters, inlet)
+
+    @pytest.mark.parametrize(
+        "parameters, inlet, expected_outlets",
+        [
+            (
+                {"splits": (1, 3, 6)},
+                air,
+                (
+                    Substance("air", parameters={p for p in air.parameters if p != gtep.m}.update({gtep.m: 5}), functions=air.functions),
+                    Substance("air", parameters={p for p in air.parameters if p != gtep.m}.update({gtep.m: 15}), functions=air.functions),
+                    Substance("air", parameters={p for p in air.parameters if p != gtep.m}.update({gtep.m: 30}), functions=air.functions),
+                ),
+            ),
+        ],
+    )
+    def test_calculate(self, splitter, parameters, inlet, expected_outlets):
+        """Тест расчета"""
+        _, outlets = splitter.predict(parameters, inlet)
+
+        for i, outlet in enumerate(outlets):
+            for k, v in expected_outlets[i].parameters.items():
+                assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "parameters, inlet",
+        [
+            (
+                {"splits": (1, 3, 6)},
+                air,
+            ),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_splitter_calculate(self, benchmark, splitter, parameters, inlet):
+        """Бенчмарк расчета"""
+
         def benchfunc(splitter, parameters, inlet):
             splitter.predict(parameters, inlet)
 
@@ -683,6 +727,45 @@ class TestJoiner:
     def test_joiner_predict(self, benchmark, joiner, inlets):
         def benchfunc(joiner, inlets):
             joiner.predict({}, *inlets)
+
+        benchmark(benchfunc, joiner, inlets)
+
+    @pytest.mark.parametrize(
+        "inlets, expected_outlet",
+        [
+            (
+                (air, exhaust),
+                Substance(
+                    f"{air.name}+{exhaust.name}",
+                    parameters={
+                        gtep.m: air.parameters[gtep.m] + exhaust.parameters[gtep.m],
+                        gtep.TT: (air.parameters[gtep.m] * air.parameters[gtep.TT] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.TT] * exhaust.parameters[gtep.hcp])
+                        / (air.parameters[gtep.m] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.hcp]),
+                        gtep.PP: (air.parameters[gtep.m] * air.parameters[gtep.PP] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.PP]) / (air.parameters[gtep.m] + exhaust.parameters[gtep.m]),
+                    },
+                ),
+            ),
+        ],
+    )
+    def test_calculate(self, joiner, inlets, expected_outlet):
+        """Тест расчетв"""
+        _, outlet = joiner.calculate({}, *inlets)
+
+        for k, v in expected_outlet.parameters.items():
+            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL * 2), AssertionError(f"{k=} {v=}")
+
+    @pytest.mark.parametrize(
+        "inlets",
+        [
+            (air, exhaust),
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_joiner_calculate(self, benchmark, joiner, inlets):
+        """Бенчмарк расчета"""
+
+        def benchfunc(joiner, inlets):
+            joiner.calculate({}, *inlets)
 
         benchmark(benchfunc, joiner, inlets)
 
