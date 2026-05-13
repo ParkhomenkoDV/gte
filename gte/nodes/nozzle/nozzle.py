@@ -130,7 +130,8 @@ class Nozzle(GTENode):
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
-        prediction, outlet_ = cls.predict(parameters, inlet)
+        parameters_ = parameters.copy()  # необходима копия т.к. словарь передается по ссылке и при добавлении искоромй vars становится нерасчетным
+        prediction, outlet_ = cls.predict(parameters_, inlet)
 
         outlet = Substance(
             inlet.name,
@@ -143,31 +144,31 @@ class Nozzle(GTENode):
             functions=inlet.functions,
         )
 
-        args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
-        x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
+        args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
+        x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]
 
         result = root(cls._equations, x0, args, method="lm")
         outlet.parameters[gtep.PP] = float(result.x[0])
         for v in cls.variables:
-            if v not in parameters:
-                parameters[v] = float(result.x[1])
+            if v not in parameters_:
+                parameters_[v] = float(result.x[1])
 
         outlet = GTENode.calculate_substance(outlet)
 
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
 
-        outlet.parameters[gtep.c] = parameters[gtep.eff_speed] * (2 * hcp * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k - 1) / k))) ** 0.5
+        outlet.parameters[gtep.c] = parameters_[gtep.eff_speed] * (2 * hcp * outlet.parameters[gtep.TT] * (1 - parameters_[gtep.pipi] ** ((k - 1) / k))) ** 0.5
         outlet.parameters[gtep.T] = outlet.parameters[gtep.TT] - outlet.parameters[gtep.c] ** 2 / (2 * outlet.parameters[gtep.hcp])
 
-        eff_speed = parameters.get(gtep.eff_speed, cls.efficiency_speed(inlet, outlet))
-        pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
-        force = parameters.get(gtep.force, cls.force(inlet, outlet))
+        eff_speed = parameters_.get(gtep.eff_speed, cls.efficiency_speed(inlet, outlet))
+        pipi = parameters_.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
+        force = parameters_.get(gtep.force, cls.force(inlet, outlet))
 
         return {gtep.pipi: pipi, gtep.eff_speed: eff_speed, gtep.force: force}, outlet
 
