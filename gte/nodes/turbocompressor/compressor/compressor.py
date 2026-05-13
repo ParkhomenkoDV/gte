@@ -205,7 +205,7 @@ class Compressor(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
