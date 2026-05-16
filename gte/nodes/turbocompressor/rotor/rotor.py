@@ -249,10 +249,10 @@ if __name__ == "__main__":
         {"parameters": {gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 4.0}, "inlet": exhaust},
     )
     for test_case in test_cases:
-        c = Rotor(test_case["parameters"], "test")
-        print(f"{c.is_solvable=}")
+        r = Rotor(test_case["parameters"], "test")
+        print(f"{r.is_solvable=}")
 
-        vars, outlet = c.calculate(c.parameters, test_case["inlet"])
+        vars, outlet = r.calculate(r.parameters, test_case["inlet"])
 
         for k, v in outlet.parameters.items():
             print(f"{k:25}: {v:.4f}")
