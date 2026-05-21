@@ -29,7 +29,6 @@ class Splitter(GTENode):
 
     variables: Tuple[str, str, str] = ("splits",)
     n_vars: int = 1
-    models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (-0.4, +0.4, +0.4, -0.4, -0.4),
         (+0.4, +0.2, -0.2, -0.4, +0.4),
