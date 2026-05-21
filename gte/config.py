@@ -37,7 +37,6 @@ parameters = Constants(
     # КПД
     efficiency="efficiency",  # КПД
     effeff="total_efficiency",  # полный КПД
-    eff_burn="efficiency_burn",  # КПД полноты сгорания топлива
     eff_speed="efficiency_speed",  # КПД скорости
     power="power",  # мощность
     force="force",  # сила
