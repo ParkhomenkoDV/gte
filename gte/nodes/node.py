@@ -27,7 +27,6 @@ class GTENode(ABC):
         class:
             variables: Кортеж названий переменных узла
             n_vars: Количество необходимых параметров для решения
-            models: Словарь ML моделей для предсказаний
         object:
             name: Имя узла
             parameters: Словарь с параметрами узла
@@ -35,7 +34,6 @@ class GTENode(ABC):
 
     variables: Tuple[str, ...]  # переменные узла
     n_vars: int = -1  # необходимое количество параметров для решения
-    models: Dict[str, Any] = {}  # ML модели
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]]
 
     __slots__ = ("name", "parameters")
