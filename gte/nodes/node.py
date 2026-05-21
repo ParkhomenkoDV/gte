@@ -24,12 +24,13 @@ class GTENode(ABC):
     """Абстрактный базовый класс узла ГТД
 
     Attributes:
-        variables: Кортеж названий переменных узла
-        n_vars: Количество необходимых параметров для решения
-        models: Словарь ML моделей для предсказаний
-        figure: Кортеж с данными для визуализации (x, y координаты)
-        name: Имя узла
-        parameters: Словарь с параметрами узла
+        class:
+            variables: Кортеж названий переменных узла
+            n_vars: Количество необходимых параметров для решения
+            models: Словарь ML моделей для предсказаний
+        object:
+            name: Имя узла
+            parameters: Словарь с параметрами узла
     """
 
     variables: Tuple[str, ...]  # переменные узла
@@ -146,8 +147,8 @@ class GTENode(ABC):
         """Расчет термодинамических параметров вещества по массе, температуре, давлению"""
         GTENode.validate_substance(substance)
 
-        substance.parameters[gtep.gc] = call_with_kwargs(substance.functions[gtep.gc], substance.parameters)
-        substance.parameters[gtep.hcp] = call_with_kwargs(substance.functions[gtep.hcp], substance.parameters)
+        substance.parameters[gtep.gc] = call_with_kwargs(substance.functions[gtep.gc], **substance.parameters)
+        substance.parameters[gtep.hcp] = call_with_kwargs(substance.functions[gtep.hcp], **substance.parameters)
         substance.parameters[gtep.DD] = substance.parameters[gtep.PP] / (substance.parameters[gtep.gc] * substance.parameters[gtep.TT])
         substance.parameters[gtep.k] = adiabatic_index(substance.parameters[gtep.gc], substance.parameters[gtep.hcp])
         substance.parameters[gtep.ss_critical] = critical_sonic_velocity(substance.parameters[gtep.k], substance.parameters[gtep.gc], substance.parameters[gtep.TT])
