@@ -32,7 +32,7 @@ parameters = Constants(
     titi="total_temperature_ratio",  # степень повышения полной температуры
     ti="static_temperature_ratio",  # степень повышения статической температуры
     # числа
-    mach="mach_number",  # число Маха
+    Mach="mach_number",  # число Маха
     Nu="nusselt_number",  # число Нуссельта
     # КПД
     efficiency="efficiency",  # КПД
