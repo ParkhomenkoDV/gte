@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, Tuple, Union
 
 from numpy import isnan, nan
@@ -32,7 +31,6 @@ class Nozzle(GTENode):
 
     variables: Tuple[str, str] = (gtep.eff_speed, gtep.pipi, gtep.force)
     n_vars: int = 2
-    models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (+0.4, -0.4, -0.4, +0.4),
         (+0.4, +0.4, -0.4, -0.4),
@@ -58,8 +56,8 @@ class Nozzle(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        gc_i = call_with_kwargs(inlet.functions[gtep.gc], inlet.parameters)
-        hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
+        gc_i = call_with_kwargs(inlet.functions[gtep.gc], **inlet.parameters)
+        hcp_i = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
         k_i = adiabatic_index(gc_i, hcp_i)
 
         outlet = Substance(
@@ -67,11 +65,14 @@ class Nozzle(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo, nan),
                 gtep.TT: inlet.parameters[gtep.TT],
             },
             functions=inlet.functions,
         )
+        if gtep.eo in inlet.parameters:
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
+            outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+
         vars = {}
 
         if gtep.eff_speed not in parameters:
@@ -116,7 +117,7 @@ class Nozzle(GTENode):
             **{
                 gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
                 gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
-                gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
+                gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
             },
         )
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
@@ -138,11 +139,13 @@ class Nozzle(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo, nan),
                 gtep.TT: inlet.parameters[gtep.TT],
             },
             functions=inlet.functions,
         )
+        if gtep.eo in inlet.parameters:
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
+            outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
 
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
         x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]
@@ -158,7 +161,7 @@ class Nozzle(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
@@ -214,7 +217,7 @@ class Nozzle(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)

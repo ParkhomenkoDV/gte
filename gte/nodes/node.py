@@ -109,6 +109,9 @@ class GTENode(ABC):
             raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
         if gtep.PP not in substance.parameters:
             raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
+        if gtep.eo in substance.parameters:  # в случае наличия избытка окислителя
+            if "oxidizer" not in substance.parameters:  # необходимо знать массовую долю окислителя
+                raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, "oxidizer"))  # для перерасчета в случае смешения
         # validate functions
         tdp_keys = gtep.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():

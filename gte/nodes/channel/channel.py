@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, Tuple, Union
 
 from numpy import isnan, nan
@@ -28,7 +27,6 @@ class Channel(GTENode):
 
     variables: Tuple[str, str] = (gtep.titi, gtep.pipi)
     n_vars: int = 2
-    models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         ((-0.4, -0.4), (+0.4, +0.4)),
         ((-0.4, +0.4), (-0.4, +0.4)),
@@ -59,12 +57,15 @@ class Channel(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo, nan),
                 gtep.TT: inlet.parameters[gtep.TT] * parameters[gtep.titi],
                 gtep.PP: inlet.parameters[gtep.PP] * parameters[gtep.pipi],
             },
             functions=inlet.functions,
         )
+        if gtep.eo in inlet.parameters:
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
+            outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+
         vars = {}
 
         return vars, outlet

@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, Tuple, Union
 
 from numpy import isnan, nan
@@ -32,7 +31,6 @@ class Rotor(GTENode):
 
     variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
     n_vars: int = 2
-    models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (0.0, 0.0, -0.2, -0.2, +0.2, +0.2, 0.0),
         (-0.4, -0.1, -0.1, +0.4, +0.4, -0.1, -0.1),
@@ -58,8 +56,8 @@ class Rotor(GTENode):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], inlet.parameters)
-        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
+        gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], **inlet.parameters)
+        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
         k_i: float = adiabatic_index(gc_i, hcp_i)
 
         outlet = Substance(
@@ -67,10 +65,13 @@ class Rotor(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo, nan),
             },
             functions=inlet.functions,
         )
+        if gtep.eo in inlet.parameters:
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
+            outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+
         vars: Dict[str, float] = {}
 
         if gtep.pipi not in parameters:
@@ -115,7 +116,7 @@ class Rotor(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet_TT),
             gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
-            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
@@ -136,10 +137,13 @@ class Rotor(GTENode):
             inlet.composition,
             parameters={
                 gtep.m: inlet.parameters[gtep.m],
-                gtep.eo: inlet.parameters.get(gtep.eo, nan),  # TODO посчитать через массу!
             },
             functions=inlet.functions,
         )
+
+        if gtep.eo in inlet.parameters:
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
+            outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
 
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
         x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
@@ -199,7 +203,7 @@ class Rotor(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo, nan), outlet.parameters.get(gtep.eo, nan)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
         }
         gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
@@ -228,7 +232,7 @@ class Rotor(GTENode):
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
             gtep.PP: (inlet.parameters[gtep.PP], outlet.parameters[gtep.PP]),
-            gtep.eo: (inlet.parameters.get(gtep.eo), outlet.parameters.get(gtep.eo)),
+            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
         }
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
 

@@ -22,12 +22,10 @@ def get_function_signature(function: Callable):
     return inspect.signature(function)
 
 
-def call_with_kwargs(function: Callable, kwargs: Dict[str, Any]):
+def call_with_kwargs(function: Callable, **kwargs):
     """Вызов функции через kwargs"""
     if not callable(function):
         raise TypeError(f"{function} must be callable")
-    if not isinstance(kwargs, dict):
-        raise TypeError(f"type {kwargs} must be dict")
 
     sig = get_function_signature(function)
 

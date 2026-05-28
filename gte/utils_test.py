@@ -39,14 +39,14 @@ class Test_call_with_kwargs:
         ],
     )
     def test_function(self, function, kwargs, expected):
-        assert call_with_kwargs(function, kwargs) == expected
+        assert call_with_kwargs(function, **kwargs) == expected
 
     @pytest.mark.benchmark
     def test_call_with_kwargs(self, benchmark):
         """Бенчмарк функции call_with_kwargs"""
 
         def benchfunc(kwargs):
-            call_with_kwargs(self.f, kwargs)
+            call_with_kwargs(self.f, **kwargs)
 
         benchmark(benchfunc, {"name": "Bob", "age": 24, "active": False, "sex": "male"})
 
@@ -61,7 +61,7 @@ class Test_call_with_kwargs:
 
         # нехватка обязательных аргументов
         with pytest.raises((AssertionError, ValueError)):
-            call_with_kwargs(self.f, {"name": "Alice"})
+            call_with_kwargs(self.f, **{"name": "Alice"})
 
 
 class TestIntegrate:

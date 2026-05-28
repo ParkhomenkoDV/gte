@@ -50,7 +50,7 @@ class TestNode:
             (Rotor, {gtep.effeff: [0.8, 0.85, 0.9], gtep.power: [6 * 10**6, 8 * 10**6, 10 * 10**6, 12 * 10**6]}),
             (Rotor, {gtep.pipi: [6, 7, 8, 9, 10, 11, 12], gtep.power: [6 * 10**6, 8 * 10**6, 10 * 10**6, 12 * 10**6]}),
             # Burner
-            (Burner, {gtep.eff_burn: [0.98, 0.99], gtep.pipi: [0.94, 0.95, 0.96]}),
+            (Burner, {gtep.efficiency: [0.98, 0.99], gtep.pipi: [0.94, 0.95, 0.96]}),
             # Nozzle
             (Nozzle, {gtep.eff_speed: [0.98, 0.99], gtep.pipi: [1 / 1.2, 1 / 1.3, 1 / 1.4, 1 / 1.5, 1 / 1.6, 1 / 1.7, 1 / 1.8]}),
             (Nozzle, {gtep.eff_speed: [0.98, 0.99], gtep.force: [30_000, 40_000, 50_000, 60_000, 70_000, 80_000]}),
@@ -313,7 +313,7 @@ class TestBurner:
         "parameters, inlet, fuel, expected_outlet",
         [
             (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                {gtep.efficiency: 0.99, gtep.pipi: 0.95},
                 air,
                 kerosene,
                 Substance("outlet", parameters={gtep.TT: 1137.5, gtep.PP: 96_258}),
@@ -332,7 +332,7 @@ class TestBurner:
         "parameters, inlet, fuel",
         [
             (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                {gtep.efficiency: 0.99, gtep.pipi: 0.95},
                 air,
                 kerosene,
             ),
@@ -351,7 +351,7 @@ class TestBurner:
         "parameters, inlet, fuel, expected_outlet",
         [
             (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                {gtep.efficiency: 0.99, gtep.pipi: 0.95},
                 air,
                 kerosene,
                 Substance("outlet", parameters={gtep.TT: 1079, gtep.PP: 96_258}),
@@ -370,7 +370,7 @@ class TestBurner:
         "parameters, inlet, fuel",
         [
             (
-                {gtep.eff_burn: 0.99, gtep.pipi: 0.95},
+                {gtep.efficiency: 0.99, gtep.pipi: 0.95},
                 air,
                 kerosene,
             ),

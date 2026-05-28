@@ -61,6 +61,7 @@ kerosene = Substance(
 exhaust = Substance(
     "exhaust",
     parameters={
+        "oxidizer": 50,
         gtep.m: 51,
         gtep.eo: 3,
         gtep.gc: 287.0,
@@ -89,7 +90,7 @@ ai9 = GTE(
     [
         (
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
             Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
         ),
     ],
@@ -98,11 +99,24 @@ ai9 = GTE(
 ai9.add_shaft([0, 0], [0, 2])
 
 
+closed = GTE(
+    [
+        (
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Channel({gtep.titi: 1.2, gtep.pipi: 0.8}, name="CC"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
+        ),
+    ],
+    name="closed",
+)
+ai9.add_shaft([0, 0], [0, 2])
+
+
 jumo004b = GTE(
     [
         (
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
             Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
             Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N"),
         ),
@@ -118,7 +132,7 @@ rr_trent = GTE(
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="MPC"),
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
             Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
             Rotor({gtep.effeff: 1 / 0.9}, name="MPT"),
             Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
@@ -135,12 +149,31 @@ rr_trent.add_shaft([0, 1], [0, 5])  # ВСД
 rr_trent.add_shaft([0, 2], [0, 4])  # ВВД
 
 
+ai222 = GTE(
+    [
+        (
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
+            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
+            Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
+            Nozzle({gtep.eff_speed: 0.98}, "N"),
+        ),
+        (
+            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
+            Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
+        ),
+    ]
+)
+ai222.add_shaft([0, 0], [1, 0], [0, 4])  # ВНД
+ai222.add_shaft([0, 1], [0, 3])  # ВВД
+
 al31f = GTE(
     [
         (
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
             Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
+            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
             Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
             Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
             Nozzle({gtep.eff_speed: 0.98}, "N"),

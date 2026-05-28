@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, List, Tuple, Union
 
 from numpy import isnan
@@ -30,7 +29,6 @@ class Joiner(GTENode):
 
     variables: Tuple[str] = tuple()
     n_vars: int = 0
-    models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         ((-0.4, -0.4), (-0.4, +0.4)),
         ((-0.4, +0.4), (0.0, 0.0)),
@@ -55,29 +53,31 @@ class Joiner(GTENode):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
         names: List[str] = []
-        m, eo, m_hcp, m_t_hcp, m_p = 0, 0, 0, 0, 0
+        oxidizer, required = 0, 0  # окислитель, теоретически необходимое кодичество окислителя
+        m, m_hcp, m_t_hcp, m_p = 0, 0, 0, 0
         for inlet in inlets:
             GTENode.validate_substance(inlet)
 
             names.append(inlet.name)
-            hcp = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
+            hcp = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
             m += inlet.parameters[gtep.m]
-            eo += inlet.parameters.get(gtep.eo, 0)
+            oxidizer += inlet.parameters["oxidizer"] if gtep.eo in inlet.parameters else inlet.parameters[gtep.m]
+            required += inlet.parameters.get("oxidizer", 0) / inlet.parameters.get(gtep.eo, 1)  # 0 for oxidizer
             m_hcp += inlet.parameters[gtep.m] * hcp
             m_t_hcp += inlet.parameters[gtep.m] * inlet.parameters[gtep.TT] * hcp
             m_p += inlet.parameters[gtep.m] * inlet.parameters[gtep.PP]
 
-        def gc(**kwargs) -> float:
+        def gc(total_temperature, total_pressure, excess_oxidizing) -> float:
             result = 0
             for inlet in inlets:
-                gc = call_with_kwargs(inlet.functions[gtep.gc], kwargs)
+                gc = call_with_kwargs(inlet.functions[gtep.gc], **{gtep.TT: total_temperature, gtep.PP: total_pressure, gtep.eo: excess_oxidizing})
                 result += inlet.parameters[gtep.m] * gc
             return result / m
 
-        def hcp(**kwargs) -> float:
+        def hcp(total_temperature, total_pressure, excess_oxidizing) -> float:
             result = 0
             for inlet in inlets:
-                hcp = call_with_kwargs(inlet.functions[gtep.hcp], kwargs)
+                hcp = call_with_kwargs(inlet.functions[gtep.hcp], **{gtep.TT: total_temperature, gtep.PP: total_pressure, gtep.eo: excess_oxidizing})
                 result += inlet.parameters[gtep.m] * inlet.parameters[gtep.TT] * hcp
             return result / m_hcp
 
@@ -86,7 +86,7 @@ class Joiner(GTENode):
             {},  # TODO
             parameters={
                 gtep.m: m,
-                gtep.eo: eo,
+                gtep.eo: oxidizer / required,
                 gtep.TT: m_t_hcp / m_hcp,
                 gtep.PP: m_p / m,
             },
@@ -95,6 +95,10 @@ class Joiner(GTENode):
                 gtep.hcp: hcp,
             },
         )
+        if required != 0:
+            outlet.parameters["oxidizer"] = oxidizer / required
+            outlet.parameters["oxidizer"] = oxidizer
+
         vars: Dict[str, float] = {}
 
         return vars, outlet

@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, Tuple, Union
 
 from numpy import cos, isnan, linspace, nan, radians, sin
@@ -30,9 +29,8 @@ except ImportError:
 class Burner(GTENode):
     """Камера сгорания"""
 
-    variables: Tuple[str, str] = (gtep.eff_burn, gtep.pipi)
+    variables: Tuple[str, str] = (gtep.efficiency, gtep.pipi)
     n_vars: int = 2
-    models: Dict[str, Any] = {}
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         tuple(0.4 * cos(alpha) for alpha in linspace(0, radians(360), 360, endpoint=True)),
         tuple(0.4 * sin(alpha) for alpha in linspace(0, radians(360), 360, endpoint=True)),
@@ -79,8 +77,8 @@ class Burner(GTENode):
             assert parameter in cls.variables
             assert isinstance(value, (float, int)), TypeError(f"{type(value)=} must be numeric")
 
-        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], inlet.parameters)
-        hc_f: float = call_with_kwargs(fuel.functions[gtep.hc], fuel.parameters)
+        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
+        hc_f: float = call_with_kwargs(fuel.functions[gtep.hc], **fuel.parameters)
 
         T15 = T0 + 15  # начальная температура измерения теплоемкости энтальпии
 
@@ -88,7 +86,7 @@ class Burner(GTENode):
             "outlet",
             parameters={
                 gtep.TT: T15
-                + (inlet.parameters[gtep.m] * hcp_i * (inlet.parameters[gtep.TT] - T15) + fuel.parameters[gtep.m] * (hc_f * (fuel.parameters[gtep.TT] - T15) + fuel.parameters["lower_heat"] * parameters[gtep.eff_burn]))
+                + (inlet.parameters[gtep.m] * hcp_i * (inlet.parameters[gtep.TT] - T15) + fuel.parameters[gtep.m] * (hc_f * (fuel.parameters[gtep.TT] - T15) + fuel.parameters["lower_heat"] * parameters[gtep.efficiency]))
                 / (inlet.parameters[gtep.m] + fuel.parameters[gtep.m])
                 / hcp_i,  # TODO: hcp_exhaust
                 gtep.PP: inlet.parameters[gtep.PP] * parameters[gtep.pipi],
@@ -100,10 +98,10 @@ class Burner(GTENode):
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
         """
-        (m_i * enthalpy_i) + m_f * (Q*eff_burn + enthalpy_f) = (m_i + m_f) * enthalpy_o
-        p_eff = P*_outlet / P*_inlet
+        (m_i * enthalpy_i) + m_f * (Q*efficiency + enthalpy_f) = (m_i + m_f) * enthalpy_o
+        pipi = P*_outlet / P*_inlet
         """
-        eff_burn, p_eff = args.get(gtep.eff_burn), args.get(gtep.pipi)
+        efficiency, pipi = args.get(gtep.efficiency), args.get(gtep.pipi)
         outlet_TT, outlet_PP = x[0], x[1]
 
         inlet, fuel, outlet = args["inlet"], args["fuel"], args["outlet"]
@@ -121,16 +119,23 @@ class Burner(GTENode):
                 )[0]
             )
             - (inlet.parameters[gtep.m] * inlet.parameters.get("enthalpy", nan))
-            - fuel.parameters[gtep.m] * (fuel.parameters.get("enthalpy", nan) + eff_burn * fuel.parameters.get("lower_heat", nan)),
-            outlet_PP - inlet.parameters[gtep.PP] * p_eff,
+            - fuel.parameters[gtep.m] * (fuel.parameters.get("enthalpy", nan) + efficiency * fuel.parameters.get("lower_heat", nan)),
+            outlet_PP - inlet.parameters[gtep.PP] * pipi,
         )
 
     @classmethod
     def calculate(cls, parameters: Dict[str, float | int], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
         _, outlet_ = cls.predict(parameters, inlet, fuel)
 
-        outlet = Substance("exhaust")
-        outlet.functions[gtep.gc] = fuel.functions[gtep.gc]
+        outlet = Substance(
+            "exhaust",
+            parameters={
+                gtep.m: inlet.parameters[gtep.m] + fuel.parameters[gtep.m],
+            },
+            functions={
+                gtep.gc: fuel.functions[gtep.gc],
+            },
+        )
 
         H2O = fuel.composition.get("H2O", 0)  # массовая доля волы в смеси
         outlet.functions[gtep.hcp] = lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
@@ -142,10 +147,14 @@ class Burner(GTENode):
             H2O,
         )
 
-        outlet.parameters[gtep.m] = inlet.parameters[gtep.m] + fuel.parameters[gtep.m]
-        outlet.parameters[gtep.eo] = inlet.parameters[gtep.m] / fuel.parameters[gtep.m] / fuel.parameters["stoichiometry"]
+        if gtep.eo in inlet.parameters:  # exhaust
+            outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+            outlet.parameters[gtep.eo] = outlet.parameters["oxidizer"] / (inlet.parameters["oxidizer"] / inlet.parameters[gtep.eo] + fuel.parameters[gtep.m] * fuel.parameters["stoichiometry"])
+        else:  # oxidizer
+            outlet.parameters["oxidizer"] = inlet.parameters[gtep.m]
+            outlet.parameters[gtep.eo] = outlet.parameters["oxidizer"] / (fuel.parameters[gtep.m] * fuel.parameters["stoichiometry"])
 
-        inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP])})
+        inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP]), gtep.eo: (0, inlet.parameters.get(gtep.eo, 0))})
         fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
 
         args: Dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
@@ -157,18 +166,18 @@ class Burner(GTENode):
 
         outlet = GTENode.calculate_substance(outlet)
 
-        eff_burn = parameters.get(gtep.eff_burn, cls.efficiency_burn(inlet, fuel, outlet))
+        efficiency = parameters.get(gtep.efficiency, cls.efficiency(inlet, fuel, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, fuel, outlet))
 
-        return {gtep.eff_burn: eff_burn, gtep.pipi: pipi}, outlet
+        return {gtep.efficiency: efficiency, gtep.pipi: pipi}, outlet
 
     @classmethod
     def validate(cls, inlet: Substance, fuel: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
-        eff_burn = cls.efficiency_burn(inlet, fuel, outlet)
+        efficiency = cls.efficiency(inlet, fuel, outlet)
         pipi = cls.total_pressure_ratio(inlet, fuel, outlet)
 
         x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
-        args = {"inlet": inlet, "fuel": fuel, "outlet": outlet, gtep.eff_burn: eff_burn, gtep.pipi: pipi}
+        args = {"inlet": inlet, "fuel": fuel, "outlet": outlet, gtep.efficiency: efficiency, gtep.pipi: pipi}
 
         result: Dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
@@ -199,14 +208,14 @@ class Burner(GTENode):
         if not (0 <= outlet.parameters[gtep.eo]):
             return f"{outlet.parameters[gtep.eo]}"
 
-        eff_burn = cls.efficiency_burn(inlet, fuel, outlet)
-        if not check_efficiency(eff_burn):
-            return f"{eff_burn}"
+        efficiency = cls.efficiency(inlet, fuel, outlet)
+        if not check_efficiency(efficiency):
+            return f"{efficiency}"
 
         return ""
 
     @classmethod
-    def efficiency_burn(cls, inlet: Substance, fuel: Substance, outlet: Substance) -> float:
+    def efficiency(cls, inlet: Substance, fuel: Substance, outlet: Substance) -> float:
         """КПД полноты сгорания топлива"""
         GTENode.validate_substance(inlet)
         GTENode.validate_substance(fuel)
@@ -242,7 +251,7 @@ if __name__ == "__main__":
     inlet.parameters[gtep.TT] = 600
     inlet.parameters[gtep.PP] = 101325 * 6
 
-    cc = Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="test")
+    cc = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="test")
     print(f"{cc.is_solvable=}")
 
     vars, outlet = cc.calculate(cc.parameters, inlet, fuel)

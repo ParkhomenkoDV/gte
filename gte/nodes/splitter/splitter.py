@@ -1,4 +1,3 @@
-import os
 from copy import deepcopy
 from typing import Any, Dict, Tuple, Union
 
@@ -27,7 +26,7 @@ except ImportError:
 class Splitter(GTENode):
     """Камера отбора"""
 
-    variables: Tuple[str, str, str] = ("splits",)
+    variables: Tuple[str] = ("splits",)
     n_vars: int = 1
     figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
         (-0.4, +0.4, +0.4, -0.4, -0.4),
