@@ -14,27 +14,27 @@ var variables = [3]string{
 	"",
 }
 
-type Compressor struct {
+type Rotor struct {
 	Name       string
 	Parameters map[string]float64
 }
 
-func New(name string, parameters map[string]float64) *Compressor {
+func New(name string, parameters map[string]float64) *Rotor {
 	for parameter, _ := range parameters {
 		if !slices.Contains(variables[:], parameter) {
 			panic(0)
 		}
 	}
-	return &Compressor{
+	return &Rotor{
 		Name:       name,
 		Parameters: parameters,
 	}
 }
 
-func (c *Compressor) Calculate(parameters map[string]float64, inlets ...*substance.Substance) map[string]float64 {
+func (c *Rotor) Calculate(parameters map[string]float64, inlets ...*substance.Substance) map[string]float64 {
 	return parameters
 }
 
-func (c *Compressor) Reset() {
+func (c *Rotor) Reset() {
 	c.Parameters = map[string]float64{}
 }
