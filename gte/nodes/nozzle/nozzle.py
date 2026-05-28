@@ -70,8 +70,8 @@ class Nozzle(GTENode):
             functions=inlet.functions,
         )
         if gtep.eo in inlet.parameters:
-            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         vars = {}
 
@@ -144,8 +144,8 @@ class Nozzle(GTENode):
             functions=inlet.functions,
         )
         if gtep.eo in inlet.parameters:
-            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
         x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]

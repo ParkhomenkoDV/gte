@@ -63,8 +63,8 @@ class Channel(GTENode):
             functions=inlet.functions,
         )
         if gtep.eo in inlet.parameters:
-            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         vars = {}
 

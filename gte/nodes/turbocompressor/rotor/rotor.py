@@ -69,8 +69,8 @@ class Rotor(GTENode):
             functions=inlet.functions,
         )
         if gtep.eo in inlet.parameters:
-            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         vars: Dict[str, float] = {}
 
@@ -142,8 +142,8 @@ class Rotor(GTENode):
         )
 
         if gtep.eo in inlet.parameters:
-            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
+            outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
         x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]

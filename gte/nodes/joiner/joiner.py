@@ -96,8 +96,8 @@ class Joiner(GTENode):
             },
         )
         if required != 0:
-            outlet.parameters["oxidizer"] = oxidizer / required
             outlet.parameters["oxidizer"] = oxidizer
+            outlet.parameters[gtep.eo] = oxidizer / required
 
         vars: Dict[str, float] = {}
 
