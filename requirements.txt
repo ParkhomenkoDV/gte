@@ -1,10 +1,7 @@
 setuptools
-colorama
-tqdm
 numpy
 scipy
 matplotlib
-scikit-learn
 
 units @ git+https://github.com/ParkhomenkoDV/units.git@main
 mathematics @ git+https://github.com/ParkhomenkoDV/mathematics.git@main
