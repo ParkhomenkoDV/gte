@@ -1,5 +1,5 @@
 # gte = gas-turbine engine
-![](./assets/images/GE.jpg)
+![](./images/GE.jpg)
 
 Library for thermodynamic calculation of the cycle of a gas turbine engine of **any** design.
 
@@ -93,7 +93,7 @@ See tutorial in `gte/examples/`
 gte/
 |-- docs/                 # documentations
 |-- examples/             # tutorial
-|-- assets/images/        # images
+|-- images/               # images
 |-- gte/                  # source code gte and gte nodes
 |   └-- nodes/
 |       └-- burner/
