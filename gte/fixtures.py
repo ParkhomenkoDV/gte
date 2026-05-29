@@ -6,7 +6,9 @@ try:
     from .gte import GTE
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
+    from .nodes.joiner.joiner import Joiner
     from .nodes.nozzle.nozzle import Nozzle
+    from .nodes.splitter.splitter import Splitter
     from .nodes.turbocompressor.rotor import Rotor
 except ImportError:
     import os
@@ -18,7 +20,9 @@ except ImportError:
     from gte.gte import GTE
     from gte.nodes.burner import Burner
     from gte.nodes.channel import Channel
+    from gte.nodes.joiner.joiner import Joiner
     from gte.nodes.nozzle import Nozzle
+    from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor import Rotor
 
 
@@ -61,8 +65,8 @@ kerosene = Substance(
 exhaust = Substance(
     "exhaust",
     parameters={
-        "oxidizer": 50,
         gtep.m: 51,
+        "oxidizer": 50,
         gtep.eo: 3,
         gtep.gc: 287.0,
         gtep.TT: 1500.0,
@@ -84,105 +88,121 @@ exhaust = Substance(
     },
 )
 
+# Узлы
+
+lpc1 = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+lpc2 = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+mpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+hpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+
+cc = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="burner")
+fc = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="burner")
+
+hpt = Rotor({gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 3}, name="turbine")
+mpt = Rotor({gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 3}, name="turbine")
+lpt = Rotor({gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 3}, name="turbine")
+
+n1 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
+n2 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
+
+c2 = Channel({}, name="channel")
+c_cool = Channel({}, name="channel")
+
+s = Splitter({"splits": (0.5, 0.5)}, name="splitter")
+s_cool = Splitter({"splits": (0.95, 0.05)}, name="splitter")
+
+j = Joiner({}, name="joiner")
+j_cool = Joiner({}, name="joiner")
+
 # Двигатели
 
-ai9 = GTE(
-    [
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
-        ),
-    ],
-    name="AI-9",
-)
-ai9.add_shaft([0, 0], [0, 2])
+## AI-9
+ai9 = GTE("AI-9")
 
+ai9.add_edge(hpc, cc)
+ai9.add_edge(cc, hpt)
 
-closed = GTE(
-    [
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Channel({gtep.titi: 1.2, gtep.pipi: 0.8}, name="CC"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
-        ),
-    ],
-    name="closed",
-)
-ai9.add_shaft([0, 0], [0, 2])
+ai9.add_shaft(hpc, hpt)
 
+## closed
+closed = GTE("closed")
 
-jumo004b = GTE(
-    [
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
-            Nozzle({gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.98}, name="N"),
-        ),
-    ],
-    name="Jumo-009",
-)
-jumo004b.add_shaft([0, 0], [0, 2])
+closed.add_edge(hpc, cc)
+closed.add_edge(cc, hpt)
 
+closed.add_shaft(hpc, hpt)
 
-rr_trent = GTE(
-    [
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="MPC"),
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="MPT"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
-            Nozzle({gtep.eff_speed: 0.98}, "N"),
-        ),
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
-        ),
-    ]
-)
-rr_trent.add_shaft([0, 0], [1, 0], [0, 6])  # ВНД
-rr_trent.add_shaft([0, 1], [0, 5])  # ВСД
-rr_trent.add_shaft([0, 2], [0, 4])  # ВВД
+## Jumo-009
+jumo004b = GTE("Jumo-009")
 
+jumo004b.add_edge(hpc, cc)
+jumo004b.add_edge(cc, hpt)
+jumo004b.add_edge(hpt, n1)
 
-ai222 = GTE(
-    [
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
-            Nozzle({gtep.eff_speed: 0.98}, "N"),
-        ),
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
-        ),
-    ]
-)
-ai222.add_shaft([0, 0], [1, 0], [0, 4])  # ВНД
-ai222.add_shaft([0, 1], [0, 3])  # ВВД
+jumo004b.add_shaft(hpc, hpt)
 
-al31f = GTE(
-    [
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-            Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="CC"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="HPT"),
-            Rotor({gtep.effeff: 1 / 0.9}, name="LPT"),
-            Nozzle({gtep.eff_speed: 0.98}, "N"),
-        ),
-        (
-            Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="LPC"),
-            Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, "Ch"),
-        ),
-    ]
-)
-al31f.add_shaft([0, 0], [1, 0], [0, 4])  # ВНД
-al31f.add_shaft([0, 1], [0, 3])  # ВВД
+## RR Trent
+rr = GTE("RR")
+
+rr.add_edge(lpc1, mpc)
+rr.add_edge(mpc, hpc)
+rr.add_edge(hpc, cc)
+rr.add_edge(cc, hpt)
+rr.add_edge(hpt, mpt)
+rr.add_edge(mpt, lpt)
+rr.add_edge(lpt, n1)
+
+rr.add_edge(lpc2, c2)
+rr.add_edge(c2, n2)
+
+rr.add_shaft(lpc2, lpc1, lpt)  # ВНД
+rr.add_shaft(mpc, mpt)  # ВСД
+rr.add_shaft(hpc, hpt)  # ВВД
+
+## AI-222-25
+ai222 = GTE("AI-222-25")
+
+ai222.add_edge(lpc1, s)
+
+ai222.add_edge(s, hpc, 0)
+ai222.add_edge(hpc, cc)
+ai222.add_edge(cc, hpt)
+ai222.add_edge(hpt, lpt)
+ai222.add_edge(lpt, j)
+
+ai222.add_edge(s, c2, 1)
+ai222.add_edge(c2, j)
+
+ai222.add_edge(j, n1)
+
+ai222.add_shaft(lpc1, lpt)  # ВНД
+ai222.add_shaft(hpc, hpt)  # ВВД
+
+## AL31-F
+al31f = GTE("AL31-F")
+
+al31f.add_edge(lpc1, s)
+
+al31f.add_edge(s, hpc, 0)
+al31f.add_edge(hpc, s_cool)
+
+al31f.add_edge(hpc, s_cool)
+
+al31f.add_edge(s_cool, cc, 0)
+al31f.add_edge(cc, j_cool)
+
+al31f.add_edge(s_cool, c_cool, 1)
+al31f.add_edge(c_cool, j_cool)
+
+al31f.add_edge(j_cool, hpt)
+al31f.add_edge(hpt, lpt)
+al31f.add_edge(lpt, j)
+
+al31f.add_edge(s, c2, 1)
+al31f.add_edge(c2, j)
+
+al31f.add_edge(j, fc)
+al31f.add_edge(fc, n1)
+
+al31f.add_shaft(lpc1, lpt)  # ВНД
+al31f.add_shaft(hpc, hpt)  # ВВД
