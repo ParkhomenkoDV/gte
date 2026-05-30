@@ -44,7 +44,7 @@ class GTENode(ABC):
         self.name: str = name
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}: {self.name}"
+        return f"{self.__class__.__name__}={self.name}"
 
     def __setattr__(self, name, value) -> None:
         if name == "name":
@@ -71,10 +71,11 @@ class GTENode(ABC):
     @property
     def is_solvable(self) -> Tuple[bool, str]:
         """Проверка возможности решения"""
+        dif = abs(self.n_vars - len(self.parameters))
         if len(self.parameters) < self.n_vars:
-            return False, f"need to add {self.n_vars - len(self.parameters)} parameters"
+            return False, f"need to add {dif} parameters"
         elif len(self.parameters) > self.n_vars:
-            return False, f"need to delete {len(self.parameters) - self.n_vars} parameters"
+            return False, f"need to delete {dif} parameters"
         else:
             return True, ""
 
