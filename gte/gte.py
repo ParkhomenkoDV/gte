@@ -132,9 +132,9 @@ class GTE:
         self.__shafts.append(tuple(nodes))
 
     # TODO
-    def add_requirement(self, parameter: str, value: float, contour: int = -1, place: int = -1) -> None:
+    def add_requirement(self, parameter: str, value: float, place: int = -1) -> None:
         """Добавление требований к ГТД"""
-        self.requirements.append({"parameter": parameter, "value": value, "contour": contour, "place": place})
+        self.requirements.append({"parameter": parameter, "value": value, "place": place})
 
     def predecessors(self, node: GTENode) -> List[GTENode]:
         """Предшественники"""
@@ -302,6 +302,7 @@ class GTE:
 
     # TODO
     def generator(self, variables: Dict[Tuple[int, int], Dict]):
+        """Генератор решаемых ГТД"""
         if not isinstance(variables, dict):
             raise TypeError(TYPE_ERROR.format(f"{variables=}", dict))
 
@@ -395,13 +396,7 @@ class GTE:
 
         return vars, substances
 
-    def solve(
-        self,
-        inlet: Substance,
-        fuel: Substance = None,
-        prediction: Dict[GTENode, Dict[str, float]] = None,
-        verbose: bool = False,
-    ) -> bool:
+    def solve(self, inlet: Substance, fuel: Substance = None, prediction: Dict[GTENode, Dict[str, float]] = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
         is_solvable, reason = self.is_solvable
         if not is_solvable:
@@ -416,10 +411,6 @@ class GTE:
 
     def validate(self, inlet: Substance, fuel: Substance = None, epsrel: float = EPSREL) -> Dict[int, float]:
         """Валиация найденного решения по уравнениям _equations"""
-        is_solvable, reason = self.is_solvable
-        if not is_solvable:
-            raise ArithmeticError(reason)
-
         args = {"inlet": inlet, "fuel": fuel, "prediction": {}}
 
         result: Dict[int, float] = {}
@@ -464,9 +455,9 @@ if __name__ == "__main__":
 
     ok = gte.solve(inlet, fuel, verbose=False)
 
-    vars, substances = gte.calculate(inlet, fuel, verbose=True)
+    print(f"\n{gte.validate(inlet, fuel)=}\n")
 
-    # print(f"\n{gte.validate(inlet, fuel)=}\n")
+    vars, substances = gte.calculate(inlet, fuel, verbose=False)
 
     for node, var in vars.items():
         print(f"{node}: {var}")
@@ -475,13 +466,3 @@ if __name__ == "__main__":
             for p, v in s.parameters.items():
                 print(f"\t{p:<25}: {v:.4f}")
         print()
-
-    """    
-    for test_case in test_cases:
-        for k, v in test_case.items():
-            gte[k[0]][k[1]].parameters = v
-
-        ok = gte.solve(inlet, fuel, verbose=False)
-        if not ok:
-            print(gte.to_dict())
-    """
