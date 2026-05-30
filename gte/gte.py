@@ -1,17 +1,23 @@
-from typing import Any, Dict, List, Tuple, Union
+from collections import deque
+from typing import Any, Dict, List, Set, Tuple
 
 import matplotlib.pyplot as plt
-from numpy import array, linspace
+import networkx as nx
+from matplotlib.patches import Patch
+from numpy import isnan
 from scipy.optimize import root
 from substance import Substance
 
 try:
+    from .config import EPSREL
     from .config import parameters as gtep
     from .errors import TYPE_ERROR
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
+    from .nodes.joiner.joiner import Joiner
     from .nodes.node import GTENode
     from .nodes.nozzle.nozzle import Nozzle
+    from .nodes.splitter.splitter import Splitter
     from .nodes.turbocompressor.rotor.rotor import Rotor
 except ImportError:
     import os
@@ -19,52 +25,61 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
+    from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.burner.burner import Burner
     from gte.nodes.channel.channel import Channel
+    from gte.nodes.joiner.joiner import Joiner
     from gte.nodes.node import GTENode
     from gte.nodes.nozzle.nozzle import Nozzle
+    from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor.rotor import Rotor
 
 
 class GTE:
-    """ГТД"""
+    """Ориентированный ациклический граф потока рабочего тела"""
 
-    NODES = (Rotor, Burner, Rotor, Nozzle, Channel)
+    NODES: Tuple[GTENode] = (Rotor, Burner, Channel, Nozzle, Splitter, Joiner)
 
-    __slots__ = ("name", "_GTE__scheme", "shafts", "_GTE__finder", "requirements")
+    # Цвета для разных типов узлов
+    NODES_COLORS = {
+        "Rotor": "lightblue",
+        "Burner": "red",
+        "Channel": "lightgreen",
+        "Nozzle": "gray",
+        "Splitter": "pink",
+        "Joiner": "brown",
+    }
 
-    def __init__(self, scheme: Tuple, name: str = "GTE") -> None:
-        """Инициализация объекта ГТД"""
+    __slots__ = (
+        "name",  # имя
+        "_GTE__nodes",  # все узлы
+        "_GTE__in",  # входящие связи в узел
+        "_GTE__out",  # исходящие связи из узла
+        "_out_index",  # (from, to) -> индекс выхода
+        "_splitter_counter",  # для Splitter
+        "_GTE__shafts",  # валы (механическая связь)
+        "requirements",  # требования
+    )
+
+    def __init__(self, name: str):
         self.name: str = name
 
-        if not isinstance(scheme, (tuple, list)):
-            raise TypeError(f"{type(scheme)=} must be tuple")
-        for contour, nodes in enumerate(scheme):
-            if not isinstance(nodes, (tuple, list)):
-                raise TypeError(f"{type(nodes)=} must be tuple")
-            for node in nodes:
-                if not isinstance(node, self.NODES):
-                    raise TypeError(f"{type(node)=} must be in {self.NODES}")
-            scheme[contour] = tuple(nodes)
-        self.__scheme: Tuple = tuple(scheme)
+        self.__nodes: Set[GTENode] = set()
+        self.__in: Dict[GTENode, List[GTENode]] = {}
+        self.__out: Dict[GTENode, List[GTENode]] = {}
 
-        self.shafts = []
-        self.requirements = []
+        self._out_index: Dict[Tuple[GTENode, GTENode], int] = {}
+        self._splitter_counter: Dict[GTENode, int] = {}
+
+        self.__shafts: List[Tuple[GTENode]] = []
+
+        self.requirements: List[Dict] = []
 
     def __repr__(self) -> str:
         """Описание ГТД"""
-        result = f"""{self.__class__.__name__}={self.name}\nis_solvable={self.check_solvable}\nscheme:\n"""
-        for contour, nodes in enumerate(self.__scheme):
-            result += f"\t{contour=}: {[node.__class__.__name__ for node in nodes]}\n"
-        for contour, nodes in enumerate(self.__scheme):
-            for place, node in enumerate(nodes):
-                result += f"\t\tnode [{contour}][{place}]: {node}\n"
-                for key, value in node.parameters.items():
-                    result += f"\t\t\t{key:<25}: {value:.4f}\n"
-
-        return result
+        return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__out.values())}, shafts={len(self.__shafts)}, requirements={len(self.requirements)})"
 
     def __setattr__(self, name, value):
         if name == "name":
@@ -72,142 +87,135 @@ class GTE:
                 raise TypeError(TYPE_ERROR.format(f"type(name)={type(value)}", str))
         super().__setattr__(name, value)
 
-    def __getitem__(self, key) -> Tuple:
-        """Возврат контура"""
-        return self.__scheme[key]
+    def add_node(self, node: GTENode) -> None:
+        """Добавление узла"""
+        if not isinstance(node, GTENode):
+            raise TypeError(TYPE_ERROR.format(f"{type(node)=}", GTENode))
 
-    @property
-    def scheme(self) -> Tuple[Tuple[GTENode, ...]]:
-        """Схема ГТД"""
-        return self.__scheme
+        if node not in self.__nodes:
+            self.__nodes.add(node)
+            self.__in[node], self.__out[node] = [], []
 
-    def add_shaft(self, *node_places) -> None:
-        """Добавление вала как связи по балансу мощностей"""
-        shaft: List[Rotor] = []
-        if len(node_places) == 0:
-            raise ValueError("empty shaft")
-        for node_place in node_places:
-            if not isinstance(node_place, (list, tuple)):
-                raise TypeError(f"{type(node_place)=} must be {tuple}")
-            if len(node_place) != 2:
-                raise ValueError(f"{len(node_place)=} must be 2")
-            contour, place = node_place
-            if not (0 <= contour <= len(self.__scheme) - 1):
-                raise ValueError(f"{contour=} does not exist")
-            if not (0 <= place <= len(self.__scheme[contour]) - 1):
-                raise ValueError(f"{place=} does not exist in {contour=}")
-            node = self.__scheme[contour][place]
-            if not isinstance(node, Rotor):
-                raise ValueError(f"{type(node_place)=} must be in {Rotor}")
-            shaft.append(node)
-        self.shafts.append(shaft)
+    def add_edge(self, from_node: GTENode, to_node: GTENode, outlet_index: int = None) -> None:
+        """Добавление связи между узлами from_node и to_node по выходу outlet_index из узла from_node"""
+        if not isinstance(from_node, GTENode):
+            raise TypeError(TYPE_ERROR.format(f"{type(from_node)=}", GTENode))
+        if not isinstance(to_node, GTENode):
+            raise TypeError(TYPE_ERROR.format(f"{type(to_node)=}", GTENode))
 
-        self.__finder: Dict[GTENode, Tuple[int, int]] = {}
-        for shaft in self.shafts:
-            for node1 in shaft:
-                for contour, nodes in enumerate(self.__scheme):
-                    for place, node2 in enumerate(nodes):
-                        if node1 is node2:
-                            self.__finder[node1] = (contour, place)
+        if from_node not in self.__nodes:
+            self.add_node(from_node)
+        if to_node not in self.__nodes:
+            self.add_node(to_node)
 
+        # Для Splitter назначаем индекс выхода
+        if isinstance(from_node, Splitter):
+            if outlet_index is None:  # если индекс не назначен явным образом
+                if from_node not in self._splitter_counter:  # если узла from_node нет в _splitter_counter
+                    self._splitter_counter[from_node] = 0  # по дефолту 0 индекс выхода
+                outlet_index = self._splitter_counter[from_node]
+                self._splitter_counter[from_node] += 1
+            self._out_index[(from_node, to_node)] = outlet_index
+
+        self.__in[to_node].append(from_node)
+        self.__out[from_node].append(to_node)
+
+    def add_shaft(self, *nodes: GTENode) -> None:
+        """Добавление вала как механической связи по балансу мощностей"""
+        if len(nodes) < 2:
+            raise ValueError(f"{len(nodes)=} must be >= 2")
+        for node in nodes:
+            if not isinstance(node, GTENode):
+                raise TypeError(TYPE_ERROR.format(f"{type(node)=}", GTENode))
+            if node not in self.__nodes:
+                self.add_node(node)  # автоматически добавляем узел в граф
+        self.__shafts.append(tuple(nodes))
+
+    # TODO
     def add_requirement(self, parameter: str, value: float, contour: int = -1, place: int = -1) -> None:
         """Добавление требований к ГТД"""
         self.requirements.append({"parameter": parameter, "value": value, "contour": contour, "place": place})
 
-    def plot(self, **kwargs) -> plt.Figure:
-        """Визуализация схемы ГТД"""
-        length = max(map(len, self.__scheme))  # длина ГТД в узлах
+    def predecessors(self, node: GTENode) -> List[GTENode]:
+        """Предшественники"""
+        return self.__in.get(node, [])
 
-        fg = plt.figure(figsize=kwargs.get("figsize", (length * 2, (len(self.__scheme) + 1 + 2) * 2)))
-        fg.suptitle(f"'{self.name}' scheme", fontsize=14, fontweight="bold")
-        gs = fg.add_gridspec(len(self.__scheme) + 1 + 1, 1)  # строки = контуры + валы + спецификация, столбцы
+    def successors(self, node: GTENode) -> List[GTENode]:
+        """Преемники"""
+        return self.__out.get(node, [])
 
-        # прорисовка контуров
-        for contour, nodes in enumerate(self.__scheme):
-            fg.add_subplot(gs[(len(self.__scheme) - 1) - contour, 0])
-            plt.grid(True)
-            plt.axis("square")
-            plt.title(f"contour {contour}", fontsize=14)
-            plt.xlim(0, len(self.__scheme[contour]))
-            plt.ylim(0, 1)
-            plt.xticks(linspace(0, len(self.__scheme[contour]), len(self.__scheme[contour]) + 1), "")
-            plt.yticks(linspace(0, 1, 1 + 1), "")
+    def scheme(self) -> Dict[str, Any]:
+        """
+        Возвращает три представления графа потоков ГТД:
+        - adjacency_matrix: список списков (0/1) размером N x N,
+        - adjacency_list: словарь {узел: [преемники]},
+        - edge_list: список кортежей (from_node, to_node).
+        Дополнительно возвращает ordered_nodes (список узлов в порядке, соответствующем матрице).
+        """
+        # Упорядочиваем узлы для фиксированного порядка в матрице
+        ordered_nodes = sorted(self.__nodes, key=lambda n: n.name)
 
-            x0 = y0 = 0.5  # center
+        # Сопоставляем узел -> индекс
+        node_to_index = {node: i for i, node in enumerate(ordered_nodes)}
+        n = len(ordered_nodes)
 
-            # прорисовка узлов
-            for place, node in enumerate(nodes):
-                x, y = array(node.figure, dtype="float64")
-                plt.plot(x + x0, y + y0, color="black", linewidth=3, label=f"{contour}.{place}: {node.__class__.__name__}")
-                plt.text(x0, y0, f"{contour}.{place}", color="black", fontsize=12, fontweight="bold", ha="center", va="center")
-                x0 += 1
+        # Инициализация матрицы смежности нулями
+        adj_matrix = [[0] * n for _ in range(n)]
 
-        # прорисовка валов, оси вращения
-        fg.add_subplot(gs[(len(self.__scheme) - 1) + 1, 0])
-        plt.title("shafts", fontsize=14)
-        plt.axis("off")
-        plt.grid(False)
-        plt.xlim(0, length)
-        plt.ylim(0, 1)
+        # Построение списка смежности и списка рёбер
+        adj_list = {node: [] for node in ordered_nodes}
+        edge_list = []
 
-        # прорисовка валов
-        for j, shaft in enumerate(self.shafts):
-            x = length / (len(shaft) + 1)
-            y = (j + 1) / (len(self.shafts) + 1)
-            for i, node in enumerate(shaft):
-                contour, place = self.__finder[node]
-                plt.plot([x, x * (i + 1)], (y, y), color="black", linewidth=2, linestyle="dashed")  # горизонтальная часть вала
-                plt.text(
-                    x * (i + 1),
-                    y,
-                    f"{contour}.{place}",
-                    color="black",
-                    fontsize=12,
-                    fontweight="bold",
-                    ha="center",
-                    va="center",
-                    bbox=dict(facecolor="white", edgecolor="none", alpha=1),
-                )
+        for from_node in self.__nodes:
+            for to_node in self.__out.get(from_node, []):
+                # матрица смежности
+                i, j = node_to_index[from_node], node_to_index[to_node]
+                adj_matrix[i][j] = 1
 
-        # прорисовка оси вращения
-        plt.plot((0, length), (0, 0), color="black", linewidth=2, linestyle="dashdot")
+                # список смежности
+                adj_list[from_node].append(to_node)
 
-        # прорисовка спецификации
-        fg.add_subplot(gs[(len(self.__scheme) - 1), 0])
-        plt.axis("off")
-        plt.grid(False)
-        plt.xlim(0, length)
-        plt.ylim(0, 1)
-        fg.legend(
-            title="Specification",
-            title_fontsize=14,
-            alignment="center",
-            loc="lower center",
-            fontsize=12,
-            ncols=len(self.__scheme),
-            frameon=True,
-            framealpha=1.0,
-            facecolor="white",
-            edgecolor="black",
-            draggable=True,
-        )
+                # список рёбер
+                edge_list.append((from_node, to_node))
 
-        return fg
-
-    # TODO
-    def generate(self, variables: Dict[Tuple[int, int], Dict]):
-        if not isinstance(variables, dict):
-            raise TypeError(TYPE_ERROR.format(f"{variables=}", dict))
-
-        i = 0
-        yield GTE(self.__scheme, f"{i}")
+        return {
+            "adjacency_matrix": adj_matrix,
+            "adjacency_list": adj_list,
+            "edge_list": edge_list,
+            "ordered_nodes": ordered_nodes,
+        }
 
     @property
-    def check_solvable(self) -> Tuple[bool, str]:
-        x, y = 0, len(self.shafts) + len(self.requirements)  # неизвестные, уравнения связи и требований
-        for nodes in self.__scheme:
-            for node in nodes:
-                x += node.n_vars - len(node.parameters)  # требуемое - имеющееся = необходимое
+    def nodes(self) -> Set[GTENode]:
+        return self.__nodes
+
+    @property
+    def shafts(self) -> List[Tuple[GTENode]]:
+        return self.__shafts
+
+    @property
+    def order(self) -> List[GTENode]:
+        """Топологическая сортировка (Kahn)"""
+        in_degree = {node: len(self.predecessors(node)) for node in self.__nodes}
+        queue = deque(n for n in self.__nodes if in_degree[n] == 0)
+        order = []
+        while queue:
+            node = queue.popleft()
+            order.append(node)
+            for successor in self.successors(node):
+                in_degree[successor] -= 1
+                if in_degree[successor] == 0:
+                    queue.append(successor)
+        if len(order) != len(self.__nodes):
+            raise ValueError("Cycles in the flow graph are not supported")
+        return order
+
+    @property
+    def is_solvable(self) -> Tuple[bool, str]:
+        # количество неизвестных
+        x = sum(node.n_vars - len(node.parameters) for node in self.__nodes)
+        # количество уравнений связи и требований
+        y = len(self.__shafts) + len(self.requirements)
 
         dif = abs(x - y)  # дисбаланс неизвестных и уравнений
         if x < y:
@@ -217,64 +225,115 @@ class GTE:
         else:
             return True, ""
 
-    def predict(self, inlet: Substance, use_ml: bool = True) -> Tuple[Dict[str, Union[int, float]]]:
-        """Начальные прибличения"""
-        prediction = []
-        for contour, nodes in enumerate(self.__scheme):
-            for place, node in enumerate(nodes):
-                if node.is_solvable[0]:
-                    continue
-                want = node.n_vars - len(node.parameters)  # необходимое количетсво предсказаний
-                for parameter in node.variables:
-                    if parameter in node.parameters:
-                        continue
-                    while want:  # TODO
-                        if parameter == gtep.pipi:
-                            prediction.append({"contour": contour, "place": place, "parameter": parameter, "value": 1 / 3})
-                        elif parameter == gtep.effeff:
-                            prediction.append({"contour": contour, "place": place, "parameter": parameter, "value": 0.9})
-                        elif parameter == gtep.power:
-                            prediction.append({"contour": contour, "place": place, "parameter": parameter, "value": 13_000_000})
-                        elif parameter == gtep.force:
-                            prediction.append({"contour": contour, "place": place, "parameter": parameter, "value": 10_000})
-                        elif parameter == gtep.eff_speed:
-                            prediction.append({"contour": contour, "place": place, "parameter": parameter, "value": 0.98})
-                        want -= 1
+    def plot(self) -> plt.Figure:
+        """Визуализация графа потоков ГТД"""
+        g = nx.DiGraph()
 
-        return tuple(prediction)
+        # Добавляем узлы
+        for node in self.__nodes:
+            node_class = node.__class__.__name__
+            g.add_node(node, label=f"{node_class}\n({node.name})", type=node_class)
 
-    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Tuple[Substance, ...]]:
-        """Поузловой термодинамический расчет двигателя 'в строчку'"""
-        substances: List = []
-        variables: List = []
-        for contour, nodes in enumerate(self.__scheme):
-            if verbose:
-                print(f"{contour = }")
+        # Добавляем рёбра потока
+        for node in self.__nodes:
+            for successor in self.successors(node):
+                g.add_edge(node, successor)
 
-            outlet = inlet  # выход из предыдущего узла
-            ss, v = [outlet], []
+        # Вычисляем глубину каждого узла (расстояние от entry_points)
+        depth = {node: 0 for node in self.__nodes}
+        # Топологический порядок гарантирует, что предшественники обработаны раньше
+        for node in self.order:
+            for predecessor in self.predecessors(node):
+                # Глубина узла = максимальная глубина предшественников + 1
+                depth[node] = max(depth[node], depth[predecessor] + 1)
+
+        # Группируем узлы по глубине
+        nodes_by_depth = {}
+        for node, d in depth.items():
+            nodes_by_depth.setdefault(d, []).append(node)
+        # Позиции: x = глубина, y = индекс в своей группе
+        pos = {}
+        for d, nodes in nodes_by_depth.items():
             for i, node in enumerate(nodes):
-                if verbose:
-                    print(f"\t{i}: {node = }")
+                # Можно развернуть вертикально: i от 0 до len(nodes)-1
+                pos[node] = (d, i - (len(nodes) - 1) / 2)  # центрируем
 
-                if isinstance(node, (Rotor, Rotor, Channel, Nozzle)):
-                    var, outlet = node.calculate(node.parameters.copy(), outlet)
-                elif isinstance(node, Burner):
-                    var, outlet = node.calculate(node.parameters.copy(), outlet, fuel)
-                else:
-                    raise ValueError(f"no found {node=}")
+        fg = plt.figure()
 
-                if verbose:
-                    for key, value in outlet.parameters.items():
-                        print(f"\t\t{key:<25}: {value:.4f}")
+        # Цвета для узлов
+        node_colors = [self.NODES_COLORS.get(g.nodes[n]["type"], "white") for n in g.nodes]
 
-                ss.append(outlet)
-                v.append(var)
+        # Рисуем узлы
+        nx.draw_networkx_nodes(g, pos, node_color=node_colors, node_size=4_000, edgecolors="black")
 
-            substances.append(tuple(ss))
-            variables.append(tuple(v))
+        # Рисуем рёбра потока (стрелки для направленного графа)
+        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", arrowsize=20, edge_color="black", width=1.5)
 
-        return tuple(substances), tuple(variables)
+        # Рисуем механические связи (валы) пунктирной линией без стрелок
+        for shaft in self.__shafts:
+            for i in range(len(shaft) - 1):
+                u, v = shaft[i], shaft[i + 1]
+                if u in pos and v in pos:
+                    nx.draw_networkx_edges(
+                        g,
+                        pos,
+                        edgelist=[(u, v)],
+                        style="dashed",
+                        edge_color="blue",
+                        width=1.5,
+                        arrows=False,
+                        arrowstyle="-",
+                    )
+
+        # Рисуем метки
+        labels = {n: g.nodes[n]["label"] for n in g.nodes}
+        nx.draw_networkx_labels(g, pos, labels, font_size=8, font_weight="bold")
+
+        # Легенда
+
+        legend_elements = [Patch(facecolor=color, label=node_type) for node_type, color in self.NODES_COLORS.items()]
+        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, 0), title="Nodes")
+
+        plt.title(f"{self.__class__.__name__} '{self.name}' scheme", loc="center")
+        plt.axis("off")
+        plt.tight_layout()
+
+        return fg
+
+    # TODO
+    def generator(self, variables: Dict[Tuple[int, int], Dict]):
+        if not isinstance(variables, dict):
+            raise TypeError(TYPE_ERROR.format(f"{variables=}", dict))
+
+        i = 0
+        yield GTE(self.__scheme, f"{i}")
+
+    # TODO
+    def predict(self, inlet: Substance, use_ml: bool = True) -> Tuple[Dict[GTENode, Dict[str, float]], Dict]:
+        """Начальные прибличения"""
+        prediction: Dict[GTENode, Dict[str, float]] = {}
+        for node in self.__nodes:
+            if node.is_solvable[0]:
+                continue
+            want = node.n_vars - len(node.parameters)  # необходимое количетсво предсказаний
+            prediction[node] = {}
+            for parameter in node.variables:
+                if parameter in node.parameters:
+                    continue
+                while want:  # TODO
+                    if parameter == gtep.pipi:
+                        prediction[node][parameter] = 1 / 3
+                    elif parameter == gtep.effeff:
+                        prediction[node][parameter] = 1
+                    elif parameter == gtep.power:
+                        prediction[node][parameter] = 0
+                    elif parameter == gtep.force:
+                        prediction[node][parameter] = 10_000
+                    elif parameter == gtep.eff_speed:
+                        prediction[node][parameter] = 1
+                    want -= 1
+
+        return prediction, {}  # для requirements
 
     def _equations(self, x0: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
         """sum(Compressor.power) = sum(Turbine.power)"""
@@ -283,149 +342,146 @@ class GTE:
         prediction = args["prediction"]
         verbose = args.get("verbose", False)
 
-        for i, predict in enumerate(prediction):
-            contour, place, parameter = predict["contour"], predict["place"], predict["parameter"]
-            self.__scheme[contour][place].parameters[parameter] = float(x0[i])
+        i = 0
+        for node, prediction in prediction.items():
+            for parameter in prediction:
+                node.parameters[parameter] = float(x0[i])
+                i += 1
 
-        _, _ = self.calculate(inlet, fuel, verbose=verbose)
+        vars, substances = self.calculate(inlet, fuel, verbose=verbose)
 
-        power_balances: List[float] = []
+        power_balances: List[float] = [0] * len(self.__shafts)
         # Расчет баланса мощностей по каждому валу
-        for shaft in self.shafts:
-            power_balance = 0.0
+        for i, shaft in enumerate(self.__shafts):
             for node in shaft:
-                contour, place = self.__finder[node]
-                power_balance += node.parameters.get(gtep.power, 0.0)
-            power_balances.append(power_balance)
+                power_balances[i] += vars[node][gtep.power]
 
         return tuple(power_balances)
 
-    def solve(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> bool:
+    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Dict[GTENode, Dict[str, float]], Dict[GTENode, Tuple]]:
+        """Расчет двигателя 'в строчку'"""
+        vars, substances = {}, {}  # Кэш: узел -> (входное вещество/вещества, выходное вещество/вещества)
+
+        def get_inputs(node: GTENode):
+            """Собирает выходы всех предшественников"""
+            preds = self.predecessors(node)
+            if not preds:
+                return inlet  # начальный узел
+            if len(preds) == 1:
+                return substances[preds[0]][1]  # один вход – одно вещество
+            # Несколько предшественников – Joiner ожидает кортеж веществ
+            return tuple(substances[p][1] for p in preds)
+
+        for node in self.order:
+            if verbose:
+                print(f"{node}")
+            inputs = get_inputs(node)
+            if isinstance(node, Splitter):  # Splitter имеет один вход и несколько выходов
+                v, outlets = node.calculate(node.parameters, inputs)
+                vars[node] = v
+                substances[node] = (inputs, *outlets)
+            elif isinstance(node, Joiner):  # Joiner принимает несколько входов
+                v, outlet = node.calculate(node.parameters, *inputs)
+                vars[node] = v
+                substances[node] = (inputs, outlet)
+            elif isinstance(node, Burner):
+                v, outlet = node.calculate(node.parameters, inputs, fuel)
+                vars[node] = v
+                substances[node] = (inputs, outlet)
+            else:  # Rotor, Channel, Nozzle
+                v, outlet = node.calculate(node.parameters, inputs)
+                vars[node] = v
+                substances[node] = (inputs, outlet)
+
+        return vars, substances
+
+    def solve(
+        self,
+        inlet: Substance,
+        fuel: Substance = None,
+        prediction: Dict[GTENode, Dict[str, float]] = None,
+        verbose: bool = False,
+    ) -> bool:
         """Термодинамический расчет ГТД"""
-        if not self.check_solvable:
-            raise ArithmeticError
+        is_solvable, reason = self.is_solvable
+        if not is_solvable:
+            raise ArithmeticError(reason)
 
-        predictions = self.predict(inlet)
-        x0 = tuple(prediction["value"] for prediction in predictions)
+        predictions, _ = self.predict(inlet, use_ml=True)
+        x0 = tuple(parameter for parameters in predictions.values() for parameter in parameters.values())
 
-        resilt = root(self._equations, x0, {"inlet": inlet, "fuel": fuel, "prediction": predictions, "verbose": verbose}, method="lm")
+        result = root(self._equations, x0, {"inlet": inlet, "fuel": fuel, "prediction": predictions, "verbose": verbose}, method="lm")
 
-        return resilt.success
+        return result.success
+
+    def validate(self, inlet: Substance, fuel: Substance = None, epsrel: float = EPSREL) -> Dict[int, float]:
+        """Валиация найденного решения по уравнениям _equations"""
+        is_solvable, reason = self.is_solvable
+        if not is_solvable:
+            raise ArithmeticError(reason)
+
+        args = {"inlet": inlet, "fuel": fuel, "prediction": {}}
+
+        result: Dict[int, float] = {}
+        for i, null in enumerate(self._equations([], args)):
+            if isnan(null) or abs(null) > epsrel:
+                result[i] = null
+
+        return result
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "scheme": self.__scheme,
-            "shafts": self.shafts,
+            "nodes": self.__nodes,
+            "shafts": self.__shafts,
             "requirements": self.requirements,
         }
 
 
 if __name__ == "__main__":
-    from itertools import product
-
-    from fixtures import ai9, al31f, jumo004b
     from fixtures import air as inlet
     from fixtures import kerosene as fuel
-    from numpy import arange
-    from tqdm import tqdm
 
-    if True:
-        gte = GTE(
-            [
-                (
-                    Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="HPC"),
-                    Burner({gtep.eff_burn: 0.99, gtep.pipi: 0.95}, name="CC"),
-                    Rotor({gtep.effeff: 0.9, gtep.pipi: 1 / 3}, name="HPT"),
-                ),
-            ],
-            name="Simple",
-        )
-        test_cases = [{}]
+    c = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+    b = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="burner")
+    t = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
+    n = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, name="n")
 
-    if False:
-        inlet.parameters[gtep.m] = 80
+    gte = GTE("test")
 
-        gte = ai9
+    gte.add_edge(c, b)
+    gte.add_edge(b, t)
+    gte.add_edge(t, n)
 
-        test_cases = []
-        for c_pipi in arange(0.85, 0.95, 0.01):
-            for c_0_0_effeff in arange(3, 6, 1):
-                for eff_burn in arange(0.95, 0.99, 0.01):
-                    for cc_pipi in arange(0.93, 0.97, 0.01):
-                        for t_0_4_effeff in arange(0.88, 0.94, 0.01):
-                            test_cases.append(
-                                {
-                                    (0, 0): {gtep.pipi: float(c_pipi), gtep.effeff: float(c_0_0_effeff)},
-                                    (0, 1): {gtep.eff_burn: float(eff_burn), gtep.pipi: float(cc_pipi)},
-                                    (0, 2): {gtep.effeff: float(t_0_4_effeff)},
-                                }
-                            )
-
-    if False:
-        inlet.parameters[gtep.m] = 50
-
-        gte = jumo004b
-
-        gte.add_equation(0, 3, gtep.force, 30_000)
-
-        test_cases = []
-        for c_pipi, c_0_0_effeff in product(arange(0.85, 0.95, 0.01), arange(3, 6, 1)):
-            for eff_burn, cc_pipi in product(arange(0.95, 0.99, 0.01), arange(0.93, 0.97, 0.01)):
-                for t_0_4_effeff in arange(0.88, 0.94, 0.01):
-                    for n_pipi in arange(1 / 1.8, 1 / 1.2, 0.01):
-                        test_cases.append(
-                            {
-                                (0, 0): {gtep.pipi: float(c_pipi), gtep.effeff: float(c_0_0_effeff)},
-                                (0, 1): {gtep.eff_burn: float(eff_burn), gtep.pipi: float(cc_pipi)},
-                                (0, 2): {gtep.effeff: float(t_0_4_effeff)},
-                                (0, 3): {gtep.pipi: float(n_pipi)},
-                            }
-                        )
-
-    if False:
-        inlet.parameters[gtep.m] = 100
-
-        gte = al31f
-
-        test_cases = []
-        for c_0_0_pipi, c_0_0_effeff in product(arange(1.1, 1.5, 0.5), arange(0.86, 0.94, 0.01)):
-            for c_0_1_pipi, c_0_1_effeff in product(arange(6, 12, 1), arange(0.86, 0.9, 0.01)):
-                for eff_burn, cc_pipi in product(arange(0.95, 0.99, 0.01), arange(0.93, 0.97, 0.01)):
-                    for t_0_3_effeff in arange(0.86, 0.9, 0.01):
-                        for t_0_4_effeff in arange(0.88, 0.92, 0.01):
-                            for n_0_5_eff_speed, n_0_5_pipi in product([0.98, 0.99], [1 / 1.8, 1 / 2.0]):
-                                for c_1_0_pipi, c_1_0_effeff in product(arange(3, 5, 0.5), arange(0.84, 0.9, 0.01)):
-                                    test_cases.append(
-                                        {
-                                            # 0 contour
-                                            (0, 0): {gtep.pipi: float(c_0_0_pipi), gtep.effeff: float(c_0_0_effeff)},
-                                            (0, 1): {gtep.pipi: float(c_0_1_pipi), gtep.effeff: float(c_0_1_effeff)},
-                                            (0, 2): {gtep.eff_burn: float(eff_burn), gtep.pipi: float(cc_pipi)},
-                                            (0, 3): {gtep.effeff: float(t_0_3_effeff)},
-                                            (0, 4): {gtep.effeff: float(t_0_4_effeff)},
-                                            (0, 5): {gtep.eff_speed: float(n_0_5_eff_speed), gtep.pipi: n_0_5_pipi},
-                                            # 1 contour
-                                            (1, 0): {gtep.pipi: float(c_1_0_pipi), gtep.effeff: c_1_0_effeff},
-                                            (1, 1): {gtep.titi: 1.05, gtep.pipi: 0.95},
-                                        }
-                                    )
-
-    for s in (inlet, fuel):
-        if not s:
-            continue
-        print(s.name)
-        for key, value in s.parameters.items():
-            print(f"{key:<25}: {value}")
-        print()
+    gte.add_shaft(c, t)
 
     gte.plot()
-    plt.show()
+    # plt.show()
 
-    for test_case in tqdm(test_cases, desc="Solving"):
+    print(f"\n{gte.is_solvable=}\n")
+
+    print(f"\n{gte.order=}\n")
+
+    ok = gte.solve(inlet, fuel, verbose=False)
+
+    vars, substances = gte.calculate(inlet, fuel, verbose=True)
+
+    # print(f"\n{gte.validate(inlet, fuel)=}\n")
+
+    for node, var in vars.items():
+        print(f"{node}: {var}")
+        for i, s in enumerate(substances[node]):
+            print(f"{i}) {s.name}")
+            for p, v in s.parameters.items():
+                print(f"\t{p:<25}: {v:.4f}")
+        print()
+
+    """    
+    for test_case in test_cases:
         for k, v in test_case.items():
             gte[k[0]][k[1]].parameters = v
 
         ok = gte.solve(inlet, fuel, verbose=False)
         if not ok:
             print(gte.to_dict())
+    """
