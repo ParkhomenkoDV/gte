@@ -84,13 +84,13 @@ class GTENode(ABC):
         """Генератор решаемых узлов"""
         if len(parameters) != cls.n_vars:
             raise ArithmeticError(f"{len(parameters)=} must be equal {cls.n_vars=}")
-        for parameter, value in parameters.items():
+        for parameter, values in parameters.items():
             if parameter not in cls.variables:
                 raise KeyError(f"{parameter=} not in {cls.variables}")
-            if not isinstance(value, (tuple, list)):
-                raise TypeError(f"{type(value)=} must be tuple")
-            if len(value) == 0:
-                raise ValueError(f"{len(value)=} must be > 0")
+            if not isinstance(values, (tuple, list)):
+                raise TypeError(f"{type(values)=} must be tuple")
+            if len(values) == 0:
+                raise ValueError(f"{len(values)=} must be > 0")
 
         keys = tuple(parameters.keys())
         values = tuple(parameters[key] for key in keys)
