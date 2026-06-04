@@ -29,10 +29,6 @@ class Joiner(GTENode):
 
     variables: Tuple[str] = tuple()
     n_vars: int = 0
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        ((-0.4, -0.4), (-0.4, +0.4)),
-        ((-0.4, +0.4), (0.0, 0.0)),
-    )
 
     __slots__ = ()  # нет новых атрибутов
 

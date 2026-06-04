@@ -1,6 +1,6 @@
 from typing import Any, Dict, Tuple, Union
 
-from numpy import cos, isnan, linspace, nan, radians, sin
+from numpy import isnan, nan
 from scipy.optimize import root
 from substance import Substance
 from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust, heat_capacity_p_exhaust_eo1
@@ -31,10 +31,6 @@ class Burner(GTENode):
 
     variables: Tuple[str, str] = (gtep.efficiency, gtep.pipi)
     n_vars: int = 2
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        tuple(0.4 * cos(alpha) for alpha in linspace(0, radians(360), 360, endpoint=True)),
-        tuple(0.4 * sin(alpha) for alpha in linspace(0, radians(360), 360, endpoint=True)),
-    )
 
     __slots__ = ()  # нет новых атрибутов
 

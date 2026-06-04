@@ -28,10 +28,6 @@ class Splitter(GTENode):
 
     variables: Tuple[str] = ("splits",)
     n_vars: int = 1
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        (-0.4, +0.4, +0.4, -0.4, -0.4),
-        (+0.4, +0.2, -0.2, -0.4, +0.4),
-    )
 
     __slots__ = ()  # нет новых атрибутов
 

@@ -27,10 +27,6 @@ class Channel(GTENode):
 
     variables: Tuple[str, str] = (gtep.titi, gtep.pipi)
     n_vars: int = 2
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        ((-0.4, -0.4), (+0.4, +0.4)),
-        ((-0.4, +0.4), (-0.4, +0.4)),
-    )
 
     __slots__ = ()  # нет новых атрибутов
 

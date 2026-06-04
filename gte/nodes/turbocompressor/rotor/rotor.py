@@ -31,10 +31,6 @@ class Rotor(GTENode):
 
     variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
     n_vars: int = 2
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        (0.0, 0.0, -0.2, -0.2, +0.2, +0.2, 0.0),
-        (-0.4, -0.1, -0.1, +0.4, +0.4, -0.1, -0.1),
-    )
 
     __slots__ = ()  # нет новых атрибутов
 

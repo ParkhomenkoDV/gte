@@ -31,10 +31,6 @@ class Nozzle(GTENode):
 
     variables: Tuple[str, str] = (gtep.eff_speed, gtep.pipi, gtep.force)
     n_vars: int = 2
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]] = (
-        (+0.4, -0.4, -0.4, +0.4),
-        (+0.4, +0.4, -0.4, -0.4),
-    )
 
     __slots__ = ()  # нет новых атрибутов
 

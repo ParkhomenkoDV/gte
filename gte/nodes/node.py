@@ -34,7 +34,6 @@ class GTENode(ABC):
 
     variables: Tuple[str, ...]  # переменные узла
     n_vars: int = -1  # необходимое количество параметров для решения
-    figure: Tuple[Tuple[float, ...], Tuple[float, ...]]
 
     __slots__ = ("name", "parameters")
 
