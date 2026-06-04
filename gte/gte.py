@@ -1,5 +1,7 @@
 from collections import deque
-from typing import Any, Dict, List, Set, Tuple
+from copy import deepcopy
+from itertools import product
+from typing import Any, Dict, Generator, List, Set, Tuple
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -267,7 +269,7 @@ class GTE:
         nx.draw_networkx_nodes(g, pos, node_color=node_colors, node_size=4_000, edgecolors="black")
 
         # Рисуем рёбра потока (стрелки для направленного графа)
-        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", arrowsize=20, edge_color="black", width=1.5)
+        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", arrowsize=20, edge_color="black", width=1.5, arrows=True)
 
         # Рисуем механические связи (валы) пунктирной линией без стрелок
         for shaft in self.__shafts:
@@ -282,7 +284,6 @@ class GTE:
                         edge_color="blue",
                         width=1.5,
                         arrows=False,
-                        arrowstyle="-",
                     )
 
         # Рисуем метки
@@ -300,14 +301,52 @@ class GTE:
 
         return fg
 
-    # TODO
-    def generator(self, variables: Dict[Tuple[int, int], Dict]):
+    def generator(self, variables: Dict[GTENode, Dict]) -> Generator:
         """Генератор решаемых ГТД"""
+        if not self.is_solvable[0]:
+            raise ArithmeticError(f"{self.is_solvable=}")
+        if len(variables) == 0:
+            raise ValueError(f"{len(variables)=} must be > 0")
         if not isinstance(variables, dict):
-            raise TypeError(TYPE_ERROR.format(f"{variables=}", dict))
+            raise TYPE_ERROR.format(f"{type(variables)}", dict)
 
-        i = 0
-        yield GTE(self.__scheme, f"{i}")
+        # Формируем для каждого узла список кортежей (параметр, [значения])
+        parameters_ranges: Dict[GTENode, List[Tuple[str, Tuple[float]]]] = {}
+        for node, parameters in variables.items():
+            if node not in self.__nodes:
+                raise KeyError(f"{node} not in {self.__nodes}")
+            if not isinstance(parameters, dict):
+                raise TYPE_ERROR.format(f"{type(node)=}", dict)
+
+            ranges: List[float] = [None] * len(parameters)  # malloc
+            for i, (parameter, values) in enumerate(parameters.items()):
+                if parameter not in node.variables:
+                    raise ValueError(f"{parameter=} not in {node.variables=}")
+                if not isinstance(values, (list, tuple)):
+                    raise TYPE_ERROR.format(f"{type(values)=}", tuple)
+                ranges[i] = (parameter, values)
+
+            parameters_ranges[node] = ranges
+
+        # Генерируем все комбинации параметров для каждого узла
+        # Сначала строим список комбинаций отдельно по узлам, затем общий product
+        nodes = tuple(parameters_ranges.keys())
+        combinations = [None] * len(nodes)
+        for i, node in enumerate(nodes):
+            ranges = parameters_ranges[node]
+            param_names = [r[0] for r in ranges]
+            value_sets = [r[1] for r in ranges]
+            combinations[i] = [dict(zip(param_names, combo)) for combo in product(*value_sets)]
+
+        for combo in product(*combinations):  # combo — кортеж словарей
+            new_gte = deepcopy(self)  # копируем весь граф
+            # Устанавливаем новые параметры в скопированных узлах
+            for node, new_params in zip(nodes, combo):
+                for new_node in new_gte.nodes:
+                    if new_node.name == node.name and type(new_node) is type(node):
+                        new_node.parameters.update(new_params)
+                        break
+            yield new_gte
 
     # TODO
     def predict(self, inlet: Substance, use_ml: bool = True) -> Tuple[Dict[GTENode, Dict[str, float]], Dict]:
@@ -396,6 +435,7 @@ class GTE:
 
         return vars, substances
 
+    # TODO
     def solve(self, inlet: Substance, fuel: Substance = None, prediction: Dict[GTENode, Dict[str, float]] = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
         is_solvable, reason = self.is_solvable
@@ -430,6 +470,7 @@ class GTE:
 
 
 if __name__ == "__main__":
+    from colorama import Fore
     from fixtures import air as inlet
     from fixtures import kerosene as fuel
 
@@ -449,20 +490,28 @@ if __name__ == "__main__":
     gte.plot()
     # plt.show()
 
-    print(f"\n{gte.is_solvable=}\n")
+    print(f"{gte.is_solvable=}\n")
 
-    print(f"\n{gte.order=}\n")
+    for gte_ in gte.generator(
+        {
+            c: {gtep.pipi: [6, 7, 8], gtep.effeff: [0.85, 0.86, 0.87, 0.88, 0.89, 0.90]},
+        },
+    ):
+        print(gte_)
+        print(f"{gte.order=}")
+        for node in gte_.nodes:
+            print(f"\t{node} {node.parameters}")
 
-    ok = gte.solve(inlet, fuel, verbose=False)
+        ok = gte.solve(inlet, fuel, verbose=False)
+        print(f"{Fore.RED}{ok=}{Fore.RESET}")
+        print(f"{gte.validate(inlet, fuel)=}\n")
 
-    print(f"\n{gte.validate(inlet, fuel)=}\n")
-
-    vars, substances = gte.calculate(inlet, fuel, verbose=False)
-
-    for node, var in vars.items():
-        print(f"{node}: {var}")
-        for i, s in enumerate(substances[node]):
-            print(f"{i}) {s.name}")
-            for p, v in s.parameters.items():
-                print(f"\t{p:<25}: {v:.4f}")
+        """vars, substances = gte.calculate(inlet, fuel, verbose=False)
+        for node, var in vars.items():
+            print(f"{node}: {var}")
+            for i, s in enumerate(substances[node]):
+                print(f"{i}) {s.name}")
+                for p, v in s.parameters.items():
+                    print(f"\t{p:<25}: {v:.4f}")
+            print()"""
         print()
