@@ -320,7 +320,7 @@ class GTE:
         if len(variables) == 0:
             raise ValueError(f"{len(variables)=} must be > 0")
         if not isinstance(variables, dict):
-            raise TYPE_ERROR.format(f"{type(variables)}", dict)
+            raise TypeError(TYPE_ERROR.format(f"{type(variables)}", dict))
 
         # Формируем для каждого узла список кортежей (параметр, [значения])
         parameters_ranges: Dict[GTENode, List[Tuple[str, Tuple[float]]]] = {}
@@ -328,7 +328,7 @@ class GTE:
             if node not in self.__nodes:
                 raise KeyError(f"{node} not in {self.__nodes}")
             if not isinstance(parameters, dict):
-                raise TYPE_ERROR.format(f"{type(node)=}", dict)
+                raise TypeError(TYPE_ERROR.format(f"{type(node)=}", dict))
 
             ranges: List[float] = [None] * len(parameters)  # malloc
             for i, (parameter, values) in enumerate(parameters.items()):
@@ -336,7 +336,7 @@ class GTE:
                 if parameter not in node.parameters:
                     raise ValueError(f"{parameter=} not in {node.parameters=}")
                 if not isinstance(values, (list, tuple)):
-                    raise TYPE_ERROR.format(f"{type(values)=}", tuple)
+                    raise TypeError(TYPE_ERROR.format(f"{type(values)=}", tuple))
                 ranges[i] = (parameter, values)
 
             parameters_ranges[node] = ranges

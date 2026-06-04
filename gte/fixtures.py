@@ -132,8 +132,8 @@ closed.add_edge(cc, hpt)
 
 closed.add_shaft(hpc, hpt)
 
-## Jumo-009
-jumo004b = GTE("Jumo-009")
+## Jumo-004b
+jumo004b = GTE("Jumo-004b")
 
 jumo004b.add_edge(hpc, cc)
 jumo004b.add_edge(cc, hpt)
@@ -184,8 +184,6 @@ al31f = GTE("AL31-F")
 al31f.add_edge(lpc1, s)
 
 al31f.add_edge(s, hpc, 0)
-al31f.add_edge(hpc, s_cool)
-
 al31f.add_edge(hpc, s_cool)
 
 al31f.add_edge(s_cool, cc, 0)
