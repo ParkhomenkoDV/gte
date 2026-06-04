@@ -1,6 +1,7 @@
 setuptools
 numpy
 scipy
+networkx
 matplotlib
 
 units @ git+https://github.com/ParkhomenkoDV/units.git@main
