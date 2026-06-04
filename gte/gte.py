@@ -302,9 +302,9 @@ class GTE:
         y_vals = [p[1] for p in pos.values()]
         x_min, x_max = min(x_vals), max(x_vals)
         y_min, y_max = min(y_vals), max(y_vals)
-        # Добавляем отступы (20% от размаха, но не менее 0.5)
-        margin_x = max(0.5, (x_max - x_min) * 0.2)
-        margin_y = max(0.5, (y_max - y_min) * 0.2)
+        # Добавляем отступы (10% от размаха, но не менее 0.5)
+        margin_x = max(0.5, (x_max - x_min) * 0.1)
+        margin_y = max(0.5, (y_max - y_min) * 0.1)
         ax.set_xlim(x_min - margin_x, x_max + margin_x)
         ax.set_ylim(y_min - margin_y, y_max + margin_y)
 
@@ -375,7 +375,7 @@ class GTE:
                     continue
                 while want:  # TODO
                     if parameter == gtep.pipi:
-                        prediction[node][parameter] = 1 / 3
+                        prediction[node][parameter] = 1 / 3  # prod(pipi for pipi in shaft)
                     elif parameter == gtep.effeff:
                         prediction[node][parameter] = 1
                     elif parameter == gtep.power:
@@ -488,16 +488,25 @@ if __name__ == "__main__":
     from fixtures import kerosene as fuel
 
     # создаем узлы
-    c = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+    lpc1 = Rotor({gtep.effeff: 0.85, gtep.pipi: 1.15}, name="lpc1")
+    lpc2 = Rotor({gtep.effeff: 0.85, gtep.pipi: 1.6}, name="lpc2")
 
+    hpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="hpc")
+
+    s2 = Splitter({"splits": (0.5, 0.5)}, name="s2")
     s_cool = Splitter({"splits": (0.9, 0.1)}, name="s_cool")
+
+    j2 = Joiner({}, name="j2")
+    j_cool = Joiner({}, name="j_cool")
 
     ch2 = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="chan2")
     ch_cool = Channel({gtep.titi: 0.95, gtep.pipi: 0.95}, name="chan_cool")
 
-    b = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="burner")
+    b = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="b")
+    ab = Burner({gtep.efficiency: 0.8, gtep.pipi: 0.95}, name="ab")
 
-    t = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
+    hpt = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
+    lpt = Rotor({gtep.effeff: 1 / 0.9}, name="lpt")
 
     n = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, name="n")
 
@@ -505,16 +514,28 @@ if __name__ == "__main__":
     gte = GTE("test")
 
     # связываем узлы газодинамически
-    gte.add_edge(c, s_cool)
-    gte.add_edge(s_cool, b)
+    gte.add_edge(s2, lpc1, 0)
+    gte.add_edge(lpc1, hpc)
+    gte.add_edge(hpc, s_cool)
 
-    gte.add_edge(s_cool, ch_cool)
+    gte.add_edge(s2, lpc2, 1)
+    gte.add_edge(lpc2, ch2)
+    gte.add_edge(ch2, j2)
 
-    gte.add_edge(b, t)
-    gte.add_edge(t, n)
+    gte.add_edge(s_cool, ch_cool, 1)
+    gte.add_edge(ch_cool, j_cool)
+
+    gte.add_edge(s_cool, b, 0)
+    gte.add_edge(b, j_cool)
+    gte.add_edge(j_cool, hpt)
+    gte.add_edge(hpt, lpt)
+    gte.add_edge(lpt, j2)
+    gte.add_edge(j2, ab)
+    gte.add_edge(ab, n)
 
     # связываем узлы механически
-    gte.add_shaft(c, t)
+    gte.add_shaft(lpc1, lpc2, lpt)
+    gte.add_shaft(hpc, hpt)
 
     # визуализируем
     gte.plot()
@@ -524,11 +545,11 @@ if __name__ == "__main__":
 
     for gte_ in gte.generator(
         {
-            c: {
-                gtep.effeff: [0.85, 0.86, 0.87, 0.88, 0.89, 0.90],
+            lpc1: {
+                gtep.effeff: [0.86, 0.87, 0.88, 0.89],
                 gtep.pipi: [6, 7, 8],
             },
-            t: {
+            hpt: {
                 gtep.effeff: [1 / 0.9, 1 / 0.89],
             },
         },
@@ -542,7 +563,9 @@ if __name__ == "__main__":
         print(f"{Fore.RED}{ok=}{Fore.RESET}")
         print(f"{gte_.validate(inlet, fuel)=}\n")
 
-        """vars, substances = gte.calculate(inlet, fuel, verbose=False)
+        vars, substances = gte_.calculate(inlet, fuel, verbose=False)
+
+        """
         for node, var in vars.items():
             print(f"{node}: {var}")
             for i, s in enumerate(substances[node]):
