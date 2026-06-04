@@ -266,10 +266,10 @@ class GTE:
         node_colors = [self.NODES_COLORS.get(g.nodes[n]["type"], "white") for n in g.nodes]
 
         # Рисуем узлы
-        nx.draw_networkx_nodes(g, pos, node_color=node_colors, node_size=node_size, edgecolors="black")
+        nx.draw_networkx_nodes(g, pos, node_color=node_colors, node_size=node_size, edgecolors="black", alpha=0.8)
 
         # Рисуем рёбра потока (стрелки для направленного графа)
-        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", style="dashed", arrowsize=width * 10, edge_color="blue", width=width, connectionstyle="arc3,rad=-0.3", arrows=True)
+        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", style="dashed", arrowsize=width * 10, edge_color="blue", width=width, connectionstyle="arc3,rad=-0.3", arrows=True, min_source_margin=50, min_target_margin=50)
 
         # Подписи выхода на рёбрах для Splitter
         edge_labels = {}
@@ -283,7 +283,7 @@ class GTE:
             for i in range(len(shaft) - 1):
                 u, v = shaft[i], shaft[i + 1]
                 if u in pos and v in pos:
-                    nx.draw_networkx_edges(g, pos, edgelist=[(u, v)], style="solid", edge_color="black", width=width, arrows=False)
+                    nx.draw_networkx_edges(g, pos, edgelist=[(u, v)], arrowstyle="-", style="solid", edge_color="black", width=width, connectionstyle="arc3,rad=0.3", arrows=True, min_source_margin=25, min_target_margin=25)
 
         # Рисуем метки
         labels = {n: g.nodes[n]["label"] for n in g.nodes}
@@ -332,8 +332,9 @@ class GTE:
 
             ranges: List[float] = [None] * len(parameters)  # malloc
             for i, (parameter, values) in enumerate(parameters.items()):
-                if parameter not in node.variables:
-                    raise ValueError(f"{parameter=} not in {node.variables=}")
+                # проверяем именно parameters, для сохранения решаемости
+                if parameter not in node.parameters:
+                    raise ValueError(f"{parameter=} not in {node.parameters=}")
                 if not isinstance(values, (list, tuple)):
                     raise TYPE_ERROR.format(f"{type(values)=}", tuple)
                 ranges[i] = (parameter, values)
@@ -486,19 +487,36 @@ if __name__ == "__main__":
     from fixtures import air as inlet
     from fixtures import kerosene as fuel
 
+    # создаем узлы
     c = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
+
+    s_cool = Splitter({"splits": (0.9, 0.1)}, name="s_cool")
+
+    ch2 = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="chan2")
+    ch_cool = Channel({gtep.titi: 0.95, gtep.pipi: 0.95}, name="chan_cool")
+
     b = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="burner")
+
     t = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
+
     n = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, name="n")
 
+    # создаем ГТД
     gte = GTE("test")
 
-    gte.add_edge(c, b)
+    # связываем узлы газодинамически
+    gte.add_edge(c, s_cool)
+    gte.add_edge(s_cool, b)
+
+    gte.add_edge(s_cool, ch_cool)
+
     gte.add_edge(b, t)
     gte.add_edge(t, n)
 
+    # связываем узлы механически
     gte.add_shaft(c, t)
 
+    # визуализируем
     gte.plot()
     plt.show()
 
@@ -506,7 +524,13 @@ if __name__ == "__main__":
 
     for gte_ in gte.generator(
         {
-            c: {gtep.pipi: [6, 7, 8], gtep.effeff: [0.85, 0.86, 0.87, 0.88, 0.89, 0.90]},
+            c: {
+                gtep.effeff: [0.85, 0.86, 0.87, 0.88, 0.89, 0.90],
+                gtep.pipi: [6, 7, 8],
+            },
+            t: {
+                gtep.effeff: [1 / 0.9, 1 / 0.89],
+            },
         },
     ):
         print(gte_)
