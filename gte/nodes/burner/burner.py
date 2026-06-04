@@ -127,6 +127,7 @@ class Burner(GTENode):
             "exhaust",
             parameters={
                 gtep.m: inlet.parameters[gtep.m] + fuel.parameters[gtep.m],
+                gtep.PP: inlet.parameters[gtep.PP] * parameters[gtep.pipi],
             },
             functions={
                 gtep.gc: fuel.functions[gtep.gc],
@@ -136,7 +137,10 @@ class Burner(GTENode):
         H2O = fuel.composition.get("H2O", 0)  # массовая доля волы в смеси
         outlet.functions[gtep.hcp] = lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
             heat_capacity_p_exhaust_eo1(total_temperature, fuel.composition),
-            inlet.functions[gtep.hcp](total_temperature),
+            call_with_kwargs(
+                inlet.functions[gtep.hcp],
+                **{gtep.eo: excess_oxidizing, gtep.TT: total_temperature, gtep.PP: outlet.parameters[gtep.PP]},
+            ),
             heat_capacity_p("H2O", total_temperature),
             excess_oxidizing,
             fuel.parameters["stoichiometry"],
@@ -150,7 +154,7 @@ class Burner(GTENode):
             outlet.parameters["oxidizer"] = inlet.parameters[gtep.m]
             outlet.parameters[gtep.eo] = outlet.parameters["oxidizer"] / (fuel.parameters[gtep.m] * fuel.parameters["stoichiometry"])
 
-        inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP]), gtep.eo: (0, inlet.parameters.get(gtep.eo, 0))})
+        inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP]), gtep.eo: (1, inlet.parameters.get(gtep.eo, 1))})
         fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
 
         args: Dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
@@ -217,14 +221,14 @@ class Burner(GTENode):
         GTENode.validate_substance(fuel)
         cls.__validate_fuel(fuel)
 
-        inlet_enthalpy, _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP])})
+        inlet_enthalpy, _ = integrate(inlet.functions[gtep.hcp], **{gtep.eo: (inlet.parameters.get(gtep.eo, 1), inlet.parameters.get(gtep.eo, 1)), gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP])})
         fuel_enthalpy, _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
         outlet_enthalpy, _ = integrate(
             outlet.functions[gtep.hcp],
             **{
+                gtep.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
                 gtep.TT: (T0 + 15, outlet.parameters[gtep.TT]),
                 gtep.PP: (101_325, outlet.parameters[gtep.PP]),
-                gtep.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
             },
         )
 
