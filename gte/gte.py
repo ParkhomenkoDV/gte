@@ -46,12 +46,12 @@ class GTE:
 
     # Цвета для разных типов узлов
     NODES_COLORS = {
-        "Rotor": "lightblue",
-        "Burner": "red",
-        "Channel": "lightgreen",
-        "Nozzle": "gray",
-        "Splitter": "pink",
-        "Joiner": "brown",
+        "Rotor": "#A6CEE3",  # голубой
+        "Burner": "#F4A582",  # терракотовый
+        "Channel": "#A0D6B4",  # мягкий зелёный
+        "Nozzle": "#B2B2B2",  # серый
+        "Splitter": "#FDBF6F",  # жёлтый
+        "Joiner": "#CAB2D6",  # лавандовый
     }
 
     __slots__ = (
@@ -227,7 +227,7 @@ class GTE:
         else:
             return True, ""
 
-    def plot(self) -> plt.Figure:
+    def plot(self, node_size: int = 5_000, width: float = 1.5, fontsize: int = 10) -> plt.Figure:
         """Визуализация графа потоков ГТД"""
         g = nx.DiGraph()
 
@@ -266,43 +266,55 @@ class GTE:
         node_colors = [self.NODES_COLORS.get(g.nodes[n]["type"], "white") for n in g.nodes]
 
         # Рисуем узлы
-        nx.draw_networkx_nodes(g, pos, node_color=node_colors, node_size=4_000, edgecolors="black")
+        nx.draw_networkx_nodes(g, pos, node_color=node_colors, node_size=node_size, edgecolors="black")
 
         # Рисуем рёбра потока (стрелки для направленного графа)
-        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", arrowsize=20, edge_color="black", width=1.5, arrows=True)
+        nx.draw_networkx_edges(g, pos, arrowstyle="-|>", style="dashed", arrowsize=width * 10, edge_color="blue", width=width, connectionstyle="arc3,rad=-0.3", arrows=True)
+
+        # Подписи выхода на рёбрах для Splitter
+        edge_labels = {}
+        for (u, v), idx in self._out_index.items():
+            edge_labels[(u, v)] = str(idx)
+        if edge_labels:
+            nx.draw_networkx_edge_labels(g, pos, edge_labels=edge_labels, font_size=fontsize, label_pos=0.7, bbox=dict(facecolor="white", edgecolor="none", alpha=0.7))
 
         # Рисуем механические связи (валы) пунктирной линией без стрелок
         for shaft in self.__shafts:
             for i in range(len(shaft) - 1):
                 u, v = shaft[i], shaft[i + 1]
                 if u in pos and v in pos:
-                    nx.draw_networkx_edges(
-                        g,
-                        pos,
-                        edgelist=[(u, v)],
-                        style="dashed",
-                        edge_color="blue",
-                        width=1.5,
-                        arrows=False,
-                    )
+                    nx.draw_networkx_edges(g, pos, edgelist=[(u, v)], style="solid", edge_color="black", width=width, arrows=False)
 
         # Рисуем метки
         labels = {n: g.nodes[n]["label"] for n in g.nodes}
-        nx.draw_networkx_labels(g, pos, labels, font_size=8, font_weight="bold")
+        nx.draw_networkx_labels(g, pos, labels, font_size=fontsize)
 
         # Легенда
-
         legend_elements = [Patch(facecolor=color, label=node_type) for node_type, color in self.NODES_COLORS.items()]
-        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, 0), title="Nodes")
+        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, 0), title="Nodes", title_fontsize=fontsize, fontsize=fontsize)
 
-        plt.title(f"{self.__class__.__name__} '{self.name}' scheme", loc="center")
+        plt.title(f"{self.__class__.__name__} «{self.name}» scheme", loc="center", fontsize=fontsize + 2, fontweight="bold")
         plt.axis("off")
+
+        # Центрирование графа
+        ax = plt.gca()
+        x_vals = [p[0] for p in pos.values()]
+        y_vals = [p[1] for p in pos.values()]
+        x_min, x_max = min(x_vals), max(x_vals)
+        y_min, y_max = min(y_vals), max(y_vals)
+        # Добавляем отступы (20% от размаха, но не менее 0.5)
+        margin_x = max(0.5, (x_max - x_min) * 0.2)
+        margin_y = max(0.5, (y_max - y_min) * 0.2)
+        ax.set_xlim(x_min - margin_x, x_max + margin_x)
+        ax.set_ylim(y_min - margin_y, y_max + margin_y)
+
         plt.tight_layout()
 
         return fg
 
     def generator(self, variables: Dict[GTENode, Dict]) -> Generator:
         """Генератор решаемых ГТД"""
+        # проверяем на решаемость, т.к. это генератор схожей схемы с разными параметрами
         if not self.is_solvable[0]:
             raise ArithmeticError(f"{self.is_solvable=}")
         if len(variables) == 0:
@@ -488,7 +500,7 @@ if __name__ == "__main__":
     gte.add_shaft(c, t)
 
     gte.plot()
-    # plt.show()
+    plt.show()
 
     print(f"{gte.is_solvable=}\n")
 
@@ -502,9 +514,9 @@ if __name__ == "__main__":
         for node in gte_.nodes:
             print(f"\t{node} {node.parameters}")
 
-        ok = gte.solve(inlet, fuel, verbose=False)
+        ok = gte_.solve(inlet, fuel, verbose=False)
         print(f"{Fore.RED}{ok=}{Fore.RESET}")
-        print(f"{gte.validate(inlet, fuel)=}\n")
+        print(f"{gte_.validate(inlet, fuel)=}\n")
 
         """vars, substances = gte.calculate(inlet, fuel, verbose=False)
         for node, var in vars.items():
