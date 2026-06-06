@@ -56,7 +56,7 @@ test:
 
 bench:
 	@echo "$(BLUE)Running benchmarks...$(RESET)"
-	$(PYTHON_PATH) -m pytest $(BENCH_DIR) -v -s -x -m "benchmark" --benchmark-columns=min,max,mean,stddev,median,rounds,outliers --benchmark-sort=name --benchmark-min-rounds=10
+	$(PYTHON_PATH) -m pytest $(BENCH_DIR) -v -s -x -m "benchmark" --benchmark-columns=mean,min,max,stddev,median,rounds,outliers --benchmark-sort=name --benchmark-min-rounds=10
 	go test ./... -bench=. -benchmem -benchtime=1s -count=1
 
 lint:

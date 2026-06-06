@@ -52,6 +52,7 @@ install:
 	@echo "$(BLUE)Installing dependencies...$(RESET)"
 	$(PIP_PATH) install --upgrade -r $(REQUIREMENTS)
 	$(PIP_PATH) install --upgrade black flake8 pylint isort pytest pytest-benchmark
+	go get -u ./...
 
 test:
 	@echo "$(BLUE)Running tests...$(RESET)"
