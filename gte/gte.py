@@ -83,11 +83,15 @@ class GTE:
         """Описание ГТД"""
         return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__successors.values())}, shafts={len(self.__shafts)}, requirements={len(self.requirements)})"
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name, value) -> None:
         if name == "name":
             if not isinstance(value, str):
                 raise TypeError(TYPE_ERROR.format(f"type(name)={type(value)}", str))
         super().__setattr__(name, value)
+
+    def __len__(self) -> int:
+        """Количество узлов в ГТД"""
+        return len(self.__nodes)
 
     def add_node(self, node: GTENode) -> None:
         """Добавление узла"""
