@@ -1,40 +1,31 @@
 package rotor
 
 import (
-	"slices"
-
 	"github.com/ParkhomenkoDV/substance"
 )
 
-const NVars int = 2
-
-var variables = [3]string{
-	"effeff",
-	"pipi",
-	"",
+type Parameters struct {
+	Eff   float64
+	Pipi  float64
+	Power float64
 }
 
 type Rotor struct {
-	Name       string
-	Parameters map[string]float64
+	Name string
+	Parameters
 }
 
-func New(name string, parameters map[string]float64) *Rotor {
-	for parameter, _ := range parameters {
-		if !slices.Contains(variables[:], parameter) {
-			panic(0)
-		}
-	}
-	return &Rotor{
+func New(name string, parameters Parameters) Rotor {
+	return Rotor{
 		Name:       name,
 		Parameters: parameters,
 	}
 }
 
-func (c *Rotor) Calculate(parameters map[string]float64, inlets ...*substance.Substance) map[string]float64 {
+func (r *Rotor) Calculate(parameters map[string]float64, inlets ...*substance.Substance) map[string]float64 {
 	return parameters
 }
 
-func (c *Rotor) Reset() {
-	c.Parameters = map[string]float64{}
+func (r *Rotor) Reset() {
+	r.Parameters = Parameters{}
 }

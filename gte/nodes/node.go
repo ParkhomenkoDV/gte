@@ -2,8 +2,13 @@ package node
 
 import "github.com/ParkhomenkoDV/substance"
 
-type Node interface {
-	// Фигура для отрисовки
-	Figure() [2][]float64
+type GTENode interface {
+	// New - Генератор решаемых узлов.
+	New() GTENode
+	Equations() []float64
+	NVars() uint
+	IsSolvable() bool
 	Calculate(inlets ...*substance.Substance) (*substance.Substance, error)
+	Validate()
+	CheckReal()
 }

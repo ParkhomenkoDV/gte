@@ -1,12 +1,17 @@
 package burner
 
-type Burner struct {
-	Name       string
-	Parameters map[string]float64
+type Parameters struct {
+	Eff  float64
+	Pipi float64
 }
 
-func New(name string, parameters map[string]float64) *Burner {
-	return &Burner{
+type Burner struct {
+	Name string
+	Parameters
+}
+
+func New(name string, parameters Parameters) Burner {
+	return Burner{
 		Name:       name,
 		Parameters: parameters,
 	}

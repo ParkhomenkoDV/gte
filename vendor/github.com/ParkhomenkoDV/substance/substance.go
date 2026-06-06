@@ -1,46 +1,53 @@
 package substance
 
-// Parameter - параметр вещества.
-type Parameter struct {
-	Name        string  `doc:"Имя"`
-	Value       float64 `doc:"Значение"`
-	Unit        float64 `doc:"Единица измерения"`
-	SI          float64 `doc:"Значение в СИ"`
-	Description string  `doc:"Описание"`
-}
+import "fmt"
 
-// Конструктор Parameter.
-func NewParameter(name string, value float64, unit float64, description string) Parameter {
-	return Parameter{
-		Name:        name,
-		Value:       value,
-		Unit:        unit,
-		SI:          value * unit,
-		Description: description,
-	}
-}
+const (
+	errCompositionNotFound = "Substance '%s': Composition '%s' not found"
+	errParameterNotFound   = "Substance '%s': Parameter '%s' not found"
+	errFunctionNotFound    = "Substance '%s': Function '%s' not found"
+)
 
-// Substance - Вещество.
+// Aliases
+type (
+	// Параметр вещества.
+	Parameter = float64
+	// Параметры вещества.
+	Parameters = map[string]Parameter
+	// Функция вещества
+	Function = func(Parameters) Parameter
+	// Функции вещества.
+	Functions = map[string]Function
+)
+
+// Вещество.
 type Substance struct {
-	Name       string                                        `doc:"Имя"`
-	Parameters map[string]Parameter                          `doc:"Параметры"`
-	Functions  map[string]func(map[string]Parameter) float64 `doc:"Функции"`
+	Name        string             `doc:"Имя"`
+	Composition map[string]float64 `doc:"Химический состав смеси"`
+	Parameters  Parameters         `doc:"Параметры"`
+	Functions   Functions          `doc:"Функции"`
+}
+
+// Получение химического состава по имени.
+func (s *Substance) C(name string) float64 {
+	if c, ok := s.Composition[name]; ok {
+		return c
+	}
+	panic(fmt.Sprintf(errCompositionNotFound, s.Name, name))
 }
 
 // Получение параметра по имени.
-func (s *Substance) P(name string) *Parameter {
-	p, ok := s.Parameters[name]
-	if ok {
-		return &p
+func (s *Substance) P(name string) Parameter {
+	if p, ok := s.Parameters[name]; ok {
+		return p
 	}
-	return nil
+	panic(fmt.Sprintf(errParameterNotFound, s.Name, name))
 }
 
-// Получение функиции по имени.
-func (s *Substance) F(name string) func(map[string]Parameter) float64 {
-	f, ok := s.Functions[name]
-	if ok {
+// Получение функции по имени.
+func (s *Substance) F(name string) Function {
+	if f, ok := s.Functions[name]; ok {
 		return f
 	}
-	return nil
+	panic(fmt.Sprintf(errFunctionNotFound, s.Name, name))
 }
