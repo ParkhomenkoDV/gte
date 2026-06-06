@@ -57,8 +57,8 @@ class GTE:
     __slots__ = (
         "name",  # имя
         "_GTE__nodes",  # все узлы
-        "_GTE__in",  # входящие связи в узел
-        "_GTE__out",  # исходящие связи из узла
+        "_GTE__predecessors",  # предшественники узела
+        "_GTE__successors",  # преемники узла
         "_out_index",  # (from, to) -> индекс выхода
         "_splitter_counter",  # для Splitter
         "_GTE__shafts",  # валы (механическая связь)
@@ -69,8 +69,8 @@ class GTE:
         self.name: str = name
 
         self.__nodes: Set[GTENode] = set()
-        self.__in: Dict[GTENode, List[GTENode]] = {}
-        self.__out: Dict[GTENode, List[GTENode]] = {}
+        self.__predecessors: Dict[GTENode, List[GTENode]] = {}
+        self.__successors: Dict[GTENode, List[GTENode]] = {}
 
         self._out_index: Dict[Tuple[GTENode, GTENode], int] = {}
         self._splitter_counter: Dict[GTENode, int] = {}
@@ -81,7 +81,7 @@ class GTE:
 
     def __repr__(self) -> str:
         """Описание ГТД"""
-        return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__out.values())}, shafts={len(self.__shafts)}, requirements={len(self.requirements)})"
+        return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__successors.values())}, shafts={len(self.__shafts)}, requirements={len(self.requirements)})"
 
     def __setattr__(self, name, value):
         if name == "name":
@@ -96,7 +96,7 @@ class GTE:
 
         if node not in self.__nodes:
             self.__nodes.add(node)
-            self.__in[node], self.__out[node] = [], []
+            self.__predecessors[node], self.__successors[node] = [], []
 
     def add_edge(self, from_node: GTENode, to_node: GTENode, outlet_index: int = None) -> None:
         """Добавление связи между узлами from_node и to_node по выходу outlet_index из узла from_node"""
@@ -119,8 +119,8 @@ class GTE:
                 self._splitter_counter[from_node] += 1
             self._out_index[(from_node, to_node)] = outlet_index
 
-        self.__in[to_node].append(from_node)
-        self.__out[from_node].append(to_node)
+        self.__predecessors[to_node].append(from_node)
+        self.__successors[from_node].append(to_node)
 
     def add_shaft(self, *nodes: GTENode) -> None:
         """Добавление вала как механической связи по балансу мощностей"""
@@ -140,11 +140,11 @@ class GTE:
 
     def predecessors(self, node: GTENode) -> List[GTENode]:
         """Предшественники"""
-        return self.__in.get(node, [])
+        return self.__predecessors.get(node, [])
 
     def successors(self, node: GTENode) -> List[GTENode]:
         """Преемники"""
-        return self.__out.get(node, [])
+        return self.__successors.get(node, [])
 
     def scheme(self) -> Dict[str, Any]:
         """
@@ -169,7 +169,7 @@ class GTE:
         edge_list = []
 
         for from_node in self.__nodes:
-            for to_node in self.__out.get(from_node, []):
+            for to_node in self.__successors.get(from_node, []):
                 # матрица смежности
                 i, j = node_to_index[from_node], node_to_index[to_node]
                 adj_matrix[i][j] = 1
