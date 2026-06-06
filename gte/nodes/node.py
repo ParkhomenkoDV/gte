@@ -33,7 +33,6 @@ class GTENode(ABC):
     """
 
     variables: Tuple[str, ...]  # переменные узла
-    n_vars: int = -1  # необходимое количество параметров для решения
 
     __slots__ = ("name", "parameters")
 
@@ -66,6 +65,16 @@ class GTENode(ABC):
             raise AttributeError("deleting characteristic is prohibited!")
         else:
             super().__delattr__(name)
+
+    @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
+        """Система уравнений"""
+        return tuple()
+
+    @property
+    def n_vars(self) -> int:
+        """Необходимое количество параметров для решения"""
+        return len(self._equations([], {}))
 
     @property
     def is_solvable(self) -> Tuple[bool, str]:
@@ -126,11 +135,6 @@ class GTENode(ABC):
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         raise NotImplementedError
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
-        """Система уравнений"""
-        return tuple()
 
     @classmethod
     @abstractmethod

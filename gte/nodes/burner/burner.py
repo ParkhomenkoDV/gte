@@ -59,6 +59,34 @@ class Burner(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+        """
+        (m_i * enthalpy_i) + m_f * (Q*efficiency + enthalpy_f) = (m_i + m_f) * enthalpy_o
+        pipi = P*_outlet / P*_inlet
+        """
+        efficiency, pipi = args.get(gtep.efficiency), args.get(gtep.pipi)
+        outlet_TT, outlet_PP = x[0], x[1]
+
+        inlet, fuel, outlet = args["inlet"], args["fuel"], args["outlet"]
+
+        return (
+            (
+                outlet.parameters[gtep.m]
+                * integrate(
+                    outlet.functions[gtep.hcp],
+                    **{
+                        gtep.TT: (T0 + 15, outlet_TT),
+                        gtep.PP: (101_325, outlet_PP),
+                        gtep.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
+                    },
+                )[0]
+            )
+            - (inlet.parameters[gtep.m] * inlet.parameters.get("enthalpy", nan))
+            - fuel.parameters[gtep.m] * (fuel.parameters.get("enthalpy", nan) + efficiency * fuel.parameters.get("lower_heat", nan)),
+            outlet_PP - inlet.parameters[gtep.PP] * pipi,
+        )
+
+    @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
@@ -90,34 +118,6 @@ class Burner(GTENode):
         )
 
         return parameters, outlet
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
-        """
-        (m_i * enthalpy_i) + m_f * (Q*efficiency + enthalpy_f) = (m_i + m_f) * enthalpy_o
-        pipi = P*_outlet / P*_inlet
-        """
-        efficiency, pipi = args.get(gtep.efficiency), args.get(gtep.pipi)
-        outlet_TT, outlet_PP = x[0], x[1]
-
-        inlet, fuel, outlet = args["inlet"], args["fuel"], args["outlet"]
-
-        return (
-            (
-                outlet.parameters[gtep.m]
-                * integrate(
-                    outlet.functions[gtep.hcp],
-                    **{
-                        gtep.TT: (T0 + 15, outlet_TT),
-                        gtep.PP: (101_325, outlet_PP),
-                        gtep.eo: (outlet.parameters[gtep.eo], outlet.parameters[gtep.eo]),
-                    },
-                )[0]
-            )
-            - (inlet.parameters[gtep.m] * inlet.parameters.get("enthalpy", nan))
-            - fuel.parameters[gtep.m] * (fuel.parameters.get("enthalpy", nan) + efficiency * fuel.parameters.get("lower_heat", nan)),
-            outlet_PP - inlet.parameters[gtep.PP] * pipi,
-        )
 
     @classmethod
     def calculate(cls, parameters: Dict[str, float | int], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:

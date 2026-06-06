@@ -36,6 +36,24 @@ class Joiner(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+        """
+        m_outlet = m_inlet_0 + m_inlet_1 + ...
+        T*_outlet = (m_inlet_0 * hcp_inlet_0 * T*_inlet_0 + m_inlet_1 * hcp_inlet_1 * T*_inlet_1 + ...) / (m_inlet_0 + m_inlet_1 + ...)
+        P*_outlet = (m_inlet_0 * P*_inlet_0 + m_inlet_1 * P*_inlet_1 + ...) / (m_inlet_0 + m_inlet_1 + ...)
+        """
+
+        inlets_got, outlet_got = args["inlets"], args["outlet"]
+
+        _, outlet_want = cls.calculate({}, *inlets_got)
+
+        return (
+            outlet_got.parameters[gtep.m] - outlet_want.parameters[gtep.m],
+            outlet_got.parameters[gtep.TT] - outlet_want.parameters[gtep.TT],
+            outlet_got.parameters[gtep.PP] - outlet_want.parameters[gtep.PP],
+        )
+
+    @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], *inlets: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         if not isinstance(parameters, dict):
@@ -98,24 +116,6 @@ class Joiner(GTENode):
         vars: Dict[str, float] = {}
 
         return vars, outlet
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
-        """
-        m_outlet = m_inlet_0 + m_inlet_1 + ...
-        T*_outlet = (m_inlet_0 * hcp_inlet_0 * T*_inlet_0 + m_inlet_1 * hcp_inlet_1 * T*_inlet_1 + ...) / (m_inlet_0 + m_inlet_1 + ...)
-        P*_outlet = (m_inlet_0 * P*_inlet_0 + m_inlet_1 * P*_inlet_1 + ...) / (m_inlet_0 + m_inlet_1 + ...)
-        """
-
-        inlets_got, outlet_got = args["inlets"], args["outlet"]
-
-        _, outlet_want = cls.calculate({}, *inlets_got)
-
-        return (
-            outlet_got.parameters[gtep.m] - outlet_want.parameters[gtep.m],
-            outlet_got.parameters[gtep.TT] - outlet_want.parameters[gtep.TT],
-            outlet_got.parameters[gtep.PP] - outlet_want.parameters[gtep.PP],
-        )
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], *inlets: Substance) -> Tuple[Dict[str, float], Substance]:

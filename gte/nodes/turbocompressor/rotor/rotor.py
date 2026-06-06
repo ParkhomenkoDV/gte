@@ -38,6 +38,41 @@ class Rotor(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
+        """
+        power = m * hcp * (T*_outlet - T*_inlet)
+        T*_outlet = T*_inlet * (1 + (pi* ** ((k-1) / k) - 1) / eff*)
+        pi* = P*_outlet / P*_inlet
+        """
+        effeff, pipi, power = args.get(gtep.effeff), args.get(gtep.pipi), args.get(gtep.power)
+        outlet_TT, outlet_PP = x[0], x[1]
+        if effeff is None:
+            effeff = x[2]
+        elif pipi is None:
+            pipi = x[2]
+        elif power is None:
+            power = x[2]
+        else:
+            pass  # validate
+
+        inlet, outlet = args["inlet"], args["outlet"]
+
+        ranges = {
+            gtep.TT: (inlet.parameters[gtep.TT], outlet_TT),
+            gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
+            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
+        }
+        gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
+        hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
+        k = adiabatic_index(gc, hcp)
+
+        return (
+            power - inlet.parameters[gtep.m] * hcp * (outlet_TT - inlet.parameters[gtep.TT]),
+            outlet_TT - inlet.parameters[gtep.TT] * (1 + (pipi ** ((k - 1) / k) - 1) / effeff),
+            pipi - outlet_PP / inlet.parameters[gtep.PP],
+        )
+
+    @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
@@ -88,41 +123,6 @@ class Rotor(GTENode):
         outlet = GTENode.calculate_substance(outlet)
 
         return vars, outlet
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
-        """
-        power = m * hcp * (T*_outlet - T*_inlet)
-        T*_outlet = T*_inlet * (1 + (pi* ** ((k-1) / k) - 1) / eff*)
-        pi* = P*_outlet / P*_inlet
-        """
-        effeff, pipi, power = args.get(gtep.effeff), args.get(gtep.pipi), args.get(gtep.power)
-        outlet_TT, outlet_PP = x[0], x[1]
-        if effeff is None:
-            effeff = x[2]
-        elif pipi is None:
-            pipi = x[2]
-        elif power is None:
-            power = x[2]
-        else:
-            pass  # validate
-
-        inlet, outlet = args["inlet"], args["outlet"]
-
-        ranges = {
-            gtep.TT: (inlet.parameters[gtep.TT], outlet_TT),
-            gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
-            gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
-        }
-        gc, _ = integral_average(inlet.functions[gtep.gc], **ranges)
-        hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
-        k = adiabatic_index(gc, hcp)
-
-        return (
-            power - inlet.parameters[gtep.m] * hcp * (outlet_TT - inlet.parameters[gtep.TT]),
-            outlet_TT - inlet.parameters[gtep.TT] * (1 + (pipi ** ((k - 1) / k) - 1) / effeff),
-            pipi - outlet_PP / inlet.parameters[gtep.PP],
-        )
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:

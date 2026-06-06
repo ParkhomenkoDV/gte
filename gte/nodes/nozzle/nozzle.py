@@ -38,6 +38,43 @@ class Nozzle(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+        """
+        pi* = P*_outlet / P*_inlet
+        c_outlet = eff_speed * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
+        force = m * c_outlet
+        """
+        eff_speed, pipi, force = args.get(gtep.eff_speed), args.get(gtep.pipi), args.get(gtep.force)
+        outlet_PP = x[0]
+        if eff_speed is None:
+            eff_speed = x[1]
+        elif pipi is None:
+            pipi = x[1]
+        elif force is None:
+            force = x[1]
+        else:
+            pass  # validate
+
+        inlet, outlet = args["inlet"], args["outlet"]
+
+        hcp, _ = integral_average(
+            inlet.functions[gtep.hcp],
+            **{
+                gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
+                gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
+                gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
+            },
+        )
+        k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
+
+        c = eff_speed * (2 * hcp * outlet.parameters[gtep.TT] * (1 - pipi ** ((k - 1) / k))) ** 0.5
+
+        return (
+            pipi - outlet_PP / inlet.parameters[gtep.PP],
+            force - outlet.parameters[gtep.m] * c,
+        )
+
+    @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
@@ -87,43 +124,6 @@ class Nozzle(GTENode):
             raise ArithmeticError(f"{parameters=}")
 
         return vars, outlet
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
-        """
-        pi* = P*_outlet / P*_inlet
-        c_outlet = eff_speed * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
-        force = m * c_outlet
-        """
-        eff_speed, pipi, force = args.get(gtep.eff_speed), args.get(gtep.pipi), args.get(gtep.force)
-        outlet_PP = x[0]
-        if eff_speed is None:
-            eff_speed = x[1]
-        elif pipi is None:
-            pipi = x[1]
-        elif force is None:
-            force = x[1]
-        else:
-            pass  # validate
-
-        inlet, outlet = args["inlet"], args["outlet"]
-
-        hcp, _ = integral_average(
-            inlet.functions[gtep.hcp],
-            **{
-                gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-                gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
-                gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
-            },
-        )
-        k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
-
-        c = eff_speed * (2 * hcp * outlet.parameters[gtep.TT] * (1 - pipi ** ((k - 1) / k))) ** 0.5
-
-        return (
-            pipi - outlet_PP / inlet.parameters[gtep.PP],
-            force - outlet.parameters[gtep.m] * c,
-        )
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:

@@ -34,6 +34,22 @@ class Channel(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+        """
+        ti* = T*_outlet / T*_inlet
+        pi* = P*_outlet / P*_inlet
+        """
+        titi, pipi = args.get(gtep.titi), args.get(gtep.pipi)
+        outlet_TT, outlet_PP = x[0], x[1]
+
+        inlet, _ = args["inlet"], args["outlet"]
+
+        return (
+            titi - outlet_TT / inlet.parameters[gtep.TT],
+            pipi - outlet_PP / inlet.parameters[gtep.PP],
+        )
+
+    @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
@@ -65,22 +81,6 @@ class Channel(GTENode):
         vars = {}
 
         return vars, outlet
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
-        """
-        ti* = T*_outlet / T*_inlet
-        pi* = P*_outlet / P*_inlet
-        """
-        titi, pipi = args.get(gtep.titi), args.get(gtep.pipi)
-        outlet_TT, outlet_PP = x[0], x[1]
-
-        inlet, _ = args["inlet"], args["outlet"]
-
-        return (
-            titi - outlet_TT / inlet.parameters[gtep.TT],
-            pipi - outlet_PP / inlet.parameters[gtep.PP],
-        )
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:

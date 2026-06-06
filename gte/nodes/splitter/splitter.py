@@ -35,6 +35,16 @@ class Splitter(GTENode):
         GTENode.__init__(self, parameters, name)
 
     @classmethod
+    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
+        """
+        total_m = sum(m)
+        """
+
+        inlet, outlets = args["inlet"], args["outlets"]
+
+        return (inlet.parameters[gtep.m] - sum(outlet.parameters[gtep.m] for outlet in outlets),)
+
+    @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
         GTENode.validate_substance(inlet)
@@ -71,16 +81,6 @@ class Splitter(GTENode):
         vars: Dict[str, float] = {}
 
         return vars, tuple(outlets)
-
-    @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
-        """
-        total_m = sum(m)
-        """
-
-        inlet, outlets = args["inlet"], args["outlets"]
-
-        return (inlet.parameters[gtep.m] - sum(outlet.parameters[gtep.m] for outlet in outlets),)
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
