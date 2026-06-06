@@ -9,7 +9,7 @@ try:
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
     from ...utils import call_with_kwargs
-    from ..node import GTENode
+    from ..node import Node
 except ImportError:
     import os
     import sys
@@ -20,11 +20,11 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
     from gte.utils import call_with_kwargs
 
 
-class Joiner(GTENode):
+class Joiner(Node):
     """Камера смешения"""
 
     variables: Tuple[str] = tuple()
@@ -33,7 +33,7 @@ class Joiner(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Joiner"):
-        GTENode.__init__(self, parameters, name)
+        Node.__init__(self, parameters, name)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
@@ -70,7 +70,7 @@ class Joiner(GTENode):
         oxidizer, required = 0, 0  # окислитель, теоретически необходимое кодичество окислителя
         m, m_hcp, m_t_hcp, m_p = 0, 0, 0, 0
         for inlet in inlets:
-            GTENode.validate_substance(inlet)
+            Node.validate_substance(inlet)
 
             names.append(inlet.name)
             hcp = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
@@ -121,7 +121,7 @@ class Joiner(GTENode):
     def calculate(cls, parameters: Dict[str, Union[float, int]], *inlets: Substance) -> Tuple[Dict[str, float], Substance]:
         _, outlet = cls.predict(parameters, *inlets)
 
-        outlet = GTENode.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlet)
 
         return {}, outlet
 

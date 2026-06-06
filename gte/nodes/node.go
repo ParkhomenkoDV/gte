@@ -2,11 +2,11 @@ package node
 
 import "github.com/ParkhomenkoDV/substance"
 
-type GTENode interface {
+type Node interface {
 	// New - Генератор решаемых узлов.
-	New() GTENode
+	New() Node
 	Equations() []float64
-	NVars() uint
+	NVars() int
 	IsSolvable() bool
 	Calculate(inlets ...*substance.Substance) (*substance.Substance, error)
 	Validate()

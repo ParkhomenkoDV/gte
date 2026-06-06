@@ -76,6 +76,47 @@ def jumo004b():
     return gte
 
 
+def rr():
+    """Создает экземпляр RR Trent"""
+    lpc1 = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="lpc1")
+    lpc2 = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="lpc2")
+    mpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="mpc")
+    hpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="hpc")
+
+    b = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="b")
+
+    hpt = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
+    mpt = Rotor({gtep.effeff: 1 / 0.9}, name="mpt")
+    lpt = Rotor({gtep.effeff: 1 / 0.9}, name="lpt")
+
+    n1 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "n1")
+    n2 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "n2")
+
+    c2 = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="c2")
+
+    gte = GTE("RR")
+
+    gte.add_edge(lpc1, mpc)
+    gte.add_edge(mpc, hpc)
+    gte.add_edge(hpc, b)
+    gte.add_edge(b, hpt)
+    gte.add_edge(hpt, mpt)
+    gte.add_edge(mpt, lpt)
+    gte.add_edge(lpt, n1)
+
+    gte.add_edge(lpc2, c2)
+    gte.add_edge(c2, n2)
+
+    gte.add_shaft(lpc2, lpc1, lpt)  # ВНД
+    gte.add_shaft(mpc, mpt)  # ВСД
+    gte.add_shaft(hpc, hpt)  # ВВД
+
+    if not gte.is_solvable[0]:
+        raise ArithmeticError
+
+    return gte
+
+
 def al31f():
     """Создает экземпляр АЛ-31Ф"""
     lpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="lpc")
@@ -205,6 +246,16 @@ class TestGTE:
 
         def benchfunc():
             gte = jumo004b()
+            gte.solve(air, kerosene)
+
+        benchmark(benchfunc)
+
+    @pytest.mark.benchmark
+    def test_gte_solve_rr(self, benchmark):
+        """Бенчмарк расчета ГТД RR Trent"""
+
+        def benchfunc():
+            gte = rr()
             gte.solve(air, kerosene)
 
         benchmark(benchfunc)

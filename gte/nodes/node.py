@@ -20,7 +20,7 @@ except ImportError:  # Резервный абсолютный импорт дл
     from gte.utils import call_with_kwargs
 
 
-class GTENode(ABC):
+class Node(ABC):
     """Абстрактный базовый класс узла ГТД
 
     Attributes:
@@ -150,7 +150,7 @@ class GTENode(ABC):
     @staticmethod
     def calculate_substance(substance: Substance) -> Substance:
         """Расчет термодинамических параметров вещества по массе, температуре, давлению"""
-        GTENode.validate_substance(substance)
+        Node.validate_substance(substance)
 
         substance.parameters[gtep.gc] = call_with_kwargs(substance.functions[gtep.gc], **substance.parameters)
         substance.parameters[gtep.hcp] = call_with_kwargs(substance.functions[gtep.hcp], **substance.parameters)

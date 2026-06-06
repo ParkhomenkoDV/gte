@@ -11,7 +11,7 @@ try:
     from ....config import parameters as gtep
     from ....errors import TYPE_ERROR
     from ....utils import call_with_kwargs, integral_average
-    from ...node import GTENode
+    from ...node import Node
 except ImportError:
     import os
     import sys
@@ -22,11 +22,11 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
     from gte.utils import call_with_kwargs, integral_average
 
 
-class Rotor(GTENode):
+class Rotor(Node):
     """Ротор"""
 
     variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
@@ -35,7 +35,7 @@ class Rotor(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Rotor"):
-        GTENode.__init__(self, parameters, name)
+        Node.__init__(self, parameters, name)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
@@ -75,7 +75,7 @@ class Rotor(GTENode):
     @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
-        GTENode.validate_substance(inlet)
+        Node.validate_substance(inlet)
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
@@ -120,7 +120,7 @@ class Rotor(GTENode):
         else:
             raise ArithmeticError(f"{parameters=}")
 
-        outlet = GTENode.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlet)
 
         return vars, outlet
 
@@ -147,7 +147,7 @@ class Rotor(GTENode):
         result = root(cls._equations, x0, args, method="lm")
 
         outlet.parameters[gtep.TT], outlet.parameters[gtep.PP] = float(result.x[0]), float(result.x[1])
-        outlet = GTENode.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlet)
 
         effeff = parameters.get(gtep.effeff, cls.total_efficiency(inlet, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))

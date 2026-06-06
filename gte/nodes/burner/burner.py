@@ -11,7 +11,7 @@ try:
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
     from ...utils import call_with_kwargs, integrate
-    from ..node import GTENode
+    from ..node import Node
 except ImportError:
     import os
     import sys
@@ -22,11 +22,11 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
     from gte.utils import call_with_kwargs, integrate
 
 
-class Burner(GTENode):
+class Burner(Node):
     """Камера сгорания"""
 
     variables: Tuple[str, str] = (gtep.efficiency, gtep.pipi)
@@ -56,7 +56,7 @@ class Burner(GTENode):
             raise KeyError(f"fuel has not function '{gtep.gc}'")
 
     def __init__(self, parameters: Dict[str, float], name="Burner"):
-        GTENode.__init__(self, parameters, name)
+        Node.__init__(self, parameters, name)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
@@ -89,8 +89,8 @@ class Burner(GTENode):
     @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
-        GTENode.validate_substance(inlet)
-        GTENode.validate_substance(fuel)
+        Node.validate_substance(inlet)
+        Node.validate_substance(fuel)
         cls.__validate_fuel(fuel)
 
         if not isinstance(parameters, dict):
@@ -164,7 +164,7 @@ class Burner(GTENode):
 
         outlet.parameters[gtep.TT], outlet.parameters[gtep.PP] = float(result.x[0]), float(result.x[1])
 
-        outlet = GTENode.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlet)
 
         efficiency = parameters.get(gtep.efficiency, cls.efficiency(inlet, fuel, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, fuel, outlet))
@@ -217,8 +217,8 @@ class Burner(GTENode):
     @classmethod
     def efficiency(cls, inlet: Substance, fuel: Substance, outlet: Substance) -> float:
         """КПД полноты сгорания топлива"""
-        GTENode.validate_substance(inlet)
-        GTENode.validate_substance(fuel)
+        Node.validate_substance(inlet)
+        Node.validate_substance(fuel)
         cls.__validate_fuel(fuel)
 
         inlet_enthalpy, _ = integrate(inlet.functions[gtep.hcp], **{gtep.eo: (inlet.parameters.get(gtep.eo, 1), inlet.parameters.get(gtep.eo, 1)), gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP])})
@@ -237,8 +237,8 @@ class Burner(GTENode):
     @classmethod
     def total_pressure_ratio(cls, inlet: Substance, fuel: Substance, outlet: Substance) -> float:
         """Коэф. сохранения давления"""
-        GTENode.validate_substance(inlet)
-        GTENode.validate_substance(fuel)
+        Node.validate_substance(inlet)
+        Node.validate_substance(fuel)
         cls.__validate_fuel(fuel)
 
         return outlet.parameters[gtep.PP] / inlet.parameters[gtep.PP]

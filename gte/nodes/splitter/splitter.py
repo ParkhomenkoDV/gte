@@ -9,7 +9,7 @@ try:
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
-    from ..node import GTENode
+    from ..node import Node
 except ImportError:
     import os
     import sys
@@ -20,10 +20,10 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
 
 
-class Splitter(GTENode):
+class Splitter(Node):
     """Камера отбора"""
 
     variables: Tuple[str] = ("splits",)
@@ -32,7 +32,7 @@ class Splitter(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Splitter"):
-        GTENode.__init__(self, parameters, name)
+        Node.__init__(self, parameters, name)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
@@ -47,7 +47,7 @@ class Splitter(GTENode):
     @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
-        GTENode.validate_substance(inlet)
+        Node.validate_substance(inlet)
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
@@ -59,7 +59,7 @@ class Splitter(GTENode):
             if not isinstance(value, (tuple, list)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        inlet = GTENode.calculate_substance(inlet)
+        inlet = Node.calculate_substance(inlet)
 
         splits = parameters["splits"]
         if not isinstance(splits, (tuple, list)):

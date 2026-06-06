@@ -9,10 +9,3 @@ type Burner struct {
 	Name string
 	Parameters
 }
-
-func New(name string, parameters Parameters) Burner {
-	return Burner{
-		Name:       name,
-		Parameters: parameters,
-	}
-}

@@ -8,7 +8,7 @@ try:
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
-    from ..node import GTENode
+    from ..node import Node
 except ImportError:
     import os
     import sys
@@ -19,10 +19,10 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
 
 
-class Channel(GTENode):
+class Channel(Node):
     """Канал"""
 
     variables: Tuple[str, str] = (gtep.titi, gtep.pipi)
@@ -31,7 +31,7 @@ class Channel(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Channel"):
-        GTENode.__init__(self, parameters, name)
+        Node.__init__(self, parameters, name)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
@@ -52,7 +52,7 @@ class Channel(GTENode):
     @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
-        GTENode.validate_substance(inlet)
+        Node.validate_substance(inlet)
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
@@ -86,7 +86,7 @@ class Channel(GTENode):
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         _, outlet = cls.predict(parameters, inlet)
 
-        outlet = GTENode.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlet)
 
         titi = parameters.get(gtep.titi, cls.total_temperature_ratio(inlet, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))

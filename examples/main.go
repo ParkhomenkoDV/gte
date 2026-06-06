@@ -3,6 +3,7 @@ package main // обязательно main
 import (
 	"fmt"
 
+	"github.com/ParkhomenkoDV/gte/gte"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/burner"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/channel"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/rotor"
@@ -25,17 +26,32 @@ func main() {
 		Functions: substance.Functions{},
 	}
 
-	fmt.Println(inlet)
-	fmt.Println(fuel)
+	fmt.Printf("inlet: %+v \n", inlet)
+	fmt.Printf("fuel: %+v \n", fuel)
 
-	c := rotor.New("HPC", rotor.Parameters{Eff: 0.85, Pipi: 6})
-	ch := channel.New("Ch", channel.Parameters{Titi: 1.05, Pipi: 0.95})
-	b := burner.New("B", burner.Parameters{Eff: 0.99, Pipi: 0.95})
-	t := rotor.New("HPT", rotor.Parameters{Eff: 0.85, Pipi: 6})
+	c := rotor.Rotor{
+		Name:       "HPC",
+		Parameters: rotor.Parameters{Eff: 0.85, Pipi: 6},
+	}
+	ch := channel.Channel{
+		Name:       "Ch",
+		Parameters: channel.Parameters{Titi: 1.05, Pipi: 0.95},
+	}
+	b := burner.Burner{
+		Name:       "B",
+		Parameters: burner.Parameters{Eff: 0.99, Pipi: 0.95},
+	}
+	t := rotor.Rotor{
+		Name:       "HPT",
+		Parameters: rotor.Parameters{Eff: 0.85, Pipi: 6},
+	}
+
+	gte := gte.GTE{Name: "test"}
+
+	fmt.Printf("gte: %+v \n", gte)
 
 	_ = c
 	_ = ch
 	_ = b
 	_ = t
-
 }

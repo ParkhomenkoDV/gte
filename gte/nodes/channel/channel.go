@@ -10,13 +10,6 @@ type Channel struct {
 	Parameters
 }
 
-func New(name string, parameters Parameters) Channel {
-	return Channel{
-		Name:       name,
-		Parameters: parameters,
-	}
-}
-
 func (ch *Channel) Calculate() {
 
 }

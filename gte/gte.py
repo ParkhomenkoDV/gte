@@ -17,7 +17,7 @@ try:
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
     from .nodes.joiner.joiner import Joiner
-    from .nodes.node import GTENode
+    from .nodes.node import Node
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.splitter.splitter import Splitter
     from .nodes.turbocompressor.rotor.rotor import Rotor
@@ -33,7 +33,7 @@ except ImportError:
     from gte.nodes.burner.burner import Burner
     from gte.nodes.channel.channel import Channel
     from gte.nodes.joiner.joiner import Joiner
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
     from gte.nodes.nozzle.nozzle import Nozzle
     from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor.rotor import Rotor
@@ -42,7 +42,7 @@ except ImportError:
 class GTE:
     """Ориентированный ациклический граф потока рабочего тела"""
 
-    NODES: Tuple[GTENode] = (Rotor, Burner, Channel, Nozzle, Splitter, Joiner)
+    NODES: Tuple[Node] = (Rotor, Burner, Channel, Nozzle, Splitter, Joiner)
 
     # Цвета для разных типов узлов
     NODES_COLORS = {
@@ -62,22 +62,22 @@ class GTE:
         "_out_index",  # (from, to) -> индекс выхода
         "_splitter_counter",  # для Splitter
         "_GTE__shafts",  # валы (механическая связь)
-        "requirements",  # требования
+        "requirements",  # требования к потоку
     )
 
     def __init__(self, name: str):
         self.name: str = name
 
-        self.__nodes: Set[GTENode] = set()
-        self.__predecessors: Dict[GTENode, List[GTENode]] = {}
-        self.__successors: Dict[GTENode, List[GTENode]] = {}
+        self.__nodes: Set[Node] = set()
+        self.__predecessors: Dict[Node, List[Node]] = {}
+        self.__successors: Dict[Node, List[Node]] = {}
 
-        self._out_index: Dict[Tuple[GTENode, GTENode], int] = {}
-        self._splitter_counter: Dict[GTENode, int] = {}
+        self._out_index: Dict[Tuple[Node, Node], int] = {}
+        self._splitter_counter: Dict[Node, int] = {}
 
-        self.__shafts: List[Tuple[GTENode]] = []
+        self.__shafts: List[Tuple[Node]] = []
 
-        self.requirements: List[Dict] = []
+        self.requirements: List[Dict[Node, Dict]] = []
 
     def __repr__(self) -> str:
         """Описание ГТД"""
@@ -93,21 +93,21 @@ class GTE:
         """Количество узлов в ГТД"""
         return len(self.__nodes)
 
-    def add_node(self, node: GTENode) -> None:
+    def add_node(self, node: Node) -> None:
         """Добавление узла"""
-        if not isinstance(node, GTENode):
-            raise TypeError(TYPE_ERROR.format(f"{type(node)=}", GTENode))
+        if not isinstance(node, Node):
+            raise TypeError(TYPE_ERROR.format(f"{type(node)=}", Node))
 
         if node not in self.__nodes:
             self.__nodes.add(node)
             self.__predecessors[node], self.__successors[node] = [], []
 
-    def add_edge(self, from_node: GTENode, to_node: GTENode, outlet_index: int = None) -> None:
+    def add_edge(self, from_node: Node, to_node: Node, outlet_index: int = None) -> None:
         """Добавление связи между узлами from_node и to_node по выходу outlet_index из узла from_node"""
-        if not isinstance(from_node, GTENode):
-            raise TypeError(TYPE_ERROR.format(f"{type(from_node)=}", GTENode))
-        if not isinstance(to_node, GTENode):
-            raise TypeError(TYPE_ERROR.format(f"{type(to_node)=}", GTENode))
+        if not isinstance(from_node, Node):
+            raise TypeError(TYPE_ERROR.format(f"{type(from_node)=}", Node))
+        if not isinstance(to_node, Node):
+            raise TypeError(TYPE_ERROR.format(f"{type(to_node)=}", Node))
 
         if from_node not in self.__nodes:
             self.add_node(from_node)
@@ -126,13 +126,13 @@ class GTE:
         self.__predecessors[to_node].append(from_node)
         self.__successors[from_node].append(to_node)
 
-    def add_shaft(self, *nodes: GTENode) -> None:
+    def add_shaft(self, *nodes: Node) -> None:
         """Добавление вала как механической связи по балансу мощностей"""
         if len(nodes) < 2:
             raise ValueError(f"{len(nodes)=} must be >= 2")
         for node in nodes:
-            if not isinstance(node, GTENode):
-                raise TypeError(TYPE_ERROR.format(f"{type(node)=}", GTENode))
+            if not isinstance(node, Node):
+                raise TypeError(TYPE_ERROR.format(f"{type(node)=}", Node))
             if node not in self.__nodes:
                 self.add_node(node)  # автоматически добавляем узел в граф
         self.__shafts.append(tuple(nodes))
@@ -142,11 +142,11 @@ class GTE:
         """Добавление требований к ГТД"""
         self.requirements.append({"parameter": parameter, "value": value, "place": place})
 
-    def predecessors(self, node: GTENode) -> List[GTENode]:
+    def predecessors(self, node: Node) -> List[Node]:
         """Предшественники"""
         return self.__predecessors.get(node, [])
 
-    def successors(self, node: GTENode) -> List[GTENode]:
+    def successors(self, node: Node) -> List[Node]:
         """Преемники"""
         return self.__successors.get(node, [])
 
@@ -192,15 +192,15 @@ class GTE:
         }
 
     @property
-    def nodes(self) -> Set[GTENode]:
+    def nodes(self) -> Set[Node]:
         return self.__nodes
 
     @property
-    def shafts(self) -> List[Tuple[GTENode]]:
+    def shafts(self) -> List[Tuple[Node]]:
         return self.__shafts
 
     @property
-    def order(self) -> List[GTENode]:
+    def order(self) -> List[Node]:
         """Топологическая сортировка (Kahn)"""
         in_degree = {node: len(self.predecessors(node)) for node in self.__nodes}
         queue = deque(n for n in self.__nodes if in_degree[n] == 0)
@@ -316,7 +316,7 @@ class GTE:
 
         return fg
 
-    def generator(self, variables: Dict[GTENode, Dict]) -> Generator:
+    def generator(self, variables: Dict[Node, Dict]) -> Generator:
         """Генератор решаемых ГТД"""
         # проверяем на решаемость, т.к. это генератор схожей схемы с разными параметрами
         if not self.is_solvable[0]:
@@ -327,7 +327,7 @@ class GTE:
             raise TypeError(TYPE_ERROR.format(f"{type(variables)}", dict))
 
         # Формируем для каждого узла список кортежей (параметр, [значения])
-        parameters_ranges: Dict[GTENode, List[Tuple[str, Tuple[float]]]] = {}
+        parameters_ranges: Dict[Node, List[Tuple[str, Tuple[float]]]] = {}
         for node, parameters in variables.items():
             if node not in self.__nodes:
                 raise KeyError(f"{node} not in {self.__nodes}")
@@ -366,9 +366,9 @@ class GTE:
             yield new_gte
 
     # TODO
-    def predict(self, inlet: Substance, use_ml: bool = True) -> Tuple[Dict[GTENode, Dict[str, float]], Dict]:
+    def predict(self, inlet: Substance, use_ml: bool = True) -> Tuple[Dict[Node, Dict[str, float]], Dict]:
         """Начальные прибличения"""
-        prediction: Dict[GTENode, Dict[str, float]] = {}
+        prediction: Dict[Node, Dict[str, float]] = {}
         for node in self.__nodes:
             if node.is_solvable[0]:
                 continue
@@ -415,11 +415,11 @@ class GTE:
 
         return tuple(power_balances)
 
-    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Dict[GTENode, Dict[str, float]], Dict[GTENode, Tuple]]:
+    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Dict[Node, Dict[str, float]], Dict[Node, Tuple]]:
         """Расчет двигателя 'в строчку'"""
         vars, substances = {}, {}  # Кэш: узел -> (входное вещество/вещества, выходное вещество/вещества)
 
-        def get_inputs(node: GTENode):
+        def get_inputs(node: Node):
             """Собирает выходы всех предшественников"""
             preds = self.predecessors(node)
             if not preds:
@@ -453,7 +453,7 @@ class GTE:
         return vars, substances
 
     # TODO
-    def solve(self, inlet: Substance, fuel: Substance = None, prediction: Dict[GTENode, Dict[str, float]] = None, verbose: bool = False) -> bool:
+    def solve(self, inlet: Substance, fuel: Substance = None, prediction: Dict[Node, Dict[str, float]] = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
         is_solvable, reason = self.is_solvable
         if not is_solvable:

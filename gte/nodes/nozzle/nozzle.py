@@ -11,7 +11,7 @@ try:
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
     from ...utils import call_with_kwargs, integral_average
-    from ..node import GTENode
+    from ..node import Node
 except ImportError:
     import os
     import sys
@@ -22,11 +22,11 @@ except ImportError:
     from gte.config import EPSREL
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
-    from gte.nodes.node import GTENode
+    from gte.nodes.node import Node
     from gte.utils import call_with_kwargs, integral_average
 
 
-class Nozzle(GTENode):
+class Nozzle(Node):
     """Выходное устройство"""
 
     variables: Tuple[str, str] = (gtep.eff_speed, gtep.pipi, gtep.force)
@@ -35,7 +35,7 @@ class Nozzle(GTENode):
     __slots__ = ()  # нет новых атрибутов
 
     def __init__(self, parameters: Dict[str, float], name: str = "Nozzle"):
-        GTENode.__init__(self, parameters, name)
+        Node.__init__(self, parameters, name)
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
@@ -77,7 +77,7 @@ class Nozzle(GTENode):
     @classmethod
     def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
         """Начальные приближения"""
-        GTENode.validate_substance(inlet)
+        Node.validate_substance(inlet)
 
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
@@ -152,7 +152,7 @@ class Nozzle(GTENode):
             if v not in parameters_:
                 parameters_[v] = float(result.x[1])
 
-        outlet = GTENode.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlet)
 
         ranges = {
             gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
