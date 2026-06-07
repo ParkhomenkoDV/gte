@@ -3,7 +3,7 @@
 
 Library for thermodynamic calculation of the cycle of a gas turbine engine of **any** design.
 
-## About
+# About
 1. split the engine into nodes: `Rotor`, `Burner`, `Channel`, `Nozzle`, `Splitter`, `Joiner`
 1. connect the nodes gas-dynamically (by method `add_edge()`) and mechanically (by method `add_shaft()`)
 1. apply boundary conditions for solvability by attribute `is_solvable`
@@ -21,82 +21,150 @@ inlet -> |   gte   | -> outlet
          +---------+
 ```
 
-## Requirements
+# Requirements
 
 ![requirements](requirements.txt)
 
-## Installation
+# Installation
+
+## Python
 ```python
 pip install --upgrade git+https://github.com/ParkhomenkoDV/gte.git@main
 ```
 
-## Usage
+# Usage
+
 ```python
 from substance import Substance
-from gte import GTE, Compressor, CombustionChamber, Turbine, Outlet
+from gte.utils import Function
 
-LPC1, LPC2 = Compressor(), Compressor()
-MPC = Compressor()
-HPC = Compressor()
-CC = CombustionChamber()
-HPT = Turbine()
-LPT = Turbine()
-O1, O2 = Outlet(), Outlet()
-
-gte = GTE("GE-90")
-gte.scheme = {
-    1: [LPC1, MPC, HPC, CC, HPT, LPT, O1],
-    2: [LPC2, O2],
-}
-
-inlet = Substance(
+# создаем вещества
+air = Substance(
     "air",
+    composition={"N2": 0.78, "O2": 0.21, "Ar": 0.009, "CO2": 0.0004},
     parameters={
-        gtep.mf: 50.0,
+        gtep.m: 50.0,
         gtep.gc: 287.14,
         gtep.TT: 300.0,
         gtep.PP: 101325.0,
-        gtep.Cp: 1006.0,
+        gtep.hcp: 1006.0,
         gtep.k: 1.4,
         gtep.c: 0.0,
     },
     functions={
-        gtep.gc: lambda total_temperature: gas_const("air"),
-        gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("air", total_temperature),
+        gtep.gc: Function(
+            lambda total_temperature: gas_const("air"),
+            name=gtep.gc,
+            args=(gtep.TT,),
+        ),
+        gtep.hcp: Function(
+            lambda total_temperature: heat_capacity_p("air", total_temperature),
+            name=gtep.hcp,
+            args=(gtep.TT,),
+        ),
     },
 )
 
-fuel = Substance(
-  "kerosene",
+kerosene = Substance(
+    "kerosene",
+    composition={"C": 0.85, "H": 0.15},
     parameters={
-        gtep.mf: 3,
+        gtep.m: 1,
         gtep.TT: 40 + T0,
         gtep.PP: 101_325,
         "stoichiometry": stoichiometry("kerosene"),
-        "lower_heating_value": lower_heating_value("kerosene"),
+        "lower_heat": lower_heat("kerosene"),
     },
     functions={
-        gtep.gc: lambda excess_oxidizing: gas_const("EXHAUST", excess_oxidizing, fuel="kerosene"),
-        gtep.Cp: lambda total_temperature: heat_capacity_at_constant_pressure("EXHAUST", total_temperature, fuel="kerosene"),
-        gtep.C: lambda total_temperature: 200,
+        gtep.gc: Function(
+            lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),  # TODO: убрать. СС должен сама считать
+            name=gtep.gc,
+            args=(gtep.eo,),
+        ),
+        gtep.hc: Function(
+            lambda total_temperature: 200,
+            name=gtep.hc,
+            args=(gtep.TT,),
+        ),
     },
 )
 
-gte.calculate(inlet, fuel=fuel)
+# создаем узлы
 
-gte.validate()
-print(gte.is_real)
+## компрессоры
+lpc1 = Rotor({gtep.effeff: 0.85, gtep.pipi: 1.15}, name="lpc1")
+lpc2 = Rotor({gtep.effeff: 0.85, gtep.pipi: 1.6}, name="lpc2")
+
+hpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="hpc")
+
+## камеры отбора
+s2 = Splitter({"splits": (0.5, 0.5)}, name="s2")
+s_cool = Splitter({"splits": (0.9, 0.1)}, name="s_cool")
+
+## камеры смешения
+j2 = Joiner({}, name="j2")
+j_cool = Joiner({}, name="j_cool")
+
+## каналы
+ch2 = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="chan2")
+ch_cool = Channel({gtep.titi: 0.95, gtep.pipi: 0.95}, name="chan_cool")
+
+## камеры сгорания
+b = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="b")
+ab = Burner({gtep.efficiency: 0.8, gtep.pipi: 0.95}, name="ab")
+
+## турбины
+hpt = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
+lpt = Rotor({gtep.effeff: 1 / 0.9}, name="lpt")
+
+#№ сопла
+n = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, name="n")
+
+# создаем ГТД
+gte = GTE("test")
+
+# связываем узлы газодинамически
+gte.add_edge(s2, lpc1, 0)
+gte.add_edge(lpc1, hpc)
+gte.add_edge(hpc, s_cool)
+
+gte.add_edge(s2, lpc2, 1)
+gte.add_edge(lpc2, ch2)
+gte.add_edge(ch2, j2)
+
+gte.add_edge(s_cool, ch_cool, 1)
+gte.add_edge(ch_cool, j_cool)
+
+gte.add_edge(s_cool, b, 0)
+gte.add_edge(b, j_cool)
+gte.add_edge(j_cool, hpt)
+gte.add_edge(hpt, lpt)
+gte.add_edge(lpt, j2)
+gte.add_edge(j2, ab)
+gte.add_edge(ab, n)
+
+# связываем узлы механически
+gte.add_shaft(lpc1, lpc2, lpt)
+gte.add_shaft(hpc, hpt)
+
+# визуализируем
+gte.plot()
+plt.show()
+
+print(f"{gte.is_solvable=}\n")
 ```
+
+![](./images/AL-31F.png)
 
 See tutorial in `gte/examples/`
 
-## Project structure
+# Project structure
 ```
 gte/
-|-- docs/                 # documentations
-|-- examples/             # tutorial
-|-- images/               # images
-|-- gte/                  # source code gte and gte nodes
+|-- docs/             # documentations
+|-- examples/         # tutorial
+|-- images/           # images
+|-- gte/              # source code gte and gte nodes
 |   └-- nodes/
 |       └-- burner/
 |           |-- burner.py
@@ -120,12 +188,13 @@ gte/
 |           └-- stator/
 |               |-- stator.py
 |               └-- stator.go
+|   └-- utils/
+|       └-- utils.py
+|       └-- utils.go
 |   |-- checks.py
 |   |-- config.py
 |   |-- gte_test.py
-|   |-- gte.py
-|   |-- utils_test.py
-|   └-- utils.py
+|   └-- gte.py
 |-- .gitignore
 |-- Makefile
 |-- README.md  
@@ -133,7 +202,7 @@ gte/
 └-- setup.py
 ```
 
-## Principles of implementation
+# Principles of implementation
 - physicality and reality
 - speed
 - minimum external [requirements](requirements.txt)
@@ -202,6 +271,6 @@ test_gte_solve_rr              207,269,620.6975 (>1000.0)    206,143,165.9386 (>
 
 # TODO
 
-1. requirements
+1. requirements (in nodes too?)
 1. fuel2
 1. refactoring for speed
