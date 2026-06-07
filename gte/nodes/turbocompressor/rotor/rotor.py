@@ -10,7 +10,7 @@ try:
     from ....config import EPSREL
     from ....config import parameters as gtep
     from ....errors import TYPE_ERROR
-    from ....utils import call_with_kwargs, integral_average
+    from ....utils import integral_average
     from ...node import Node
 except ImportError:
     import os
@@ -23,7 +23,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
-    from gte.utils import call_with_kwargs, integral_average
+    from gte.utils import integral_average
 
 
 class Rotor(Node):
@@ -87,8 +87,8 @@ class Rotor(Node):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        gc_i: float = call_with_kwargs(inlet.functions[gtep.gc], **inlet.parameters)
-        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
+        gc_i: float = inlet.functions[gtep.gc](inlet.parameters)
+        hcp_i: float = inlet.functions[gtep.hcp](inlet.parameters)
         k_i: float = adiabatic_index(gc_i, hcp_i)
 
         outlet = Substance(

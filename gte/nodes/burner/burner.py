@@ -10,7 +10,7 @@ try:
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
-    from ...utils import call_with_kwargs, integrate
+    from ...utils import Function, integrate
     from ..node import Node
 except ImportError:
     import os
@@ -23,7 +23,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
-    from gte.utils import call_with_kwargs, integrate
+    from gte.utils import Function, integrate
 
 
 class Burner(Node):
@@ -101,8 +101,8 @@ class Burner(Node):
             assert parameter in cls.variables
             assert isinstance(value, (float, int)), TypeError(f"{type(value)=} must be numeric")
 
-        hcp_i: float = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
-        hc_f: float = call_with_kwargs(fuel.functions[gtep.hc], **fuel.parameters)
+        hcp_i: float = inlet.functions[gtep.hcp](inlet.parameters)
+        hc_f: float = fuel.functions[gtep.hc](fuel.parameters)
 
         T15 = T0 + 15  # начальная температура измерения теплоемкости энтальпии
 
@@ -135,16 +135,17 @@ class Burner(Node):
         )
 
         H2O = fuel.composition.get("H2O", 0)  # массовая доля волы в смеси
-        outlet.functions[gtep.hcp] = lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
-            heat_capacity_p_exhaust_eo1(total_temperature, fuel.composition),
-            call_with_kwargs(
-                inlet.functions[gtep.hcp],
-                **{gtep.eo: excess_oxidizing, gtep.TT: total_temperature, gtep.PP: outlet.parameters[gtep.PP]},
+        outlet.functions[gtep.hcp] = Function(
+            lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
+                heat_capacity_p_exhaust_eo1(total_temperature, fuel.composition),
+                inlet.functions[gtep.hcp]({gtep.eo: excess_oxidizing, gtep.TT: total_temperature, gtep.PP: outlet.parameters[gtep.PP]}),
+                heat_capacity_p("H2O", total_temperature),
+                excess_oxidizing,
+                fuel.parameters["stoichiometry"],
+                H2O,
             ),
-            heat_capacity_p("H2O", total_temperature),
-            excess_oxidizing,
-            fuel.parameters["stoichiometry"],
-            H2O,
+            name=gtep.hcp,
+            args=(gtep.TT, gtep.eo),
         )
 
         if gtep.eo in inlet.parameters:  # exhaust

@@ -8,7 +8,7 @@ from thermodynamics import adiabatic_index, critical_sonic_velocity
 try:  # Попытка относительного импорта для удаленного пакета
     from ..config import parameters as gtep
     from ..errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
-    from ..utils import call_with_kwargs
+    from ..utils import Function
 except ImportError:  # Резервный абсолютный импорт для локального запуска
     import os
     import sys
@@ -17,7 +17,7 @@ except ImportError:  # Резервный абсолютный импорт дл
 
     from gte.config import parameters as gtep
     from gte.errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
-    from gte.utils import call_with_kwargs
+    from gte.utils import Function
 
 
 class Node(ABC):
@@ -126,9 +126,11 @@ class Node(ABC):
         for name, function in substance.functions.items():
             if name not in tdp_keys:
                 raise KeyError(f"function '{name}' not in {tdp_keys}")
-            """for func_arg in function.__code__.co_varnames:
-                if func_arg not in tdp_keys:
-                    raise KeyError(f"function '{name}' has argument '{func_arg}' not in {tdp_keys}")"""
+            if not isinstance(function, Function):
+                raise TypeError(TYPE_ERROR.format(f"{type(function)=}", Function))
+            for arg in function.args:
+                if arg not in tdp_keys:
+                    raise KeyError(f"{function=} {arg=} not in {tdp_keys}")
 
     @classmethod
     @abstractmethod
@@ -152,8 +154,8 @@ class Node(ABC):
         """Расчет термодинамических параметров вещества по массе, температуре, давлению"""
         Node.validate_substance(substance)
 
-        substance.parameters[gtep.gc] = call_with_kwargs(substance.functions[gtep.gc], **substance.parameters)
-        substance.parameters[gtep.hcp] = call_with_kwargs(substance.functions[gtep.hcp], **substance.parameters)
+        substance.parameters[gtep.gc] = substance.functions[gtep.gc](substance.parameters)
+        substance.parameters[gtep.hcp] = substance.functions[gtep.hcp](substance.parameters)
         substance.parameters[gtep.DD] = substance.parameters[gtep.PP] / (substance.parameters[gtep.gc] * substance.parameters[gtep.TT])
         substance.parameters[gtep.k] = adiabatic_index(substance.parameters[gtep.gc], substance.parameters[gtep.hcp])
         substance.parameters[gtep.ss_critical] = critical_sonic_velocity(substance.parameters[gtep.k], substance.parameters[gtep.gc], substance.parameters[gtep.TT])

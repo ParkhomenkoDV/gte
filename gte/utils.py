@@ -1,8 +1,7 @@
-import inspect
 import os
 import pickle
 from collections import defaultdict
-from functools import lru_cache, wraps
+from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -41,57 +40,13 @@ class Function:
         return self.function(**{arg: kwargs[arg] for arg in self.args})
 
 
-@lru_cache(maxsize=256)
-def get_function_signature(function: Callable):
-    """Получение сингнатуры функции с помощью inspect"""
-    return inspect.signature(function)
-
-
-def call_with_kwargs(function: Callable, **kwargs):
-    """Вызов функции через kwargs"""
-    if not callable(function):
-        raise TypeError(f"{function} must be callable")
-
-    sig = get_function_signature(function)
-
-    arguments: Dict[str, Any] = {}
-    for key, value in sig.parameters.items():
-        # Пропускаем специальные параметры
-        if key in ("cls", "self"):
-            continue
-
-        # Обработка **kwargs параметра
-        if value.kind == inspect.Parameter.VAR_KEYWORD:
-            # Передаем все оставшиеся kwargs
-            for k, v in kwargs.items():
-                if k not in arguments:
-                    arguments[k] = v
-            continue
-
-        # Проверяем обязательные параметры (без значений по умолчанию)
-        if value.default is value.empty and key not in kwargs:
-            raise ValueError(f"kwargs has not required parameter '{key}'")
-
-        # Добавляем значение из kwargs, если оно есть
-        if key in kwargs:
-            arguments[key] = kwargs[key]
-        # Если параметра нет в kwargs, но у него есть значение по умолчанию -
-        # функция будет использовать значение по умолчанию
-
-    return function(**arguments)
-
-
-def integrate(function: Callable, **kwargs) -> Tuple[float, float]:
+def integrate(function: Callable[[Dict[str, float]], float], **kwargs) -> Tuple[float, float]:
     """Интегрирование"""
     if not callable(function):
         TypeError(f"{function} must be callable")
 
-    co_varnames = function.__code__.co_varnames  # количество аргументов функции
-    co_argcount = function.__code__.co_argcount  # все использууемы переменные функции
-    arguments = co_varnames[:co_argcount]  # только аргументы функции
-
     fixed, ranges, other_args = {}, [], {}
-    for arg in arguments:
+    for arg in function.args:
         rang = kwargs.get(arg)
         if rang is None:
             raise ValueError(f"{function=} require argument '{arg}'")
@@ -107,10 +62,10 @@ def integrate(function: Callable, **kwargs) -> Tuple[float, float]:
             ranges.append(rang)
 
     if not ranges:
-        return function(**fixed), 0.0
+        return function(fixed), 0.0
 
-    def partial(*args):
-        return function(*[fixed[p] if p in fixed else args[other_args[p]] for p in arguments])
+    def partial(*args) -> float:
+        return function({a: fixed[a] if a in fixed else args[other_args[a]] for a in function.args})
 
     result, abserr = nquad(partial, ranges)
 
@@ -122,12 +77,8 @@ def integral_average(function: Callable, **kwargs) -> Tuple[float, float]:
 
     result, abserr = integrate(function, **kwargs)  # + checks
 
-    co_varnames = function.__code__.co_varnames  # количество аргументов функции
-    co_argcount = function.__code__.co_argcount  # все использууемы переменные функции
-    arguments = co_varnames[:co_argcount]  # только аргументы функции
-
     devider: float = 1.0
-    for arg in arguments:
+    for arg in function.args:
         rang = kwargs[arg]
         if rang[0] != rang[1]:
             devider *= rang[1] - rang[0]
@@ -262,8 +213,6 @@ if __name__ == "__main__":
     print(hcp_.name)
     print(hcp_.args)
     print(hcp_({"temperature": 300, "eo": 3}))
-
-    exit()
 
     print(integrate(hcp, temperature=(300, 600), eo=(2, 3)), (600**2 - 300**2) / 2 + (3**2 - 2**2) / 2)
     print(integrate(hcp, temperature=(300, 600), eo=(2, 2)), (600**2 - 300**2) / 2 + (2**2 - 2**2) / 2)

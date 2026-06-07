@@ -2,66 +2,14 @@ import numpy as np
 import pytest
 
 try:
-    from .utils import Interpolator, call_with_kwargs, integral_average, integrate
+    from .utils import Interpolator, integral_average, integrate
 except ImportError:
-    from utils import Interpolator, call_with_kwargs, integral_average, integrate
+    from utils import Interpolator, integral_average, integrate
 
 
 def complex_function(x):
     """Сложная непрерывная функция"""
     return np.sin(x) + np.log(abs(x) + 1)
-
-
-class Test_call_with_kwargs:
-    """Тесты функции call_with_kwargs"""
-
-    @staticmethod
-    def f0():
-        return "success"
-
-    @staticmethod
-    def f(name: str, age: int, active: bool = True):
-        return f"{name} is {age} years old and active: {active}"
-
-    class TestClass:
-        def method(self, x, y):
-            return x**y
-
-    @pytest.mark.parametrize(
-        "function, kwargs, expected",
-        [
-            (f0.__func__, {}, "success"),
-            (f0.__func__, {"name": "Tom", "age": 21, "active": True}, "success"),
-            (f.__func__, {"name": "Tom", "age": 21}, "Tom is 21 years old and active: True"),
-            (f.__func__, {"name": "Bob", "age": 24, "active": False, "sex": "male"}, "Bob is 24 years old and active: False"),
-            (lambda x, y: x**y, {"x": 2, "y": 3}, 8),
-            (TestClass().method, {"x": 2, "y": 3}, 8),
-        ],
-    )
-    def test_function(self, function, kwargs, expected):
-        assert call_with_kwargs(function, **kwargs) == expected
-
-    @pytest.mark.benchmark
-    def test_call_with_kwargs(self, benchmark):
-        """Бенчмарк функции call_with_kwargs"""
-
-        def benchfunc(kwargs):
-            call_with_kwargs(self.f, **kwargs)
-
-        benchmark(benchfunc, {"name": "Bob", "age": 24, "active": False, "sex": "male"})
-
-    def test_error(self):
-        # has not function
-        with pytest.raises((AssertionError, TypeError)):
-            call_with_kwargs(2, 3)
-
-        # type(kwargs) is not dict
-        with pytest.raises((AssertionError, TypeError)):
-            call_with_kwargs(self.f, (2, 3))
-
-        # нехватка обязательных аргументов
-        with pytest.raises((AssertionError, ValueError)):
-            call_with_kwargs(self.f, **{"name": "Alice"})
 
 
 class TestIntegrate:

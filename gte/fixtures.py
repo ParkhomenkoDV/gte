@@ -10,6 +10,7 @@ try:
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.splitter.splitter import Splitter
     from .nodes.turbocompressor.rotor import Rotor
+    from .utils import Function
 except ImportError:
     import os
     import sys
@@ -24,6 +25,7 @@ except ImportError:
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor import Rotor
+    from gte.utils import Function
 
 
 # Вещества
@@ -41,8 +43,16 @@ air = Substance(
         gtep.c: 0.0,
     },
     functions={
-        gtep.gc: lambda total_temperature: gas_const("air"),
-        gtep.hcp: lambda total_temperature: heat_capacity_p("air", total_temperature),
+        gtep.gc: Function(
+            lambda total_temperature: gas_const("air"),
+            name=gtep.gc,
+            args=(gtep.TT,),
+        ),
+        gtep.hcp: Function(
+            lambda total_temperature: heat_capacity_p("air", total_temperature),
+            name=gtep.hcp,
+            args=(gtep.TT,),
+        ),
     },
 )
 
@@ -57,8 +67,16 @@ kerosene = Substance(
         "lower_heat": lower_heat("kerosene"),
     },
     functions={
-        gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),  # TODO: убрать. СС должен сама считать
-        gtep.hc: lambda total_temperature: 200,
+        gtep.gc: Function(
+            lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),  # TODO: убрать. СС должен сама считать
+            name=gtep.gc,
+            args=(gtep.eo,),
+        ),
+        gtep.hc: Function(
+            lambda total_temperature: 200,
+            name=gtep.hc,
+            args=(gtep.TT,),
+        ),
     },
 )
 
@@ -76,14 +94,22 @@ exhaust = Substance(
         gtep.c: 0.0,
     },
     functions={
-        gtep.gc: lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
-        gtep.hcp: lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
-            heat_capacity_p_exhaust_eo1(total_temperature, {"C": 0.85, "H": 0.15}),
-            heat_capacity_p("air", total_temperature),
-            heat_capacity_p("H2O", total_temperature),
-            excess_oxidizing,
-            stoichiometry("kerosene"),
-            0,
+        gtep.gc: Function(
+            lambda excess_oxidizing: gas_const_exhaust_fuel(excess_oxidizing, fuel="kerosene"),
+            name=gtep.gc,
+            args=(gtep.eo,),
+        ),
+        gtep.hcp: Function(
+            lambda total_temperature, excess_oxidizing: heat_capacity_p_exhaust(
+                heat_capacity_p_exhaust_eo1(total_temperature, {"C": 0.85, "H": 0.15}),
+                heat_capacity_p("air", total_temperature),
+                heat_capacity_p("H2O", total_temperature),
+                excess_oxidizing,
+                stoichiometry("kerosene"),
+                0,
+            ),
+            name=gtep.hcp,
+            args=(gtep.TT, gtep.eo),
         ),
     },
 )

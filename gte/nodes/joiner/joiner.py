@@ -8,7 +8,7 @@ try:
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
-    from ...utils import call_with_kwargs
+    from ...utils import Function
     from ..node import Node
 except ImportError:
     import os
@@ -21,7 +21,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
-    from gte.utils import call_with_kwargs
+    from gte.utils import Function
 
 
 class Joiner(Node):
@@ -67,13 +67,17 @@ class Joiner(Node):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
         names: List[str] = []
+        gc_args, hcp_args = set(), set()
         oxidizer, required = 0, 0  # окислитель, теоретически необходимое кодичество окислителя
         m, m_hcp, m_t_hcp, m_p = 0, 0, 0, 0
         for inlet in inlets:
             Node.validate_substance(inlet)
 
+            gc_args.update(inlet.functions[gtep.gc].args)
+            hcp_args.update(inlet.functions[gtep.hcp].args)
+
             names.append(inlet.name)
-            hcp = call_with_kwargs(inlet.functions[gtep.hcp], **inlet.parameters)
+            hcp = inlet.functions[gtep.hcp](inlet.parameters)
             m += inlet.parameters[gtep.m]
             oxidizer += inlet.parameters["oxidizer"] if gtep.eo in inlet.parameters else inlet.parameters[gtep.m]
             required += inlet.parameters.get("oxidizer", 0) / inlet.parameters.get(gtep.eo, 1)  # 0 for oxidizer
@@ -81,17 +85,17 @@ class Joiner(Node):
             m_t_hcp += inlet.parameters[gtep.m] * inlet.parameters[gtep.TT] * hcp
             m_p += inlet.parameters[gtep.m] * inlet.parameters[gtep.PP]
 
-        def f_gc(total_temperature, total_pressure, excess_oxidizing) -> float:
+        def f_gc(**kwargs) -> float:
             result = 0
             for inlet in inlets:
-                gc = call_with_kwargs(inlet.functions[gtep.gc], **{gtep.TT: total_temperature, gtep.PP: total_pressure, gtep.eo: excess_oxidizing})
+                gc = inlet.functions[gtep.gc](kwargs)
                 result += inlet.parameters[gtep.m] * gc
             return result / m
 
-        def f_hcp(total_temperature, total_pressure, excess_oxidizing) -> float:
+        def f_hcp(**kwargs) -> float:
             result = 0
             for inlet in inlets:
-                hcp = call_with_kwargs(inlet.functions[gtep.hcp], **{gtep.TT: total_temperature, gtep.PP: total_pressure, gtep.eo: excess_oxidizing})
+                hcp = inlet.functions[gtep.hcp](kwargs)
                 result += inlet.parameters[gtep.m] * inlet.parameters[gtep.TT] * hcp
             return result / m_hcp
 
@@ -105,8 +109,8 @@ class Joiner(Node):
                 gtep.PP: m_p / m,
             },
             functions={
-                gtep.gc: f_gc,
-                gtep.hcp: f_hcp,
+                gtep.gc: Function(f_gc, name=gtep.gc, args=tuple(gc_args)),
+                gtep.hcp: Function(f_hcp, name=gtep.hcp, args=tuple(hcp_args)),
             },
         )
         if required != 0:
