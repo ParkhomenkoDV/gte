@@ -16,6 +16,31 @@ except ImportError:
     from errors import TYPE_ERROR
 
 
+class Function:
+    """Функция"""
+
+    __slots__ = ("function", "name", "args")
+
+    def __init__(self, function: Callable, name: str = None, args: Tuple[str] = None) -> None:
+        self.function: Callable = function
+        self.name: str = name if name else function.__name__
+
+        if args:
+            self.args: Tuple[str] = args
+        else:
+            co_varnames = function.__code__.co_varnames  # количество аргументов функции
+            co_argcount = function.__code__.co_argcount  # все используемые переменные функции
+            self.args: Tuple[str] = co_varnames[:co_argcount]  # только аргументы функции
+
+    def __len__(self) -> int:
+        """Количество аргументов функции"""
+        return len(self.args)
+
+    def __call__(self, kwargs: Dict[str, float]) -> float:
+        """Вызов функции c избыточными параметрами"""
+        return self.function(**{arg: kwargs[arg] for arg in self.args})
+
+
 @lru_cache(maxsize=256)
 def get_function_signature(function: Callable):
     """Получение сингнатуры функции с помощью inspect"""
@@ -228,14 +253,23 @@ class Interpolator:
 
 if __name__ == "__main__":
 
-    def cp(temperature, eo):
+    def hcp(temperature, eo):
         return temperature + eo
 
-    print(integrate(cp, temperature=(300, 600), eo=(2, 3)), (600**2 - 300**2) / 2 + (3**2 - 2**2) / 2)
-    print(integrate(cp, temperature=(300, 600), eo=(2, 2)), (600**2 - 300**2) / 2 + (2**2 - 2**2) / 2)
+    hcp_ = Function(hcp, "test")
 
-    print(integral_average(cp, temperature=(300, 600), eo=(0, 1)), (600**2 - 300**2) / 2 / (600 - 300) + (1**2 - 0**2) / 2 / (1 - 0))
-    print(integral_average(cp, temperature=(300, 600), eo=(1, 1)), (600**2 - 300**2) / 2 / (600 - 300) + 1)
+    print(hcp_.function)
+    print(hcp_.name)
+    print(hcp_.args)
+    print(hcp_({"temperature": 300, "eo": 3}))
+
+    exit()
+
+    print(integrate(hcp, temperature=(300, 600), eo=(2, 3)), (600**2 - 300**2) / 2 + (3**2 - 2**2) / 2)
+    print(integrate(hcp, temperature=(300, 600), eo=(2, 2)), (600**2 - 300**2) / 2 + (2**2 - 2**2) / 2)
+
+    print(integral_average(hcp, temperature=(300, 600), eo=(0, 1)), (600**2 - 300**2) / 2 / (600 - 300) + (1**2 - 0**2) / 2 / (1 - 0))
+    print(integral_average(hcp, temperature=(300, 600), eo=(1, 1)), (600**2 - 300**2) / 2 / (600 - 300) + 1)
 
     def z(x, y):
         return float(np.sin(x) * np.exp(y))
