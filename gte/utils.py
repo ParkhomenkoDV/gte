@@ -61,10 +61,12 @@ def integrate(function: Callable, **kwargs) -> Tuple[float, float]:
     if not callable(function):
         TypeError(f"{function} must be callable")
 
-    sig = get_function_signature(function)
+    co_varnames = function.__code__.co_varnames  # количество аргументов функции
+    co_argcount = function.__code__.co_argcount  # все использууемы переменные функции
+    arguments = co_varnames[:co_argcount]  # только аргументы функции
 
     fixed, ranges, other_args = {}, [], {}
-    for arg in sig.parameters:
+    for arg in arguments:
         rang = kwargs.get(arg)
         if rang is None:
             raise ValueError(f"{function=} require argument '{arg}'")
@@ -83,7 +85,7 @@ def integrate(function: Callable, **kwargs) -> Tuple[float, float]:
         return function(**fixed), 0.0
 
     def partial(*args):
-        return function(*[fixed[p] if p in fixed else args[other_args[p]] for p in sig.parameters])
+        return function(*[fixed[p] if p in fixed else args[other_args[p]] for p in arguments])
 
     result, abserr = nquad(partial, ranges)
 
@@ -95,10 +97,12 @@ def integral_average(function: Callable, **kwargs) -> Tuple[float, float]:
 
     result, abserr = integrate(function, **kwargs)  # + checks
 
-    sig = get_function_signature(function)
+    co_varnames = function.__code__.co_varnames  # количество аргументов функции
+    co_argcount = function.__code__.co_argcount  # все использууемы переменные функции
+    arguments = co_varnames[:co_argcount]  # только аргументы функции
 
     devider: float = 1.0
-    for arg in sig.parameters:
+    for arg in arguments:
         rang = kwargs[arg]
         if rang[0] != rang[1]:
             devider *= rang[1] - rang[0]

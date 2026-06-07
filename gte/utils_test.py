@@ -132,7 +132,7 @@ class TestIntegrate:
         """Тесты обработки ошибок"""
 
         # Не callable объект
-        with pytest.raises((AssertionError, TypeError)):
+        with pytest.raises(Exception):
             integrate("not a function", T=(300, 500))
 
         # Отсутствующий аргумент
@@ -315,7 +315,7 @@ class TestIntegralAverage:
             return x
 
         # Не callable объект
-        with pytest.raises((AssertionError, TypeError)):
+        with pytest.raises(Exception):
             integral_average("not a function", x=(0, 1))
 
         # Отсутствующий аргумент

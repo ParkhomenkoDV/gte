@@ -81,14 +81,14 @@ class Joiner(Node):
             m_t_hcp += inlet.parameters[gtep.m] * inlet.parameters[gtep.TT] * hcp
             m_p += inlet.parameters[gtep.m] * inlet.parameters[gtep.PP]
 
-        def gc(total_temperature, total_pressure, excess_oxidizing) -> float:
+        def f_gc(total_temperature, total_pressure, excess_oxidizing) -> float:
             result = 0
             for inlet in inlets:
                 gc = call_with_kwargs(inlet.functions[gtep.gc], **{gtep.TT: total_temperature, gtep.PP: total_pressure, gtep.eo: excess_oxidizing})
                 result += inlet.parameters[gtep.m] * gc
             return result / m
 
-        def hcp(total_temperature, total_pressure, excess_oxidizing) -> float:
+        def f_hcp(total_temperature, total_pressure, excess_oxidizing) -> float:
             result = 0
             for inlet in inlets:
                 hcp = call_with_kwargs(inlet.functions[gtep.hcp], **{gtep.TT: total_temperature, gtep.PP: total_pressure, gtep.eo: excess_oxidizing})
@@ -105,8 +105,8 @@ class Joiner(Node):
                 gtep.PP: m_p / m,
             },
             functions={
-                gtep.gc: gc,
-                gtep.hcp: hcp,
+                gtep.gc: f_gc,
+                gtep.hcp: f_hcp,
             },
         )
         if required != 0:
