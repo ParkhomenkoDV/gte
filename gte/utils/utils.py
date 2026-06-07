@@ -10,7 +10,7 @@ from scipy.interpolate import LinearNDInterpolator as LNDI
 from scipy.interpolate import interp1d
 
 try:
-    from .errors import TYPE_ERROR
+    from ..errors import TYPE_ERROR
 except ImportError:
     from errors import TYPE_ERROR
 

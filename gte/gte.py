@@ -138,9 +138,12 @@ class GTE:
         self.__shafts.append(tuple(nodes))
 
     # TODO
-    def add_requirement(self, parameter: str, value: float, place: int = -1) -> None:
+    def add_requirement(self, node: Node, is_inlet: bool, idx_substance: int, parameter: str, value: float) -> None:
         """Добавление требований к ГТД"""
-        self.requirements.append({"parameter": parameter, "value": value, "place": place})
+        if node not in self.__nodes:
+            self.add_node(node)
+
+        self.requirements.append({node: {"is_inlet": is_inlet, "idx_substance": idx_substance, "parameter": parameter, "value": value}})
 
     def predecessors(self, node: Node) -> List[Node]:
         """Предшественники"""

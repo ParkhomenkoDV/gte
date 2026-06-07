@@ -1,4 +1,4 @@
-package gte
+package utils
 
 type function struct {
 	Name string

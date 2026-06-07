@@ -8,7 +8,7 @@ from thermodynamics import adiabatic_index, critical_sonic_velocity
 try:  # Попытка относительного импорта для удаленного пакета
     from ..config import parameters as gtep
     from ..errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
-    from ..utils import Function
+    from ..utils.utils import Function
 except ImportError:  # Резервный абсолютный импорт для локального запуска
     import os
     import sys
@@ -17,7 +17,7 @@ except ImportError:  # Резервный абсолютный импорт дл
 
     from gte.config import parameters as gtep
     from gte.errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
-    from gte.utils import Function
+    from gte.utils.utils import Function
 
 
 class Node(ABC):

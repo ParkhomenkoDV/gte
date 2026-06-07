@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 
 try:
-    from .utils import Interpolator, integral_average, integrate
+    from .utils import Function, Interpolator, integral_average, integrate
 except ImportError:
-    from utils import Interpolator, integral_average, integrate
+    from gte.utils.utils import Function, Interpolator, integral_average, integrate
 
 
 def complex_function(x):
@@ -41,11 +41,11 @@ class TestIntegrate:
     @pytest.mark.parametrize(
         "function, kwargs, expected",
         [
-            (f0_1.__func__, {"T": (300, 500)}, 1000.0 * (500 - 300)),
-            (f1_1.__func__, {"T": (300, 500)}, 800 * (500 - 300) + 0.5 * (500**2 - 300**2) / 2),
-            (f2_1.__func__, {"T": (300, 500)}, 900 * (500 - 300) + 0.1 * (500**2 - 300**2) / 2 + 0.001 * (500**3 - 300**3) / 3),
-            (f1_2.__func__, {"T": (300, 500), "P": (100_000, 200_000)}, 1000 * (500 - 300) * (200000 - 100000) + 0.2 * (500**2 - 300**2) / 2 * (200000 - 100000) + 0.0001 * (500 - 300) * (200000**2 - 100000**2) / 2),
-            (f1_3.__func__, {"T": (300, 400), "P": (100_000, 200_000), "V": (0.3, 0.4)}, 1_032_500_350),
+            (Function(f0_1.__func__), {"T": (300, 500)}, 1000.0 * (500 - 300)),
+            (Function(f1_1.__func__), {"T": (300, 500)}, 800 * (500 - 300) + 0.5 * (500**2 - 300**2) / 2),
+            (Function(f2_1.__func__), {"T": (300, 500)}, 900 * (500 - 300) + 0.1 * (500**2 - 300**2) / 2 + 0.001 * (500**3 - 300**3) / 3),
+            (Function(f1_2.__func__), {"T": (300, 500), "P": (100_000, 200_000)}, 1000 * (500 - 300) * (200000 - 100000) + 0.2 * (500**2 - 300**2) / 2 * (200000 - 100000) + 0.0001 * (500 - 300) * (200000**2 - 100000**2) / 2),
+            (Function(f1_3.__func__), {"T": (300, 400), "P": (100_000, 200_000), "V": (0.3, 0.4)}, 1_032_500_350),
         ],
     )
     def test_function(self, function, kwargs, expected):
@@ -64,15 +64,15 @@ class TestIntegrate:
 
     def test_reverse_integration_limits(self):
         """Тест с обратными пределами интегрирования"""
-        result_forward, error_forward = integrate(self.f1_1, T=(300, 500))
-        result_reverse, error_reverse = integrate(self.f1_1, T=(500, 300))
+        result_forward, error_forward = integrate(Function(self.f1_1), T=(300, 500))
+        result_reverse, error_reverse = integrate(Function(self.f1_1), T=(500, 300))
         assert abs(result_forward + result_reverse) < 1e-10
         assert error_forward < self.ABSERR
         assert error_reverse < self.ABSERR
 
     def test_zero_range(self):
         """Тест с нулевым диапазоном"""
-        result, error = integrate(self.f0_1, T=(400, 400))
+        result, error = integrate(Function(self.f0_1), T=(400, 400))
         assert result == pytest.approx(1000.0, rel=self.RELERR)
         assert error < self.ABSERR
 
@@ -85,11 +85,11 @@ class TestIntegrate:
 
         # Отсутствующий аргумент
         with pytest.raises((AssertionError, Exception), match="require argument"):
-            integrate(self.f1_1)  # T отсутствует
+            integrate(Function(self.f1_1))  # T отсутствует
 
         # Неправильный тип диапазона
         with pytest.raises((AssertionError, TypeError)):
-            integrate(self.f1_1, T="not a range")
+            integrate(Function(self.f1_1), T="not a range")
 
         # Диапазон неправильной длины
         with pytest.raises((AssertionError, ValueError)):

@@ -10,7 +10,7 @@ try:
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.splitter.splitter import Splitter
     from .nodes.turbocompressor.rotor import Rotor
-    from .utils import Function
+    from .utils.utils import Function
 except ImportError:
     import os
     import sys
@@ -25,7 +25,7 @@ except ImportError:
     from gte.nodes.nozzle import Nozzle
     from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor import Rotor
-    from gte.utils import Function
+    from gte.utils.utils import Function
 
 
 # Вещества

@@ -10,7 +10,7 @@ try:
     from ....config import EPSREL
     from ....config import parameters as gtep
     from ....errors import TYPE_ERROR
-    from ....utils import integral_average
+    from ....utils.utils import integral_average
     from ...node import Node
 except ImportError:
     import os
@@ -23,7 +23,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
-    from gte.utils import integral_average
+    from gte.utils.utils import integral_average
 
 
 class Rotor(Node):

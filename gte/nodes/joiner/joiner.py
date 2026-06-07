@@ -8,7 +8,7 @@ try:
     from ...config import EPSREL
     from ...config import parameters as gtep
     from ...errors import TYPE_ERROR
-    from ...utils import Function
+    from ...utils.utils import Function
     from ..node import Node
 except ImportError:
     import os
@@ -21,7 +21,7 @@ except ImportError:
     from gte.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
-    from gte.utils import Function
+    from gte.utils.utils import Function
 
 
 class Joiner(Node):
