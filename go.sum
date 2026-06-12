@@ -1,2 +1,4 @@
 github.com/ParkhomenkoDV/substance v0.0.0-20260605222340-e5151ad5e355 h1:fTdpmChSWdx6k6dB+yNRQDoFtJ4HJVaodryXxl9rLps=
 github.com/ParkhomenkoDV/substance v0.0.0-20260605222340-e5151ad5e355/go.mod h1:zyBGFRMwvUnesI4QmJ6N6ooeTYR4HbIGs5fYkWDcZnM=
+gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
+gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=

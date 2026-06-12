@@ -1,3 +1,6 @@
 # github.com/ParkhomenkoDV/substance v0.0.0-20260605222340-e5151ad5e355
 ## explicit; go 1.25.8
 github.com/ParkhomenkoDV/substance
+# gonum.org/v1/gonum v0.17.0
+## explicit; go 1.24.0
+gonum.org/v1/gonum/integrate
