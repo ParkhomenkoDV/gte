@@ -3,4 +3,11 @@
 github.com/ParkhomenkoDV/substance
 # gonum.org/v1/gonum v0.17.0
 ## explicit; go 1.24.0
-gonum.org/v1/gonum/integrate
+gonum.org/v1/gonum/floats
+gonum.org/v1/gonum/floats/scalar
+gonum.org/v1/gonum/integrate/quad
+gonum.org/v1/gonum/internal/asm/f64
+gonum.org/v1/gonum/mathext
+gonum.org/v1/gonum/mathext/internal/amos
+gonum.org/v1/gonum/mathext/internal/cephes
+gonum.org/v1/gonum/mathext/internal/gonum

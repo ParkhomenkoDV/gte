@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ParkhomenkoDV/substance"
-	"gonum.org/v1/gonum/integrate"
+	"gonum.org/v1/gonum/integrate/quad"
 )
 
 const errArgNotFound = "Function '%s': Arg '%s' not found"
@@ -55,14 +55,16 @@ func integrateNested(f func([]float64) float64, ranges [][2]float64, depth int, 
 	b := ranges[depth][1]
 
 	// Интегрируем по текущей переменной, используя адаптивную квадратуру
-	result := integrate.Quad(
+	result := quad.Fixed(
 		func(x float64) float64 {
 			point[depth] = x
 			val, _ := integrateNested(f, ranges, depth+1, point)
 			return val
 		},
 		a, b,
+		1000,
 		nil, // используем настройки по умолчанию
+		0,
 	)
 
 	return result, nil
@@ -98,7 +100,7 @@ func nquadFixed(f func([]float64) float64, ranges [][2]float64, n int) (float64,
 		}
 
 		a := ranges[depth][0]
-		b := ranges[depth][1]
+		_ = ranges[depth][1]
 
 		for i := 0; i < n; i++ {
 			point[depth] = a + float64(i)*steps[depth]
