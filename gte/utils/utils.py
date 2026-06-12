@@ -31,6 +31,9 @@ class Function:
             co_argcount = function.__code__.co_argcount  # все используемые переменные функции
             self.args: Tuple[str] = co_varnames[:co_argcount]  # только аргументы функции
 
+    def __repr__(self) -> str:
+        return self.name
+
     def __len__(self) -> int:
         """Количество аргументов функции"""
         return len(self.args)

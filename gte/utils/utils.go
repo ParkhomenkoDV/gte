@@ -1,19 +1,27 @@
 package utils
 
-type function struct {
-	Name string
-	f    func(parameters map[string]float64) float64
-	Args []string
+import (
+	"fmt"
+
+	"github.com/ParkhomenkoDV/substance"
+)
+
+const errArgNotFound = "Function '%s': Arg '%s' not found"
+
+// Функция с известными аргументами для вызова с избыточнми параметрами.
+type Function struct {
+	Name string `doc:"Имя"`
+	substance.Function
+	Args map[string]struct{} `doc:"Аргументы"`
 }
 
-func New(name string, f func(parameters map[string]float64) float64, args []string) function {
-	return function{
-		Name: name,
-		f:    f,
-		Args: args,
+func (f *Function) Call(ps substance.Parameters) substance.Parameter {
+	// Валидация аргументов
+	for arg := range f.Args {
+		if _, ok := ps[arg]; !ok {
+			panic(fmt.Sprintf(errArgNotFound, f.Name, arg))
+		}
 	}
-}
-
-func (f *function) Float64(parameters map[string]float64) float64 {
-	return f.f(parameters)
+	// Вызов
+	return f.Function(ps)
 }

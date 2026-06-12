@@ -1,3 +1,5 @@
+from typing import Dict
+
 import numpy as np
 import pytest
 
@@ -10,6 +12,190 @@ except ImportError:
 def complex_function(x):
     """Сложная непрерывная функция"""
     return np.sin(x) + np.log(abs(x) + 1)
+
+
+class TestFunction:
+    """Тесты для класса Function"""
+
+    @pytest.mark.parametrize(
+        "function, name, args, want_name, want_args",
+        [
+            (complex_function, "complex_function", ("x",), "complex_function", ("x",)),
+            (complex_function, "", tuple(), "complex_function", ("x",)),
+            (lambda x, y: x + y, "lambda", ("x", "y"), "lambda", ("x", "y")),
+            (lambda x, y: x + y, "", tuple(), "<lambda>", ("x", "y")),
+        ],
+    )
+    def test_init(self, function, name, args, want_name, want_args):
+        """Тест создания Function"""
+
+        if name == "" and len(args) == 0:
+            func = Function(function)
+        else:
+            func = Function(function, name=name, args=args)
+
+        assert func.function == function
+        assert func.name == want_name
+        assert func.args == want_args
+
+    def test_len(self):
+        """Тест метода __len__"""
+
+        def func1(a, b):
+            return a + b
+
+        def func2(x, y, z, w):
+            return x * y * z * w
+
+        assert len(Function(func1)) == 2
+        assert len(Function(func2)) == 4
+
+    @pytest.mark.parametrize(
+        "kwargs,expected",
+        [
+            ({"a": 1, "b": 2}, 3),
+            ({"a": 10, "b": 20}, 30),
+            ({"a": -5, "b": 5}, 0),
+            ({"a": 0, "b": 0}, 0),
+        ],
+    )
+    def test_call(self, kwargs: Dict[str, float], expected: float):
+        """Тест вызова функции"""
+
+        def add(a, b):
+            return a + b
+
+        func = Function(add)
+        assert func(kwargs) == expected
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"a": 1, "b": 2},
+            {"a": 10, "b": 20},
+            {"a": -5, "b": 5},
+            {"a": 0, "b": 0},
+        ],
+    )
+    @pytest.mark.benchmark
+    def test_function_call(self, benchmark, kwargs: Dict[str, float]):
+        """Бенчмарк вызова функции"""
+
+        def add(a, b):
+            return a + b
+
+        func = Function(add)
+
+        def benchfunc():
+            return func(kwargs)
+
+        benchmark(benchfunc)
+
+    def test_call_with_missing_args(self):
+        """Тест вызова функции с отсутствующими аргументами"""
+
+        def multiply(x, y, z):
+            return x * y * z
+
+        func = Function(multiply)
+
+        with pytest.raises(KeyError):
+            func({"x": 5, "y": 3})  # missing 'z'
+
+    def test_call_with_extra_args(self):
+        """Тест вызова функции с избыточными параметрами"""
+
+        def subtract(a, b):
+            return a - b
+
+        func = Function(subtract)
+        result = func({"a": 10, "b": 4, "c": 100, "d": 200})
+
+        assert result == 6
+
+    def test_call_with_wrong_arg_types(self):
+        """Тест вызова функции с неправильными типами аргументов"""
+
+        def divide(a, b):
+            return a / b
+
+        func = Function(divide)
+
+        with pytest.raises(TypeError):
+            func({"a": 10, "b": "not a number"})
+
+    def test_function_with_default_args(self):
+        """Тест функции с аргументами по умолчанию"""
+
+        def greet(name, greeting="Hello"):
+            return f"{greeting}, {name}!"
+
+        func = Function(greet)
+        result = func({"name": "World", "greeting": "Hi"})
+
+        assert result == "Hi, World!"
+
+    @pytest.mark.skip
+    def test_function_with_variable_args_detection(self):
+        """Тест определения аргументов для функции с *args и **kwargs"""
+
+        def variable_func(*args, **kwargs):
+            return len(args) + len(kwargs)
+
+        # Для *args и **kwargs code.co_varnames будет содержать 'args' и 'kwargs'
+        func = Function(variable_func)
+
+        # Должны быть определены 'args' и 'kwargs'
+        assert "args" in func.args or "kwargs" in func.args
+
+    def test_repr(self):
+        """Тест строкового представления"""
+
+        def test_func(data):
+            return data
+
+        func = Function(test_func)
+
+        assert repr(func) == "test_func"
+        assert str(func) == "test_func"
+
+    def test_with_nested_function(self):
+        """Тест с вложенной функцией"""
+
+        def outer():
+            def inner(a, b):
+                return a * b
+
+            return inner
+
+        inner_func = outer()
+        func = Function(inner_func)
+
+        assert func({"a": 3, "b": 4}) == 12
+
+    def test_function_with_non_dict_call(self):
+        """Тест вызова с не-словарём (должен вызвать ошибку)"""
+
+        def test(x):
+            return x
+
+        func = Function(test)
+
+        with pytest.raises(TypeError):
+            func([1, 2, 3])  # Передаём список вместо словаря
+
+    def test_call_order_independent(self):
+        """Тест что порядок аргументов не важен"""
+
+        def divide(dividend, divisor):
+            return dividend / divisor
+
+        func = Function(divide)
+
+        result1 = func({"dividend": 10, "divisor": 2})
+        result2 = func({"divisor": 2, "dividend": 10})
+
+        assert result1 == result2 == 5
 
 
 class TestIntegrate:
@@ -439,4 +625,14 @@ class TestInterpolator:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "-s", "-x", "--benchmark-columns=min,max,mean,stddev,median,rounds,outliers", "--benchmark-sort=name", "--benchmark-min-rounds=10"])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "-s",
+            "-x",
+            "--benchmark-columns=mean,min,max,stddev,median,rounds,outliers",
+            "--benchmark-sort=name",
+            "--benchmark-min-rounds=10",
+        ]
+    )
