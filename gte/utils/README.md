@@ -21,8 +21,8 @@ goos: darwin
 goarch: arm64
 pkg: github.com/ParkhomenkoDV/gte/gte/utils
 cpu: Apple M4
-BenchmarkNewFunction-10         1000000000               0.2329 ns/op          0 B/op          0 allocs/op
-BenchmarkFunctionCall-10        25200465                46.33 ns/op            0 B/op          0 allocs/op
-BenchmarkIntegrate-10              76071             15820 ns/op           26144 B/op        212 allocs/op
-BenchmarkIntegralAverage-10        74959             15854 ns/op           26144 B/op        212 allocs/op
+BenchmarkNewFunction-10         1000000000               0.2253 ns/op          0 B/op          0 allocs/op
+BenchmarkFunctionCall-10        24547678                45.35 ns/op            0 B/op          0 allocs/op
+BenchmarkIntegrate-10              77427             15565 ns/op           26144 B/op        212 allocs/op
+BenchmarkIntegralAverage-10        76747             15643 ns/op           26144 B/op        212 allocs/op
 ```

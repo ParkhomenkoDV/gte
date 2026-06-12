@@ -51,9 +51,9 @@ goos: darwin
 goarch: arm64
 pkg: github.com/ParkhomenkoDV/gte/gte/nodes
 cpu: Apple M4
-BenchmarkNewRotor-10            1000000000               0.2352 ns/op          0 B/op          0 allocs/op
-BenchmarkNewBurner-10           1000000000               0.2313 ns/op          0 B/op          0 allocs/op
-BenchmarkNewChannel-10          1000000000               0.2396 ns/op          0 B/op          0 allocs/op
-BenchmarkNewNozzle-10           1000000000               0.2376 ns/op          0 B/op          0 allocs/op
-BenchmarkNewSplitter-10         1000000000               0.2347 ns/op          0 B/op          0 allocs/op
+BenchmarkNewRotor-10            1000000000               0.2337 ns/op          0 B/op          0 allocs/op
+BenchmarkNewBurner-10           1000000000               0.2288 ns/op          0 B/op          0 allocs/op
+BenchmarkNewChannel-10          1000000000               0.2262 ns/op          0 B/op          0 allocs/op
+BenchmarkNewNozzle-10           1000000000               0.2253 ns/op          0 B/op          0 allocs/op
+BenchmarkNewSplitter-10         1000000000               0.2273 ns/op          0 B/op          0 allocs/op
 ```
