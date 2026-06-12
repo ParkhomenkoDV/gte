@@ -106,3 +106,22 @@ func Integrate(function Function, kwargs map[string][2]float64) (float64, error)
 
 	return nQuad(partial, ranges)
 }
+
+// Среднее интегральное
+func IntegralAverage(function Function, kwargs map[string][2]float64) (float64, error) {
+	result, err := Integrate(function, kwargs)
+	if err != nil {
+		return 0.0, err
+	}
+
+	var devider = 1.0
+	for arg := range function.Args {
+		rang := kwargs[arg]
+		if rang[0] != rang[1] {
+			devider *= rang[1] - rang[0]
+		}
+
+	}
+
+	return result / devider, nil
+}

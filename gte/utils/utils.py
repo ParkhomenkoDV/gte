@@ -75,7 +75,7 @@ def integrate(function: Function, **kwargs) -> Tuple[float, float]:
     return result, abserr
 
 
-def integral_average(function: Callable, **kwargs) -> Tuple[float, float]:
+def integral_average(function: Function, **kwargs) -> Tuple[float, float]:
     """Среднее интегральное"""
 
     result, abserr = integrate(function, **kwargs)  # + checks
