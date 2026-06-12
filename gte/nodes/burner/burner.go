@@ -9,3 +9,7 @@ type Burner struct {
 	Name string
 	Parameters
 }
+
+func (b *Burner) Calculate() {
+
+}

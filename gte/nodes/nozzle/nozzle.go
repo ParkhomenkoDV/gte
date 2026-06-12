@@ -1,13 +1,15 @@
 package nozzle
 
-type Nozzle struct {
-	Name       string
-	Parameters map[string]float64
+type Parameters struct {
+	EffSpeed float64
+	Pipi     float64
 }
 
-func New(name string, parameters map[string]float64) *Nozzle {
-	return &Nozzle{
-		Name:       name,
-		Parameters: parameters,
-	}
+type Nozzle struct {
+	Name string
+	Parameters
+}
+
+func (n *Nozzle) Calculate() {
+
 }
