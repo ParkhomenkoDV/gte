@@ -44,16 +44,8 @@ class Nozzle(Node):
         c_outlet = eff_speed * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
         force = m * c_outlet
         """
-        eff_speed, pipi, force = args.get(gtep.eff_speed), args.get(gtep.pipi), args.get(gtep.force)
         outlet_PP = x[0]
-        if eff_speed is None:
-            eff_speed = x[1]
-        elif pipi is None:
-            pipi = x[1]
-        elif force is None:
-            force = x[1]
-        else:
-            pass  # validate
+        eff_speed, pipi, force = args.get(gtep.eff_speed, x[1]), args.get(gtep.pipi, x[1]), args.get(gtep.force, x[1])
 
         inlet, outlet = args["inlet"], args["outlet"]
 

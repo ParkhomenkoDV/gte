@@ -44,16 +44,8 @@ class Rotor(Node):
         T*_outlet = T*_inlet * (1 + (pi* ** ((k-1) / k) - 1) / eff*)
         pi* = P*_outlet / P*_inlet
         """
-        effeff, pipi, power = args.get(gtep.effeff), args.get(gtep.pipi), args.get(gtep.power)
         outlet_TT, outlet_PP = x[0], x[1]
-        if effeff is None:
-            effeff = x[2]
-        elif pipi is None:
-            pipi = x[2]
-        elif power is None:
-            power = x[2]
-        else:
-            pass  # validate
+        effeff, pipi, power = args.get(gtep.effeff, x[2]), args.get(gtep.pipi, x[2]), args.get(gtep.power, x[2])
 
         inlet, outlet = args["inlet"], args["outlet"]
 
