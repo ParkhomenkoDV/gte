@@ -60,3 +60,23 @@ func BenchmarkIntegrate(b *testing.B) {
 		_ = result
 	}
 }
+
+func BenchmarkIntegralAverage(b *testing.B) {
+	f := Function{
+		Name: "bench",
+		Function: func(ps substance.Parameters) substance.Parameter {
+			return complexFunction(ps["x"])
+		},
+		Args: map[string]struct{}{"x": {}},
+	}
+
+	kwargs := map[string][2]float64{
+		"x": {-100, 100},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result, _ := IntegralAverage(f, kwargs)
+		_ = result
+	}
+}
