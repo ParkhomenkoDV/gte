@@ -490,7 +490,6 @@ class GTE:
 
 
 if __name__ == "__main__":
-    from colorama import Fore
     from fixtures import air as inlet
     from fixtures import kerosene as fuel
 
@@ -567,7 +566,7 @@ if __name__ == "__main__":
             print(f"\t{node} {node.parameters}")
 
         ok = gte_.solve(inlet, fuel, verbose=False)
-        print(f"{Fore.RED}{ok=}{Fore.RESET}")
+        print(f"{ok=}")
         print(f"{gte_.validate(inlet, fuel)=}\n")
 
         vars, substances = gte_.calculate(inlet, fuel, verbose=False)
