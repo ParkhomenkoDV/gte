@@ -62,7 +62,6 @@ class GTE:
         "_out_index",  # (from, to) -> индекс выхода
         "_splitter_counter",  # для Splitter
         "_GTE__shafts",  # валы (механическая связь)
-        "requirements",  # требования к потоку
     )
 
     def __init__(self, name: str):
@@ -77,11 +76,9 @@ class GTE:
 
         self.__shafts: List[Tuple[Node]] = []
 
-        self.requirements: List[Dict[Node, Dict]] = []
-
     def __repr__(self) -> str:
         """Описание ГТД"""
-        return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__successors.values())}, shafts={len(self.__shafts)}, requirements={len(self.requirements)})"
+        return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__successors.values())}, shafts={len(self.__shafts)})"
 
     def __setattr__(self, name, value) -> None:
         if name == "name":
@@ -136,14 +133,6 @@ class GTE:
             if node not in self.__nodes:
                 self.add_node(node)  # автоматически добавляем узел в граф
         self.__shafts.append(tuple(nodes))
-
-    # TODO
-    def add_requirement(self, node: Node, is_inlet: bool, idx_substance: int, parameter: str, value: float) -> None:
-        """Добавление требований к ГТД"""
-        if node not in self.__nodes:
-            self.add_node(node)
-
-        self.requirements.append({node: {"is_inlet": is_inlet, "idx_substance": idx_substance, "parameter": parameter, "value": value}})
 
     def predecessors(self, node: Node) -> List[Node]:
         """Предшественники"""
@@ -222,9 +211,9 @@ class GTE:
     @property
     def is_solvable(self) -> Tuple[bool, str]:
         # количество неизвестных
-        x = sum(node.n_vars - len(node.parameters) for node in self.__nodes)
+        x = sum(node.n_vars - len(node.parameters) - len(node.requirements) for node in self.__nodes)
         # количество уравнений связи и требований
-        y = len(self.__shafts) + len(self.requirements)
+        y = len(self.__shafts)
 
         dif = abs(x - y)  # дисбаланс неизвестных и уравнений
         if x < y:
@@ -485,7 +474,6 @@ class GTE:
             "name": self.name,
             "nodes": self.__nodes,
             "shafts": self.__shafts,
-            "requirements": self.requirements,
         }
 
 

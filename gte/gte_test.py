@@ -180,7 +180,6 @@ class TestGTE:
         assert gte.name == "test"
         assert len(gte.nodes) == 0
         assert len(gte.shafts) == 0
-        assert len(gte.requirements) == 0
 
     @pytest.mark.benchmark
     def test_gte_init(self, benchmark):

@@ -14,8 +14,6 @@ type GTE struct {
 	successors   map[node.Node][]node.Node
 
 	shafts [][]node.Node `doc:"Валы (механическая связь)"`
-
-	Requirements []map[string]float64
 }
 
 func (gte *GTE) AddNode(node node.Node) {
@@ -48,10 +46,6 @@ func (gte *GTE) AddShaft(nodes ...node.Node) error {
 	}
 	gte.shafts = append(gte.shafts, nodes)
 	return nil
-}
-
-func (gte *GTE) AddRequirement() {
-
 }
 
 func (gte *GTE) Nodes() (nodes []node.Node) {

@@ -34,12 +34,17 @@ class Node(ABC):
 
     variables: Tuple[str, ...]  # переменные узла
 
-    __slots__ = ("name", "parameters")
+    __slots__ = (
+        "name",
+        "parameters",
+        "requirements",  # требования к потоку
+    )
 
     def __init__(self, parameters: Dict[str, float], name: str = "node") -> None:
         """Инициализация объекта узла ГТД"""
         self.parameters: Dict[str, float] = parameters
         self.name: str = name
+        self.requirements = []
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}={self.name}"
@@ -65,6 +70,11 @@ class Node(ABC):
             raise AttributeError("deleting characteristic is prohibited!")
         else:
             super().__delattr__(name)
+
+    # TODO
+    def add_requirement(self, is_inlet: bool, idx_substance: int, parameter: str, value: float) -> None:
+        """Добавление требований к ГТД"""
+        self.requirements.append({"is_inlet": is_inlet, "idx_substance": idx_substance, "parameter": parameter, "value": value})
 
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
