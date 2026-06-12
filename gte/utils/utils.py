@@ -40,10 +40,10 @@ class Function:
         return self.function(**{arg: kwargs[arg] for arg in self.args})
 
 
-def integrate(function: Callable[[Dict[str, float]], float], **kwargs) -> Tuple[float, float]:
+def integrate(function: Function, **kwargs) -> Tuple[float, float]:
     """Интегрирование"""
-    if not callable(function):
-        TypeError(f"{function} must be callable")
+    if not isinstance(function, Function):
+        raise TypeError(TYPE_ERROR.format(f"{type(function)}"), Function)
 
     fixed, ranges, other_args = {}, [], {}
     for arg in function.args:

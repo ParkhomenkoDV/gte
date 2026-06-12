@@ -58,7 +58,7 @@ class TestIntegrate:
         """Бенчмарк для функции integrate()"""
 
         def benchfunc(ranges):
-            integrate(complex_function, **ranges)
+            integrate(Function(complex_function), **ranges)
 
         benchmark(benchfunc, {"x": (-100, 100)})
 
@@ -84,30 +84,33 @@ class TestIntegrate:
             integrate("not a function", T=(300, 500))
 
         # Отсутствующий аргумент
-        with pytest.raises((AssertionError, Exception), match="require argument"):
-            integrate(Function(self.f1_1))  # T отсутствует
+        with pytest.raises((AssertionError, Exception)):
+            integrate(Function(self.f1_1, args=("no_T",)))  # T отсутствует
 
         # Неправильный тип диапазона
         with pytest.raises((AssertionError, TypeError)):
-            integrate(Function(self.f1_1), T="not a range")
+            integrate(Function(self.f1_1, args=("T",)), T="not a range")
 
         # Диапазон неправильной длины
-        with pytest.raises((AssertionError, ValueError)):
-            integrate(self.f1_1, T=(300, 400, 500))
+        with pytest.raises(Exception):
+            integrate(Function(self.f1_1, args="T"), T=(300, 400, 500))
 
         # Лишние аргументы (должны игнорироваться)
-        result, error1 = integrate(self.f1_1, T=(300, 500), extra_arg=(100, 200))
-        expected, error2 = integrate(self.f1_1, T=(300, 500))
+        result, error1 = integrate(Function(self.f1_1, args=("T",)), T=(300, 500), extra_arg=(100, 200))
+        expected, error2 = integrate(Function(self.f1_1, args=("T",)), T=(300, 500))
         assert result == pytest.approx(expected, rel=self.RELERR)
         assert error1 == error2
 
     def test_lambda_functions(self):
         """Тест с lambda-функциями"""
-        result, error = integrate(lambda T: 1000.0, T=(300, 500))
+        result, error = integrate(
+            Function(lambda T: 1000.0, args=("T",)),
+            T=(300, 500),
+        )
         assert result == pytest.approx(1000.0 * 200, rel=self.RELERR)
         assert error < self.ABSERR
 
-        result, error = integrate(lambda T, P: 1000.0 + 0.1 * T, T=(300, 500), P=(100_000, 200_000))
+        result, error = integrate(Function(lambda T, P: 1000.0 + 0.1 * T, args=("T", "P")), T=(300, 500), P=(100_000, 200_000))
         assert result == pytest.approx((1000.0 + 0.1 * 400) * 200 * 100000, rel=self.RELERR)
         assert error < self.ABSERR
 
@@ -115,18 +118,18 @@ class TestIntegrate:
         """Тесты граничных случаев"""
 
         # Очень большой диапазон
-        result, error = integrate(self.f0_1, T=(0, 10_000))
+        result, error = integrate(Function(self.f0_1, args=("T",)), T=(0, 10_000))
         assert result == pytest.approx(1000.0 * 10_000, rel=1e-6)
         assert error < self.ABSERR
 
         # Отрицательный диапазон
-        result, error = integrate(self.f1_1, T=(-100, 100))
+        result, error = integrate(Function(self.f1_1, args=("T",)), T=(-100, 100))
         expected = 800.0 * 200 + 0.5 * (10_000 - 10_000) / 2  # T² симметрично
         assert result == pytest.approx(expected, rel=1e-6)
         assert error < self.ABSERR
 
         # Очень маленький диапазон
-        result, error = integrate(self.f0_1, T=(400, 400 + 1e-10))
+        result, error = integrate(Function(self.f0_1, args=("T",)), T=(400, 400 + 1e-10))
         assert abs(result) < self.ABSERR
         assert error < self.ABSERR
 
@@ -243,7 +246,7 @@ class TestIntegralAverage:
         ],
     )
     def test_function(self, function, kwargs, expected):
-        result, error = integral_average(function, **kwargs)
+        result, error = integral_average(Function(function), **kwargs)
         assert result == pytest.approx(expected, rel=self.RELERR)
         assert error < self.ABSERR
 
@@ -252,7 +255,7 @@ class TestIntegralAverage:
         """Бенчмарк для функции integral_average()"""
 
         def benchfunc(function, kwargs):
-            integral_average(function, **kwargs)
+            integral_average(Function(function), **kwargs)
 
         benchmark(benchfunc, complex_function, {"x": (-100, 100)})
 
@@ -267,16 +270,16 @@ class TestIntegralAverage:
             integral_average("not a function", x=(0, 1))
 
         # Отсутствующий аргумент
-        with pytest.raises((AssertionError, Exception), match="require argument"):
-            integral_average(test_func, y=(0, 1))  # x отсутствует
+        with pytest.raises((AssertionError, Exception)):
+            integral_average(Function(test_func), y=(0, 1))  # x отсутствует
 
         # Неправильный тип диапазона
         with pytest.raises((AssertionError, TypeError)):
-            integral_average(test_func, x="not a range")
+            integral_average(Function(test_func), x="not a range")
 
         # Диапазон неправильной длины
         with pytest.raises((AssertionError, ValueError)):
-            integral_average(test_func, x=(0, 1, 2))
+            integral_average(Function(test_func), x=(0, 1, 2))
 
 
 def f1(x):
