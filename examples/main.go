@@ -9,22 +9,21 @@ import (
 	"github.com/ParkhomenkoDV/gte/gte/nodes/channel"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/rotor"
 	"github.com/ParkhomenkoDV/gte/gte/utils"
-	"github.com/ParkhomenkoDV/substance"
+	su "github.com/ParkhomenkoDV/substance"
+	td "github.com/ParkhomenkoDV/thermodynamics/thermodynamics"
 )
-
-const T0 = 273.15
 
 func main() {
 	air_gc := utils.Function{
 		Name: "gas const",
-		Function: func(ps substance.Parameters) substance.Parameter {
+		Function: func(ps su.Parameters) su.Parameter {
 			return 287.14
 		},
 		Args: map[string]struct{}{},
 	}
 	air_hcp := utils.Function{
 		Name: "heat capacity at const pressure",
-		Function: func(ps substance.Parameters) substance.Parameter {
+		Function: func(ps su.Parameters) su.Parameter {
 			tt_1000 := ps["TT"] / 1000
 			coefs := [7]float64{0.2521923, -0.1186612, 0.3360775, -0.3073812, 0.1382207, -0.03090246, 0.002745383}
 			result := 0.0
@@ -36,12 +35,12 @@ func main() {
 		Args: map[string]struct{}{"TT": {}},
 	}
 
-	air := substance.Substance{
+	air := su.Substance{
 		Name: "air",
 		Composition: map[string]float64{
 			"N2": 0.78, "O2": 0.21, "Ar": 0.009, "CO2": 0.0004,
 		},
-		Parameters: substance.Parameters{
+		Parameters: su.Parameters{
 			"m":   50,
 			"gc":  287.14,
 			"TT":  300.0,
@@ -50,29 +49,29 @@ func main() {
 			"k":   1.4,
 			"c":   0.0,
 		},
-		Functions: substance.Functions{
-			"gc": func(ps substance.Parameters) substance.Parameter {
+		Functions: su.Functions{
+			"gc": func(ps su.Parameters) su.Parameter {
 				return air_gc.Call(ps)
 			},
-			"hcp": func(ps substance.Parameters) substance.Parameter {
+			"hcp": func(ps su.Parameters) su.Parameter {
 				return air_hcp.Call(ps)
 			},
 		},
 	}
 
-	kerosene := substance.Substance{
+	kerosene := su.Substance{
 		Name: "kerosene",
 		Composition: map[string]float64{
 			"C": 0.85, "H": 0.15,
 		},
-		Parameters: substance.Parameters{
+		Parameters: su.Parameters{
 			"m":             1,
-			"TT":            40 + T0,
+			"TT":            40 + td.T0,
 			"PP":            101_325,
 			"stoichiometry": 14.61,
 			"lower_heat":    43_000_000,
 		},
-		Functions: substance.Functions{},
+		Functions: su.Functions{},
 	}
 
 	fmt.Printf("inlet: %+v \n", air)
