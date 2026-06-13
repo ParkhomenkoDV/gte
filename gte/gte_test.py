@@ -2,9 +2,8 @@ import pytest
 from substance import Substance
 
 try:
-    from .config import EPSREL
     from .config import parameters as gtep
-    from .fixtures import air, exhaust, kerosene
+    from .fixtures import air, kerosene
     from .gte import GTE
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
@@ -18,9 +17,8 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.config import EPSREL
     from gte.config import parameters as gtep
-    from gte.fixtures import air, exhaust, kerosene
+    from gte.fixtures import air, kerosene
     from gte.gte import GTE
     from gte.nodes.burner.burner import Burner
     from gte.nodes.channel.channel import Channel
@@ -228,6 +226,26 @@ class TestGTE:
             gte.add_edge(s, b)
 
         benchmark(benchfunc)
+
+    @pytest.mark.parametrize(
+        "gte, want_vars, want_substances",
+        [
+            (ai9(), {}, {}),
+            (jumo004b(), {}, {}),
+            (rr(), {}, {}),
+            (al31f(), {}, {}),
+        ],
+    )
+    def test_gte_solve(self, gte, want_vars, want_substances):
+        """Бенчмарк расчета ГТД АИ-9"""
+        ok = gte.solve(air, kerosene)
+        assert ok
+        vars, substances = gte.calculate(air, kerosene)
+        assert len(substances)
+        for node, ss in substances.items():
+            print(ss)
+            for s in ss:
+                assert isinstance(s, tuple) or isinstance(s, Substance)
 
     @pytest.mark.benchmark
     def test_gte_solve_ai9(self, benchmark):

@@ -407,7 +407,7 @@ class GTE:
 
         return tuple(power_balances)
 
-    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Dict[Node, Dict[str, float]], Dict[Node, Tuple]]:
+    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Dict[Node, Dict[str, float]], Dict[Node, Tuple[Substance]]]:
         """Расчет двигателя 'в строчку'"""
         vars, substances = {}, {}  # Кэш: узел -> (входное вещество/вещества, выходное вещество/вещества)
 
