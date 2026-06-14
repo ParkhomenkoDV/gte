@@ -2,7 +2,7 @@ import pytest
 from substance import Substance
 
 try:
-    from .config import parameters as gtep
+    from .config.config import parameters as gtep
     from .fixtures import air, kerosene
     from .gte import GTE
     from .nodes.burner.burner import Burner
@@ -17,7 +17,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.config import parameters as gtep
+    from gte.config.config import parameters as gtep
     from gte.fixtures import air, kerosene
     from gte.gte import GTE
     from gte.nodes.burner.burner import Burner

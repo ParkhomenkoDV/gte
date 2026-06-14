@@ -11,8 +11,8 @@ from scipy.optimize import root
 from substance import Substance
 
 try:
-    from .config import EPSREL
-    from .config import parameters as gtep
+    from .config.config import EPSREL
+    from .config.config import parameters as gtep
     from .errors import TYPE_ERROR
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
@@ -27,8 +27,8 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.config import EPSREL
-    from gte.config import parameters as gtep
+    from gte.config.config import EPSREL
+    from gte.config.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.burner.burner import Burner
     from gte.nodes.channel.channel import Channel

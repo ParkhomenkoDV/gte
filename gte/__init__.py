@@ -1,4 +1,4 @@
-from .config import parameters
+from .config.config import parameters
 from .gte import GTE
 
 # import *

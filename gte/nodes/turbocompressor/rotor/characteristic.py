@@ -5,7 +5,7 @@ from numpy import array, nan
 from numpy.typing import ArrayLike
 
 try:
-    from ....config import parameters as gtep
+    from ....config.config import parameters as gtep
     from ....utils.utils import Interpolator
 except ImportError:
     import os
@@ -13,7 +13,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.config import parameters as gtep
+    from gte.config.config import parameters as gtep
     from gte.utils.utils import Interpolator
 
 

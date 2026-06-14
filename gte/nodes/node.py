@@ -6,7 +6,7 @@ from substance import Substance
 from thermodynamics import adiabatic_index, critical_sonic_velocity
 
 try:  # Попытка относительного импорта для удаленного пакета
-    from ..config import parameters as gtep
+    from ..config.config import parameters as gtep
     from ..errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
     from ..utils.utils import Function
 except ImportError:  # Резервный абсолютный импорт для локального запуска
@@ -15,7 +15,7 @@ except ImportError:  # Резервный абсолютный импорт дл
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.config import parameters as gtep
+    from gte.config.config import parameters as gtep
     from gte.errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
     from gte.utils.utils import Function
 

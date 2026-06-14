@@ -2,7 +2,7 @@ from substance import Substance
 from thermodynamics import T0, gas_const, gas_const_exhaust_fuel, heat_capacity_p, heat_capacity_p_exhaust, heat_capacity_p_exhaust_eo1, lower_heat, stoichiometry
 
 try:
-    from .config import parameters as gtep
+    from .config.config import parameters as gtep
     from .gte import GTE
     from .nodes.burner.burner import Burner
     from .nodes.channel.channel import Channel
@@ -17,7 +17,7 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
-    from gte.config import parameters as gtep
+    from gte.config.config import parameters as gtep
     from gte.gte import GTE
     from gte.nodes.burner import Burner
     from gte.nodes.channel import Channel

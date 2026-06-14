@@ -7,8 +7,8 @@ from thermodynamics import T0, heat_capacity_p, heat_capacity_p_exhaust, heat_ca
 
 try:
     from ...checks import check_efficiency, check_mass_flow, check_temperature
-    from ...config import EPSREL
-    from ...config import parameters as gtep
+    from ...config.config import EPSREL
+    from ...config.config import parameters as gtep
     from ...errors import TYPE_ERROR
     from ...utils.utils import Function, integrate
     from ..node import Node
@@ -19,8 +19,8 @@ except ImportError:
     sys.path.insert(0, os.getcwd())
 
     from gte.checks import check_efficiency, check_mass_flow, check_temperature
-    from gte.config import EPSREL
-    from gte.config import parameters as gtep
+    from gte.config.config import EPSREL
+    from gte.config.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
     from gte.utils.utils import Function, integrate

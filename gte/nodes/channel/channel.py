@@ -5,8 +5,8 @@ from substance import Substance
 
 try:
     from ...checks import check_mass_flow, check_pressure, check_temperature
-    from ...config import EPSREL
-    from ...config import parameters as gtep
+    from ...config.config import EPSREL
+    from ...config.config import parameters as gtep
     from ...errors import TYPE_ERROR
     from ..node import Node
 except ImportError:
@@ -16,8 +16,8 @@ except ImportError:
     sys.path.insert(0, os.getcwd())
 
     from gte.checks import check_mass_flow, check_pressure, check_temperature
-    from gte.config import EPSREL
-    from gte.config import parameters as gtep
+    from gte.config.config import EPSREL
+    from gte.config.config import parameters as gtep
     from gte.errors import TYPE_ERROR
     from gte.nodes.node import Node
 
