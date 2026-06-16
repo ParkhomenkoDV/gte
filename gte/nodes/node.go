@@ -1,6 +1,6 @@
 package node
 
-import "github.com/ParkhomenkoDV/substance"
+import "github.com/ParkhomenkoDV/substance/substance"
 
 type Node interface {
 	// New - Генератор решаемых узлов.

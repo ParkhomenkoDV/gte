@@ -1,6 +1,6 @@
 package blade
 
-import "github.com/ParkhomenkoDV/substance"
+import "github.com/ParkhomenkoDV/substance/substance"
 
 type Parameters struct {
 }

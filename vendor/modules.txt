@@ -1,16 +1,39 @@
-# github.com/ParkhomenkoDV/substance v0.0.0-20260605222340-e5151ad5e355
-## explicit; go 1.25.8
-github.com/ParkhomenkoDV/substance
-# github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260612213200-a1e29d0a15e7
+# github.com/ParkhomenkoDV/substance v0.0.0-20260612204113-ea01f50146ea
+## explicit; go 1.25
+github.com/ParkhomenkoDV/substance/substance
+# github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260616124537-de38c7331030
 ## explicit; go 1.25
 github.com/ParkhomenkoDV/thermodynamics/thermodynamics
+# golang.org/x/tools v0.30.0
+## explicit; go 1.22.0
+golang.org/x/tools/container/intsets
 # gonum.org/v1/gonum v0.17.0
 ## explicit; go 1.24.0
+gonum.org/v1/gonum/blas
+gonum.org/v1/gonum/blas/blas64
+gonum.org/v1/gonum/blas/cblas128
+gonum.org/v1/gonum/blas/gonum
 gonum.org/v1/gonum/floats
 gonum.org/v1/gonum/floats/scalar
 gonum.org/v1/gonum/integrate/quad
+gonum.org/v1/gonum/internal/asm/c128
+gonum.org/v1/gonum/internal/asm/c64
+gonum.org/v1/gonum/internal/asm/f32
 gonum.org/v1/gonum/internal/asm/f64
+gonum.org/v1/gonum/internal/cmplx64
+gonum.org/v1/gonum/internal/math32
+gonum.org/v1/gonum/lapack
+gonum.org/v1/gonum/lapack/gonum
+gonum.org/v1/gonum/lapack/lapack64
+gonum.org/v1/gonum/mat
 gonum.org/v1/gonum/mathext
 gonum.org/v1/gonum/mathext/internal/amos
 gonum.org/v1/gonum/mathext/internal/cephes
 gonum.org/v1/gonum/mathext/internal/gonum
+gonum.org/v1/gonum/optimize
+gonum.org/v1/gonum/optimize/convex/lp
+gonum.org/v1/gonum/spatial/r1
+gonum.org/v1/gonum/stat
+gonum.org/v1/gonum/stat/combin
+gonum.org/v1/gonum/stat/distmv
+gonum.org/v1/gonum/stat/distuv

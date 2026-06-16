@@ -3,7 +3,7 @@ package utils
 import (
 	"fmt"
 
-	"github.com/ParkhomenkoDV/substance"
+	su "github.com/ParkhomenkoDV/substance/substance"
 	"gonum.org/v1/gonum/integrate/quad"
 )
 
@@ -12,11 +12,11 @@ const errArgNotFound = "Function '%s': Arg '%s' not found"
 // Функция с известными аргументами для вызова с избыточнми параметрами.
 type Function struct {
 	Name string `doc:"Имя"`
-	substance.Function
+	su.Function
 	Args map[string]struct{} `doc:"Аргументы"`
 }
 
-func (f *Function) Call(ps substance.Parameters) substance.Parameter {
+func (f *Function) Call(ps su.Parameters) su.Parameter {
 	// Валидация аргументов
 	for arg := range f.Args {
 		if _, ok := ps[arg]; !ok {
@@ -71,7 +71,7 @@ func integrateNested(f func([]float64) float64, ranges [][2]float64, depth int, 
 
 // Интегрирование
 func Integrate(function Function, kwargs map[string][2]float64) (float64, error) {
-	fixed := map[string]substance.Parameter{}
+	fixed := map[string]su.Parameter{}
 	ranges := [][2]float64{}
 	other_args := map[string]int{}
 
@@ -93,7 +93,7 @@ func Integrate(function Function, kwargs map[string][2]float64) (float64, error)
 	}
 
 	partial := func(args []float64) float64 {
-		ps := substance.Parameters{}
+		ps := su.Parameters{}
 		for a := range function.Args {
 			if _, ok := fixed[a]; ok {
 				ps[a] = fixed[a]
@@ -123,4 +123,11 @@ func IntegralAverage(function Function, kwargs map[string][2]float64) (float64, 
 	}
 
 	return result / devider, nil
+}
+
+func SumS(xs ...float64) (result float64) {
+	for _, x := range xs {
+		result += x * x
+	}
+	return result
 }

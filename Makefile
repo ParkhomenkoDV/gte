@@ -87,4 +87,4 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	rm -rf .coverage htmlcov
-	go clean -testcache
+	go clean -testcache -modcache

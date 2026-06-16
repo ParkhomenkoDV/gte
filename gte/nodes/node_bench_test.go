@@ -13,9 +13,9 @@ import (
 
 func BenchmarkNewRotor(b *testing.B) {
 	parameters := rotor.Parameters{
-		Eff:   rand.Float64(),
-		Pipi:  rand.Float64(),
-		Power: rand.Float64(),
+		EffEff: rand.Float64(),
+		Pipi:   rand.Float64(),
+		Power:  rand.Float64(),
 	}
 
 	b.ResetTimer()

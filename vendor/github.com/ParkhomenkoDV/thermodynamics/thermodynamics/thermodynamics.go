@@ -12,6 +12,11 @@ const (
 	GasConst = 8.314_462_618_153_24
 )
 
+// Показатель адиабаты
+func AdiabaticIndex(gasConst, hcp float64) float64 {
+	return hcp / (hcp - gasConst)
+}
+
 // Cкорость звука
 func SonicVelocity(k, gasConst, temperature float64) float64 {
 	return math.Sqrt(k * gasConst * temperature)

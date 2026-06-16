@@ -1,6 +1,8 @@
-github.com/ParkhomenkoDV/substance v0.0.0-20260605222340-e5151ad5e355 h1:fTdpmChSWdx6k6dB+yNRQDoFtJ4HJVaodryXxl9rLps=
-github.com/ParkhomenkoDV/substance v0.0.0-20260605222340-e5151ad5e355/go.mod h1:zyBGFRMwvUnesI4QmJ6N6ooeTYR4HbIGs5fYkWDcZnM=
-github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260612213200-a1e29d0a15e7 h1:P6mNGEl2JIU1JkJGALqVTLX0dHDRZKg/tWP2Pr/NtrU=
-github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260612213200-a1e29d0a15e7/go.mod h1:uV6HbgL/T8nudcHVOUuS8xed12TlVquqgnIAVf1PEKA=
+github.com/ParkhomenkoDV/substance v0.0.0-20260612204113-ea01f50146ea h1:FUTEJyDLye4RzyBOE99fIkuXAl+sc9HGZO9CynZoMdU=
+github.com/ParkhomenkoDV/substance v0.0.0-20260612204113-ea01f50146ea/go.mod h1:4aJrtE8yeMk95fRv+/pUFXxq3eDb9Wom3qp8SPoXmhc=
+github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260616124537-de38c7331030 h1:Ze24ffK+s6szl9fuMdPWGL802q6Qp8H2XPBt72evk9k=
+github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260616124537-de38c7331030/go.mod h1:uV6HbgL/T8nudcHVOUuS8xed12TlVquqgnIAVf1PEKA=
+golang.org/x/tools v0.30.0 h1:BgcpHewrV5AUp2G9MebG4XPFI1E2W41zU1SaqVA9vJY=
+golang.org/x/tools v0.30.0/go.mod h1:c347cR/OJfw5TI+GfX7RUPNMdDRRbjvYTS0jPyvsVtY=
 gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
 gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=

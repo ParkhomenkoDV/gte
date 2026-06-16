@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/ParkhomenkoDV/substance"
+	"github.com/ParkhomenkoDV/substance/substance"
 )
 
 // Сложная непрерывная функция

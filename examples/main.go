@@ -9,7 +9,7 @@ import (
 	"github.com/ParkhomenkoDV/gte/gte/nodes/channel"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/rotor"
 	"github.com/ParkhomenkoDV/gte/gte/utils"
-	su "github.com/ParkhomenkoDV/substance"
+	su "github.com/ParkhomenkoDV/substance/substance"
 	td "github.com/ParkhomenkoDV/thermodynamics/thermodynamics"
 )
 
@@ -79,7 +79,7 @@ func main() {
 
 	c := rotor.Rotor{
 		Name:       "HPC",
-		Parameters: rotor.Parameters{Eff: 0.85, Pipi: 6},
+		Parameters: rotor.Parameters{EffEff: 0.85, Pipi: 6},
 	}
 	ch := channel.Channel{
 		Name:       "Ch",
@@ -91,7 +91,7 @@ func main() {
 	}
 	t := rotor.Rotor{
 		Name:       "HPT",
-		Parameters: rotor.Parameters{Eff: 0.85, Pipi: 6},
+		Parameters: rotor.Parameters{EffEff: 0.85, Pipi: 6},
 	}
 
 	gte := gte.GTE{Name: "test"}

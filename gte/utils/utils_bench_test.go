@@ -3,7 +3,7 @@ package utils
 import (
 	"testing"
 
-	"github.com/ParkhomenkoDV/substance"
+	"github.com/ParkhomenkoDV/substance/substance"
 )
 
 func BenchmarkNewFunction(b *testing.B) {
