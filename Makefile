@@ -27,10 +27,11 @@ help:
 	@echo "Available commands:"
 	@echo "  make venv           - Create virtual environment"
 	@echo "  make activate       - Activate virtual environment (prints command)"
-	@echo "  make install        - Install production dependeRESETies"
+	@echo "  make install        - Install production dependences"
 	@echo "  make test           - Run tests"
-	@echo "  make lint           - Run linters (flake8, pylint)"
 	@echo "  make format         - Format code (black, isort)"
+	@echo "  make lint           - Run linters (flake8, pylint)"
+	@echo "  make doc            - Add documentation"
 	@echo "  make clean          - Clean project"
 
 venv:
@@ -64,15 +65,20 @@ bench:
 	$(PYTHON_PATH) -m pytest $(BENCH_DIR) -v -s -x -m "benchmark" --benchmark-columns=mean,min,max,stddev,median,rounds,outliers --benchmark-sort=name --benchmark-min-rounds=10
 	go test ./... -bench=. -benchmem -benchtime=1s -count=1
 
-lint:
-	@echo "$(BLUE)Running linters...$(RESET)"
-	$(PYTHON_PATH) -m flake8 $(SRC_DIR) $(TEST_DIR)
-	$(PYTHON_PATH) -m pylint $(SRC_DIR) $(TEST_DIR)
-
 format:
 	@echo "$(BLUE)Formatting code...$(RESET)"
 	$(PYTHON_PATH) -m black $(SRC_DIR) $(TEST_DIR)
 	$(PYTHON_PATH) -m isort $(SRC_DIR) $(TEST_DIR)
+	go fmt -s -w .
+
+lint:
+	@echo "$(BLUE)Running linters...$(RESET)"
+	$(PYTHON_PATH) -m flake8 $(SRC_DIR) $(TEST_DIR)
+	$(PYTHON_PATH) -m pylint $(SRC_DIR) $(TEST_DIR)
+	go vet ./...
+
+doc:
+	go doc ./...
 
 clean:
 	@echo "$(BLUE)Cleaning project...$(RESET)"
