@@ -21,6 +21,7 @@ try:
     from .nodes.nozzle.nozzle import Nozzle
     from .nodes.splitter.splitter import Splitter
     from .nodes.turbocompressor.rotor.rotor import Rotor
+    from .utils.utils import Solvable
 except ImportError:
     import os
     import sys
@@ -37,6 +38,7 @@ except ImportError:
     from gte.nodes.nozzle.nozzle import Nozzle
     from gte.nodes.splitter.splitter import Splitter
     from gte.nodes.turbocompressor.rotor.rotor import Rotor
+    from gte.utils.utils import Solvable
 
 
 class GTE:
@@ -209,7 +211,7 @@ class GTE:
         return order
 
     @property
-    def is_solvable(self) -> Tuple[bool, str]:
+    def is_solvable(self) -> Solvable:
         # количество неизвестных
         x = sum(node.n_vars - len(node.parameters) - len(node.requirements) for node in self.__nodes)
         # количество уравнений связи и требований
@@ -217,11 +219,11 @@ class GTE:
 
         dif = abs(x - y)  # дисбаланс неизвестных и уравнений
         if x < y:
-            return False, f"need to add {dif} equations or variables"
+            return Solvable(f"need to add {dif} equations or variables")
         elif x > y:
-            return False, f"need to delete {dif} equations or variables"
+            return Solvable(f"need to delete {dif} equations or variables")
         else:
-            return True, ""
+            return Solvable("")
 
     def plot(self, node_size: int = 5_000, width: float = 1.5, fontsize: int = 10) -> plt.Figure:
         """Визуализация графа потоков ГТД"""
@@ -362,7 +364,7 @@ class GTE:
         """Начальные прибличения"""
         prediction: Dict[Node, Dict[str, float]] = {}
         for node in self.__nodes:
-            if node.is_solvable[0]:
+            if node.is_solvable:
                 continue
             want = node.n_vars - len(node.parameters)  # необходимое количетсво предсказаний
             prediction[node] = {}
@@ -447,9 +449,9 @@ class GTE:
     # TODO
     def solve(self, inlet: Substance, fuel: Substance = None, prediction: Dict[Node, Dict[str, float]] = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
-        is_solvable, reason = self.is_solvable
-        if not is_solvable:
-            raise ArithmeticError(reason)
+        solvable = self.is_solvable
+        if not solvable:
+            raise ArithmeticError(solvable.reason)
 
         predictions, _ = self.predict(inlet, use_ml=True)
         x0 = tuple(parameter for parameters in predictions.values() for parameter in parameters.values())

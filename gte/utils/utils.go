@@ -125,6 +125,19 @@ func IntegralAverage(function Function, kwargs map[string][2]float64) (float64, 
 	return result / devider, nil
 }
 
+// Решаемость
+type Solvable struct {
+	Reason string
+}
+
+func (s *Solvable) Bool() bool {
+	if s.Reason == "" {
+		return true
+	} else {
+		return false
+	}
+}
+
 func SumS(xs ...float64) (result float64) {
 	for _, x := range xs {
 		result += x * x

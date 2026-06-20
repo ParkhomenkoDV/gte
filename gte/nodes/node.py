@@ -8,7 +8,7 @@ from thermodynamics import adiabatic_index, critical_sonic_velocity
 try:  # Попытка относительного импорта для удаленного пакета
     from ..config.config import parameters as gtep
     from ..errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
-    from ..utils.utils import Function
+    from ..utils.utils import Function, Solvable
 except ImportError:  # Резервный абсолютный импорт для локального запуска
     import os
     import sys
@@ -17,7 +17,7 @@ except ImportError:  # Резервный абсолютный импорт дл
 
     from gte.config.config import parameters as gtep
     from gte.errors import SUBSTANCE_ATTRIBUTE_ERROR, TYPE_ERROR
-    from gte.utils.utils import Function
+    from gte.utils.utils import Function, Solvable
 
 
 class Node(ABC):
@@ -87,15 +87,15 @@ class Node(ABC):
         return len(self._equations([], {}))
 
     @property
-    def is_solvable(self) -> Tuple[bool, str]:
+    def is_solvable(self) -> Solvable:
         """Проверка возможности решения"""
         dif = abs(self.n_vars - len(self.parameters))
         if len(self.parameters) < self.n_vars:
-            return False, f"need to add {dif} parameters"
+            return Solvable(f"need to add {dif} parameters")
         elif len(self.parameters) > self.n_vars:
-            return False, f"need to delete {dif} parameters"
+            return Solvable(f"need to delete {dif} parameters")
         else:
-            return True, ""
+            return Solvable("")
 
     @classmethod
     def generator(cls, **parameters) -> Generator:

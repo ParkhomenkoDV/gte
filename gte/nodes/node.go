@@ -1,6 +1,6 @@
 package node
 
-import "github.com/ParkhomenkoDV/substance/substance"
+import su "github.com/ParkhomenkoDV/substance/substance"
 
 type Node interface {
 	// New - Генератор решаемых узлов.
@@ -8,7 +8,7 @@ type Node interface {
 	Equations() []float64
 	NVars() int
 	IsSolvable() bool
-	Calculate(inlets ...*substance.Substance) (*substance.Substance, error)
+	Calculate(inlets ...*su.Substance) (*su.Substance, error)
 	Validate()
 	CheckReal()
 }

@@ -47,7 +47,7 @@ def ai9():
 
     gte.add_shaft(hpc, hpt)
 
-    if not gte.is_solvable[0]:
+    if not gte.is_solvable:
         raise ArithmeticError
 
     return gte
@@ -68,7 +68,7 @@ def jumo004b():
 
     gte.add_shaft(hpc, hpt)
 
-    if not gte.is_solvable[0]:
+    if not gte.is_solvable:
         raise ArithmeticError
 
     return gte
@@ -109,7 +109,7 @@ def rr():
     gte.add_shaft(mpc, mpt)  # ВСД
     gte.add_shaft(hpc, hpt)  # ВВД
 
-    if not gte.is_solvable[0]:
+    if not gte.is_solvable:
         raise ArithmeticError
 
     return gte
@@ -163,7 +163,7 @@ def al31f():
     gte.add_shaft(lpc, lpt)  # ВНД
     gte.add_shaft(hpc, hpt)  # ВВД
 
-    if not gte.is_solvable[0]:
+    if not gte.is_solvable:
         raise ArithmeticError
 
     return gte

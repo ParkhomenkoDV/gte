@@ -1,6 +1,6 @@
 package blade
 
-import "github.com/ParkhomenkoDV/substance/substance"
+import su "github.com/ParkhomenkoDV/substance/substance"
 
 type Parameters struct {
 }
@@ -11,13 +11,13 @@ type Section struct {
 
 // Blade - лопатка/лопасть.
 type Blade struct {
-	Material substance.Substance
+	Material su.Substance
 	Parameters
 	Sections []float64
 }
 
 // Конструктор лопатки/лопасти.
-func New(material substance.Substance) Blade {
+func New(material su.Substance) Blade {
 	return Blade{
 		Material: material,
 	}

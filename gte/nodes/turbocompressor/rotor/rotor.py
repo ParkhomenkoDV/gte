@@ -153,7 +153,7 @@ class Rotor(Node):
         pipi = cls.total_pressure_ratio(inlet, outlet)
         power = cls.power(inlet, outlet)
 
-        x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
+        x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP], effeff, pipi, power)
         args = {"inlet": inlet, "outlet": outlet, gtep.effeff: effeff, gtep.pipi: pipi, gtep.power: power}
 
         result: Dict[int, float] = {}

@@ -89,6 +89,24 @@ def integral_average(function: Function, **kwargs) -> Tuple[float, float]:
     return result / devider, abserr
 
 
+class Solvable:
+    """Решаемость"""
+
+    __slots__ = ("reason",)
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+
+    def __repr__(self) -> str:
+        return str(bool(self))
+
+    def __bool__(self) -> bool:
+        if self.reason == "":
+            return True
+        else:
+            return False
+
+
 def load_models(*paths) -> Dict[str, Any]:
     """Загрузка моделей по переданным путям"""
     models: Dict = {}
