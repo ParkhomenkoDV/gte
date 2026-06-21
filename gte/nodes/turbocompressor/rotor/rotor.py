@@ -29,7 +29,7 @@ except ImportError:
 class Rotor(Node):
     """Ротор"""
 
-    variables: Tuple[str, str, str] = (gtep.effeff, gtep.pipi, gtep.power)
+    variables: Tuple[str, str, str] = (gtep.effeff, gtep.titi, gtep.pipi)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
@@ -40,12 +40,12 @@ class Rotor(Node):
     @classmethod
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
         """
-        power = m * hcp * (T*_outlet - T*_inlet)
         T*_outlet = T*_inlet * (1 + (pi* ** ((k-1) / k) - 1) / eff*)
+        ti* = T*_outlet / T*_inlet
         pi* = P*_outlet / P*_inlet
         """
         outlet_TT, outlet_PP = x[0], x[1]
-        effeff, pipi, power = args.get(gtep.effeff, x[2]), args.get(gtep.pipi, x[2]), args.get(gtep.power, x[2])
+        effeff, titi, pipi = args.get(gtep.effeff, x[2]), args.get(gtep.titi, x[2]), args.get(gtep.pipi, x[2])
 
         inlet, outlet = args["inlet"], args["outlet"]
 
@@ -59,8 +59,8 @@ class Rotor(Node):
         k = adiabatic_index(gc, hcp)
 
         return (
-            power - inlet.parameters[gtep.m] * hcp * (outlet_TT - inlet.parameters[gtep.TT]),
             outlet_TT - inlet.parameters[gtep.TT] * (1 + (pipi ** ((k - 1) / k) - 1) / effeff),
+            titi - outlet_TT / inlet.parameters[gtep.TT],
             pipi - outlet_PP / inlet.parameters[gtep.PP],
         )
 
@@ -95,26 +95,21 @@ class Rotor(Node):
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
             outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
-        vars: Dict[str, float] = {}
-
-        if gtep.pipi not in parameters:
-            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
-            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * ((outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1) * parameters[gtep.effeff] + 1) ** (k_i / (k_i - 1))
-            vars[gtep.pipi] = outlet.parameters[gtep.PP] / inlet.parameters[gtep.PP]
-        elif gtep.effeff not in parameters:
-            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] + parameters[gtep.power] / inlet.parameters[gtep.m] / hcp_i
+        if gtep.titi in parameters and gtep.pipi in parameters:
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * parameters[gtep.titi]
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            vars[gtep.effeff] = (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / (outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1)
-        elif gtep.power not in parameters:
+        elif gtep.effeff in parameters and gtep.titi in parameters:
+            outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * parameters[gtep.titi]
+            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * ((outlet.parameters[gtep.TT] / inlet.parameters[gtep.TT] - 1) * parameters[gtep.effeff] + 1) ** (k_i / (k_i - 1))
+        elif gtep.effeff in parameters and gtep.pipi in parameters:
             outlet.parameters[gtep.TT] = inlet.parameters[gtep.TT] * (1 + (parameters[gtep.pipi] ** ((k_i - 1) / k_i) - 1) / parameters[gtep.effeff])
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            vars[gtep.power] = inlet.parameters[gtep.m] * hcp_i * (outlet.parameters[gtep.TT] - inlet.parameters[gtep.TT])
         else:
             raise ArithmeticError(f"{parameters=}")
 
         outlet = Node.calculate_substance(outlet)
 
-        return vars, outlet
+        return {gtep.effeff: cls.total_efficiency(inlet, outlet), gtep.titi: cls.total_temperature_ratio(inlet, outlet), gtep.pipi: cls.total_pressure_ratio(inlet, outlet)}, outlet
 
     @classmethod
     def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
@@ -142,19 +137,19 @@ class Rotor(Node):
         outlet = Node.calculate_substance(outlet)
 
         effeff = parameters.get(gtep.effeff, cls.total_efficiency(inlet, outlet))
+        titi = parameters.get(gtep.titi, cls.total_temperature_ratio(inlet, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
-        power = parameters.get(gtep.power, cls.power(inlet, outlet))
 
-        return {gtep.effeff: effeff, gtep.pipi: pipi, gtep.power: power}, outlet
+        return {gtep.effeff: effeff, gtep.titi: titi, gtep.pipi: pipi, gtep.power: cls.power(inlet, outlet)}, outlet
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
         effeff = cls.total_efficiency(inlet, outlet)
+        titi = cls.total_temperature_ratio(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
-        power = cls.power(inlet, outlet)
 
-        x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP], effeff, pipi, power)
-        args = {"inlet": inlet, "outlet": outlet, gtep.effeff: effeff, gtep.pipi: pipi, gtep.power: power}
+        x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP], effeff, titi, pipi)
+        args = {"inlet": inlet, "outlet": outlet, gtep.effeff: effeff, gtep.titi: titi, gtep.pipi: pipi}
 
         result: Dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
@@ -200,6 +195,16 @@ class Rotor(Node):
         return (pipi ** ((k - 1) / k) - 1) / (titi - 1)
 
     @classmethod
+    def total_temperature_ratio(cls, inlet: Substance, outlet: Substance) -> float:
+        """Степень повышения полной температуры"""
+        if not isinstance(inlet, Substance):
+            raise TypeError(TYPE_ERROR.format(f"{type(inlet)=}", Substance))
+        if not isinstance(outlet, Substance):
+            raise TypeError(TYPE_ERROR.format(f"{type(outlet)=}", Substance))
+
+        return outlet.parameters.get(gtep.TT, nan) / inlet.parameters.get(gtep.TT, nan)
+
+    @classmethod
     def total_pressure_ratio(cls, inlet: Substance, outlet: Substance) -> float:
         """Степень повышения полного давления"""
         if not isinstance(inlet, Substance):
@@ -233,11 +238,11 @@ if __name__ == "__main__":
     test_cases = (
         # compressor
         {"parameters": {gtep.pipi: 6, gtep.effeff: 0.85}, "inlet": air},
-        {"parameters": {gtep.pipi: 6, gtep.power: 12 * 10**6}, "inlet": air},
-        {"parameters": {gtep.effeff: 0.85, gtep.power: 12 * 10**6}, "inlet": air},
+        {"parameters": {gtep.pipi: 6, gtep.titi: 1.775}, "inlet": air},
+        {"parameters": {gtep.effeff: 0.85, gtep.titi: 1.775}, "inlet": air},
         # turbine
-        {"parameters": {gtep.effeff: 1 / 0.9, gtep.power: -24 * 10**6}, "inlet": exhaust},
-        {"parameters": {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6}, "inlet": exhaust},
+        {"parameters": {gtep.effeff: 1 / 0.9, gtep.titi: 1 / 1.775}, "inlet": exhaust},
+        {"parameters": {gtep.pipi: 1 / 4.0, gtep.titi: 1 / 1.775}, "inlet": exhaust},
         {"parameters": {gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 4.0}, "inlet": exhaust},
     )
     for test_case in test_cases:

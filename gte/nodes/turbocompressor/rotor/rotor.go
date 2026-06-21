@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/ParkhomenkoDV/gte/gte/metrics"
 	"github.com/ParkhomenkoDV/gte/gte/utils"
 	su "github.com/ParkhomenkoDV/substance/substance"
 	td "github.com/ParkhomenkoDV/thermodynamics/thermodynamics"
@@ -11,9 +12,9 @@ import (
 )
 
 type Parameters struct {
-	EffEff float64
-	Pipi   float64
-	Power  float64
+	EffEff float64 `doc:"Адиабатический КПД"`
+	TiTi   float64 `doc:"Степень повышения полной температуры"`
+	PiPi   float64 `doc:"Степень повышения полного давления"`
 }
 
 type Rotor struct {
@@ -34,35 +35,22 @@ func (r *Rotor) Equations(x []float64, inlet, outlet *su.Substance) []float64 {
 	ranges := map[string][2]float64{
 		"TT": {inlet.Parameters["TT"], outlet_TT},
 		"PP": {inlet.Parameters["PP"], outlet_PP},
-		//"eo": {inlet.Parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)},
+		"EO": {inlet.Parameters["EO"], outlet.Parameters["EO"]},
 	}
-	gc, _ := utils.IntegralAverage(
-		utils.Function{
-			Name:     "gc",
-			Function: inlet.Functions["gc"],
-			Args:     map[string]struct{}{"TT": {}}, // TODO
-		},
-		ranges,
-	)
-	hcp, _ := utils.IntegralAverage(
-		utils.Function{
-			Name:     "hcp",
-			Function: inlet.Functions["hcp"],
-			Args:     map[string]struct{}{"TT": {}},
-		},
-		ranges,
-	)
+
+	gc, _ := utils.IntegralAverage(inlet.Functions["gc"], ranges)
+	hcp, _ := utils.IntegralAverage(inlet.Functions["hcp"], ranges)
 	k := td.AdiabaticIndex(gc, hcp)
 
 	return []float64{
-		r.Power - inlet.Parameters["m"]*hcp*(outlet_TT-inlet.Parameters["TT"]),
-		outlet_TT - inlet.Parameters["TT"]*(1+(math.Pow(r.Pipi, ((k-1)/k)-1))/r.EffEff),
-		r.Pipi - outlet_PP/inlet.Parameters["PP"],
+		outlet_TT - inlet.Parameters["TT"]*(1+(math.Pow(r.PiPi, ((k-1)/k)-1))/r.EffEff),
+		r.TiTi - outlet_TT/inlet.Parameters["TT"],
+		r.PiPi - outlet_PP/inlet.Parameters["PP"],
 	}
 }
 
 func (r *Rotor) NVars() int {
-	return 0
+	return 2
 }
 
 func (r *Rotor) IsSolvable(x []float64) bool {
@@ -92,11 +80,14 @@ func (r *Rotor) Calculate(inlets ...*su.Substance) ([]*su.Substance, error) {
 	problem := optimize.Problem{
 		Func: func(x []float64) float64 {
 			res := r.Equations(x, inlet, outlet)
-			return utils.SumS(res...)
+			return metrics.MSE(res...)
 		},
 	}
 
-	initialX := []float64{1.5, 1.0}
+	initialX := []float64{
+		inlet.Parameters["TT"] * 1.5,
+		inlet.Parameters["PP"] * 6,
+	}
 
 	settings := &optimize.Settings{}
 
@@ -105,7 +96,8 @@ func (r *Rotor) Calculate(inlets ...*su.Substance) ([]*su.Substance, error) {
 	method := &optimize.NelderMead{}
 
 	result, err := optimize.Minimize(problem, initialX, settings, method)
-	_ = result
+
+	outlet.Parameters["TT"], outlet.Parameters["PP"] = result.X[0], result.X[1]
 
 	return []*su.Substance{outlet}, err
 }

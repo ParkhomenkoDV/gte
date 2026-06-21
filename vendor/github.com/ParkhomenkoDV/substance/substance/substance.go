@@ -13,10 +13,6 @@ const (
 
 // Aliasess
 type (
-	// Параметр вещества.
-	Parameter = float64
-	// Функция вещества
-	Function func(Parameters) Parameter
 	// Параметры вещества.
 	Parameters = map[string]Parameter
 	// Функции вещества.

@@ -7,26 +7,6 @@ import (
 	"gonum.org/v1/gonum/integrate/quad"
 )
 
-const errArgNotFound = "Function '%s': Arg '%s' not found"
-
-// Функция с известными аргументами для вызова с избыточнми параметрами.
-type Function struct {
-	Name string `doc:"Имя"`
-	su.Function
-	Args map[string]struct{} `doc:"Аргументы"`
-}
-
-func (f *Function) Call(ps su.Parameters) su.Parameter {
-	// Валидация аргументов
-	for arg := range f.Args {
-		if _, ok := ps[arg]; !ok {
-			panic(fmt.Sprintf(errArgNotFound, f.Name, arg))
-		}
-	}
-	// Вызов
-	return f.Function(ps)
-}
-
 // nQuad вычисляет n-мерный определенный интеграл
 // f: функция, принимающая слайс координат и возвращающая значение
 // ranges: границы интегрирования для каждой переменной [[a1,b1], [a2,b2], ..., [an,bn]]
@@ -70,7 +50,7 @@ func integrateNested(f func([]float64) float64, ranges [][2]float64, depth int, 
 }
 
 // Интегрирование
-func Integrate(function Function, kwargs map[string][2]float64) (float64, error) {
+func Integrate(function su.Function, kwargs map[string][2]float64) (float64, error) {
 	fixed := map[string]su.Parameter{}
 	ranges := [][2]float64{}
 	other_args := map[string]int{}
@@ -108,7 +88,7 @@ func Integrate(function Function, kwargs map[string][2]float64) (float64, error)
 }
 
 // Среднее интегральное
-func IntegralAverage(function Function, kwargs map[string][2]float64) (float64, error) {
+func IntegralAverage(function su.Function, kwargs map[string][2]float64) (float64, error) {
 	result, err := Integrate(function, kwargs)
 	if err != nil {
 		return 0.0, err
@@ -136,11 +116,4 @@ func (s *Solvable) Bool() bool {
 	} else {
 		return false
 	}
-}
-
-func SumS(xs ...float64) (result float64) {
-	for _, x := range xs {
-		result += x * x
-	}
-	return result
 }

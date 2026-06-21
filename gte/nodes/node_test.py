@@ -47,8 +47,8 @@ class TestNode:
         [
             # Rotor
             (Rotor, {gtep.effeff: [0.8, 0.85, 0.9], gtep.pipi: [6, 7, 8, 9, 10, 11, 12]}),
-            (Rotor, {gtep.effeff: [0.8, 0.85, 0.9], gtep.power: [6 * 10**6, 8 * 10**6, 10 * 10**6, 12 * 10**6]}),
-            (Rotor, {gtep.pipi: [6, 7, 8, 9, 10, 11, 12], gtep.power: [6 * 10**6, 8 * 10**6, 10 * 10**6, 12 * 10**6]}),
+            (Rotor, {gtep.effeff: [0.8, 0.85, 0.9], gtep.titi: [1.4, 1.6, 1.8, 2.0]}),
+            (Rotor, {gtep.pipi: [6, 7, 8, 9, 10, 11, 12], gtep.titi: [1.4, 1.6, 1.8, 2.0]}),
             # Burner
             (Burner, {gtep.efficiency: [0.98, 0.99], gtep.pipi: [0.94, 0.95, 0.96]}),
             # Nozzle
@@ -109,46 +109,46 @@ class TestRotor:
         [
             # compressor
             (
-                {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
+                {gtep.titi: 1.8, gtep.effeff: 0.85},  # pipi
                 air,
-                {gtep.pipi: 6.098},
-                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 617_911.9}),
+                {gtep.pipi: 6.125},
+                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 620_668}),
             ),
             (
-                {gtep.pipi: 6.0, gtep.power: 12 * 10**6},  # effeff
+                {gtep.pipi: 6.0, gtep.titi: 1.8},  # effeff
                 air,
-                {gtep.effeff: 0.8402},
+                {gtep.effeff: 0.822},
                 Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 607_950.0}),
             ),
             (
                 {gtep.pipi: 6.0, gtep.effeff: 0.85},  # power
                 air,
-                {gtep.power: 11_862_134},
+                {gtep.titi: 1.8},
                 Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),
             ),
             # turbine
             (
-                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                {gtep.titi: 1 / 1.3, gtep.effeff: 1 / 0.9},
                 exhaust,
-                {gtep.pipi: 1 / 4.16},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 292837.9}),
+                {gtep.pipi: 1 / 3.5},
+                Substance("outlet", parameters={gtep.TT: 1153, gtep.PP: 347_798.9}),
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                {gtep.pipi: 1 / 3.5, gtep.titi: 1 / 1.3},
                 exhaust,
-                {gtep.effeff: 1 / 0.9203},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 303975.0}),
+                {gtep.effeff: 1 / 0.88},
+                Substance("outlet", parameters={gtep.TT: 1153.7, gtep.PP: 347_400.0}),
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                {gtep.pipi: 1 / 3.5, gtep.effeff: 1 / 0.9},
                 exhaust,
-                {gtep.power: -23_468_473},
-                Substance("outlet", parameters={gtep.TT: 1121.8, gtep.PP: 303975.0}),
+                {gtep.titi: 1 / 1.3},
+                Substance("outlet", parameters={gtep.TT: 1153.8, gtep.PP: 347_400.0}),
             ),
         ],
     )
     def test_predict(self, rotor, parameters, inlet, expected_parameters, expected_outlet):
-        """Тест предсказания компресоора"""
+        """Тест предсказания ротора"""
         vars, outlet = rotor.predict(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
@@ -160,11 +160,11 @@ class TestRotor:
         [
             # compressor
             (
-                {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
+                {gtep.titi: 1.8, gtep.effeff: 0.85},  # pipi
                 air,
             ),
             (
-                {gtep.pipi: 6.0, gtep.power: 12 * 10**6},  # effeff
+                {gtep.pipi: 6.0, gtep.titi: 1.8},  # effeff
                 air,
             ),
             (
@@ -173,22 +173,22 @@ class TestRotor:
             ),
             # turbine
             (
-                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                {gtep.titi: 1 / 1.3, gtep.effeff: 1 / 0.9},
                 exhaust,
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                {gtep.pipi: 1 / 3.5, gtep.titi: 1 / 1.3},
                 exhaust,
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                {gtep.pipi: 1 / 3.5, gtep.effeff: 1 / 0.9},
                 exhaust,
             ),
         ],
     )
     @pytest.mark.benchmark
     def test_rotor_predict(self, benchmark, rotor, parameters, inlet):
-        """Бенчмарк предсказания компрессора"""
+        """Бенчмарк предсказания ротора"""
 
         def benchfunc(rotor, parameters, inlet):
             rotor.predict(parameters, inlet)
@@ -200,41 +200,41 @@ class TestRotor:
         [
             # compressor
             (
-                {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
+                {gtep.titi: 1.8, gtep.effeff: 0.85},  # pipi
                 air,
-                {gtep.pipi: 6.098},
-                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 617_911.9}),
+                {gtep.pipi: 6.292},
+                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 637_540}),
             ),
             (
-                {gtep.pipi: 6.0, gtep.power: 12 * 10**6},  # effeff
+                {gtep.pipi: 6.0, gtep.titi: 1.8},  # effeff
                 air,
-                {gtep.effeff: 0.8402},
+                {gtep.effeff: 0.822},
                 Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 607_950.0}),
             ),
             (
                 {gtep.pipi: 6.0, gtep.effeff: 0.85},  # power
                 air,
-                {gtep.power: 11_816_242},
-                Substance("outlet", parameters={gtep.TT: 532.3, gtep.PP: 607_950.0}),
+                {gtep.titi: 1.77},
+                Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),
             ),
             # turbine
             (
-                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                {gtep.titi: 1 / 1.3, gtep.effeff: 1 / 0.9},
                 exhaust,
-                {gtep.pipi: 1 / 4.16},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 292837.9}),
+                {gtep.pipi: 1 / 3.41},
+                Substance("outlet", parameters={gtep.TT: 1153, gtep.PP: 355_306}),
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                {gtep.pipi: 1 / 3.5, gtep.titi: 1 / 1.3},
                 exhaust,
-                {gtep.effeff: 1 / 0.9232},
-                Substance("outlet", parameters={gtep.TT: 1103.7, gtep.PP: 303975.0}),
+                {gtep.effeff: 1 / 0.88},
+                Substance("outlet", parameters={gtep.TT: 1153.7, gtep.PP: 347_400}),
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                {gtep.pipi: 1 / 3.5, gtep.effeff: 1 / 0.9},
                 exhaust,
-                {gtep.power: -23_396_982},
-                Substance("outlet", parameters={gtep.TT: 1121.8, gtep.PP: 303975.0}),
+                {gtep.titi: 1 / 1.3},
+                Substance("outlet", parameters={gtep.TT: 1153.8, gtep.PP: 347_400}),
             ),
         ],
     )
@@ -251,11 +251,11 @@ class TestRotor:
         [
             # compressor
             (
-                {gtep.power: 12 * 10**6, gtep.effeff: 0.85},  # pipi
+                {gtep.titi: 1.8, gtep.effeff: 0.85},  # pipi
                 air,
             ),
             (
-                {gtep.pipi: 6.0, gtep.power: 12 * 10**6},  # effeff
+                {gtep.pipi: 6.0, gtep.titi: 1.8},  # effeff
                 air,
             ),
             (
@@ -264,15 +264,15 @@ class TestRotor:
             ),
             # turbine
             (
-                {gtep.power: -24 * 10**6, gtep.effeff: 1 / 0.9},
+                {gtep.titi: 1 / 1.3, gtep.effeff: 1 / 0.9},
                 exhaust,
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.power: -24 * 10**6},
+                {gtep.pipi: 1 / 3.5, gtep.titi: 1 / 1.3},
                 exhaust,
             ),
             (
-                {gtep.pipi: 1 / 4.0, gtep.effeff: 1 / 0.9},
+                {gtep.pipi: 1 / 3.5, gtep.effeff: 1 / 0.9},
                 exhaust,
             ),
         ],

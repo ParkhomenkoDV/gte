@@ -313,8 +313,9 @@ class GTE:
     def generator(self, variables: Dict[Node, Dict]) -> Generator:
         """Генератор решаемых ГТД"""
         # проверяем на решаемость, т.к. это генератор схожей схемы с разными параметрами
-        if not self.is_solvable[0]:
-            raise ArithmeticError(f"{self.is_solvable=}")
+        solvable = self.is_solvable
+        if not solvable:
+            raise ArithmeticError(f"{solvable.reason=}")
         if len(variables) == 0:
             raise ValueError(f"{len(variables)=} must be > 0")
         if not isinstance(variables, dict):
@@ -372,10 +373,12 @@ class GTE:
                 if parameter in node.parameters:
                     continue
                 while want:  # TODO
-                    if parameter == gtep.pipi:
-                        prediction[node][parameter] = 1 / 3  # prod(pipi for pipi in shaft)
-                    elif parameter == gtep.effeff:
+                    if parameter == gtep.effeff:
                         prediction[node][parameter] = 1
+                    elif parameter == gtep.titi:
+                        prediction[node][parameter] = 1 / 3  # prod(pipi for pipi in shaft)
+                    elif parameter == gtep.pipi:
+                        prediction[node][parameter] = 1 / 3  # prod(pipi for pipi in shaft)
                     elif parameter == gtep.power:
                         prediction[node][parameter] = 0
                     elif parameter == gtep.force:
@@ -447,16 +450,19 @@ class GTE:
         return vars, substances
 
     # TODO
-    def solve(self, inlet: Substance, fuel: Substance = None, prediction: Dict[Node, Dict[str, float]] = None, verbose: bool = False) -> bool:
+    def solve(self, inlet: Substance, fuels: Dict[Burner, Substance] = None, prediction: Dict[Node, Dict[str, float]] = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
         solvable = self.is_solvable
         if not solvable:
             raise ArithmeticError(solvable.reason)
 
+        """if len(fuels) != sum(1 for node in self.nodes if isinstance(node, Burner)):
+            raise ValueError(f"{len(fuels)=} must be equal {sum(1 for node in self.nodes if isinstance(node, Burner))=}")"""
+
         predictions, _ = self.predict(inlet, use_ml=True)
         x0 = tuple(parameter for parameters in predictions.values() for parameter in parameters.values())
 
-        result = root(self._equations, x0, {"inlet": inlet, "fuel": fuel, "prediction": predictions, "verbose": verbose}, method="lm")
+        result = root(self._equations, x0, {"inlet": inlet, "fuel": fuels, "prediction": predictions, "verbose": verbose}, method="lm")
 
         return result.success
 

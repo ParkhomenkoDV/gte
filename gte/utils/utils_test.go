@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ParkhomenkoDV/substance/substance"
+	su "github.com/ParkhomenkoDV/substance/substance"
 )
 
 // Сложная непрерывная функция
@@ -12,57 +13,20 @@ func complexFunction(x float64) float64 {
 	return math.Sin(x) + math.Log(math.Abs(x)+1)
 }
 
-func TestFunction_Call(t *testing.T) {
-	tests := []struct {
-		name     string
-		function substance.Function
-		args     map[string]struct{}
-		ps       substance.Parameters
-		want     substance.Parameter
-	}{
-		{
-			name: "test",
-			function: func(ps substance.Parameters) substance.Parameter {
-				return ps["t"] + ps["p"]
-			},
-			args: map[string]struct{}{
-				"t": {}, "p": {},
-			},
-			ps: substance.Parameters{
-				"t": 1, "p": 2, "extra": 3,
-			},
-			want: 3,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := Function{
-				Name:     tt.name,
-				Function: tt.function,
-				Args:     tt.args,
-			}
-			got := f.Call(tt.ps)
-			if got != tt.want {
-				t.Errorf("Call() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestIntegrate(t *testing.T) {
 	eps := 0.001
 	tests := []struct {
 		name     string
-		function Function
+		function su.Function
 		kwargs   map[string][2]float64
 		wantErr  bool
 		want     float64
 	}{
 		{
 			name: "f0_1",
-			function: Function{
+			function: su.Function{
 				Name: "f0_1",
-				Function: func(ps substance.Parameters) float64 {
+				Func: func(ps substance.Parameters) float64 {
 					return 1000.0
 				},
 				Args: map[string]struct{}{
@@ -77,9 +41,9 @@ func TestIntegrate(t *testing.T) {
 		},
 		{
 			name: "f1_1",
-			function: Function{
+			function: su.Function{
 				Name: "f1_1",
-				Function: func(ps substance.Parameters) float64 {
+				Func: func(ps substance.Parameters) float64 {
 					return 800.0 + 0.5*ps["t"]
 				},
 				Args: map[string]struct{}{
@@ -94,9 +58,9 @@ func TestIntegrate(t *testing.T) {
 		},
 		{
 			name: "f2_1",
-			function: Function{
+			function: su.Function{
 				Name: "f2_1",
-				Function: func(ps substance.Parameters) float64 {
+				Func: func(ps substance.Parameters) float64 {
 					return 900.0 + 0.1*ps["t"] + 0.001*math.Pow(ps["t"], 2)
 				},
 				Args: map[string]struct{}{
@@ -111,9 +75,9 @@ func TestIntegrate(t *testing.T) {
 		},
 		{
 			name: "f1_2",
-			function: Function{
+			function: su.Function{
 				Name: "f1_2",
-				Function: func(ps substance.Parameters) float64 {
+				Func: func(ps substance.Parameters) float64 {
 					return 1000.0 + 0.2*ps["t"] + 0.0001*ps["p"]
 				},
 				Args: map[string]struct{}{
@@ -128,9 +92,9 @@ func TestIntegrate(t *testing.T) {
 		},
 		{
 			name: "f1_3",
-			function: Function{
+			function: su.Function{
 				Name: "f1_3",
-				Function: func(ps substance.Parameters) float64 {
+				Func: func(ps substance.Parameters) float64 {
 					return 950.0 + 0.15*ps["t"] + 0.0002*ps["p"] + 0.001*ps["v"]
 				},
 				Args: map[string]struct{}{

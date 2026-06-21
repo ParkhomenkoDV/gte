@@ -8,33 +8,11 @@ import (
 	"github.com/ParkhomenkoDV/gte/gte/nodes/burner"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/channel"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/rotor"
-	"github.com/ParkhomenkoDV/gte/gte/utils"
 	su "github.com/ParkhomenkoDV/substance/substance"
 	td "github.com/ParkhomenkoDV/thermodynamics/thermodynamics"
 )
 
 func main() {
-	air_gc := utils.Function{
-		Name: "gas const",
-		Function: func(ps su.Parameters) su.Parameter {
-			return 287.14
-		},
-		Args: map[string]struct{}{},
-	}
-	air_hcp := utils.Function{
-		Name: "heat capacity at const pressure",
-		Function: func(ps su.Parameters) su.Parameter {
-			tt_1000 := ps["TT"] / 1000
-			coefs := [7]float64{0.2521923, -0.1186612, 0.3360775, -0.3073812, 0.1382207, -0.03090246, 0.002745383}
-			result := 0.0
-			for i, c := range coefs {
-				result += c * math.Pow(tt_1000, float64(i))
-			}
-			return 4187.0 * result
-		},
-		Args: map[string]struct{}{"TT": {}},
-	}
-
 	air := su.Substance{
 		Name: "air",
 		Composition: map[string]float64{
@@ -50,11 +28,25 @@ func main() {
 			"c":   0.0,
 		},
 		Functions: su.Functions{
-			"gc": func(ps su.Parameters) su.Parameter {
-				return air_gc.Call(ps)
+			"gc": su.Function{
+				Name: "gas const",
+				Func: func(ps su.Parameters) su.Parameter {
+					return 287.14
+				},
+				Args: map[string]struct{}{},
 			},
-			"hcp": func(ps su.Parameters) su.Parameter {
-				return air_hcp.Call(ps)
+			"hcp": su.Function{
+				Name: "heat capacity at const pressure",
+				Func: func(ps su.Parameters) su.Parameter {
+					tt_1000 := ps["TT"] / 1000
+					coefs := [7]float64{0.2521923, -0.1186612, 0.3360775, -0.3073812, 0.1382207, -0.03090246, 0.002745383}
+					result := 0.0
+					for i, c := range coefs {
+						result += c * math.Pow(tt_1000, float64(i))
+					}
+					return 4187.0 * result
+				},
+				Args: map[string]struct{}{"TT": {}},
 			},
 		},
 	}
@@ -79,7 +71,7 @@ func main() {
 
 	c := rotor.Rotor{
 		Name:       "HPC",
-		Parameters: rotor.Parameters{EffEff: 0.85, Pipi: 6},
+		Parameters: rotor.Parameters{EffEff: 0.85, PiPi: 6},
 	}
 	ch := channel.Channel{
 		Name:       "Ch",
@@ -91,7 +83,7 @@ func main() {
 	}
 	t := rotor.Rotor{
 		Name:       "HPT",
-		Parameters: rotor.Parameters{EffEff: 0.85, Pipi: 6},
+		Parameters: rotor.Parameters{EffEff: 0.85, PiPi: 6},
 	}
 
 	gte := gte.GTE{Name: "test"}
