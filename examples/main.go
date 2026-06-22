@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	air := su.Substance{
+	air := &su.Substance{
 		Name: "air",
 		Composition: map[string]float64{
 			"N2": 0.78, "O2": 0.21, "Ar": 0.009, "CO2": 0.0004,
@@ -67,12 +67,18 @@ func main() {
 	}
 
 	fmt.Printf("inlet: %+v \n", air)
-	fmt.Printf("fuel: %+v \n", kerosene)
+	//fmt.Printf("fuel: %+v \n", kerosene)
+	_ = kerosene
 
 	c := rotor.Rotor{
 		Name:       "HPC",
 		Parameters: rotor.Parameters{EffEff: 0.85, PiPi: 6},
 	}
+	outlets, _ := c.Calculate(air)
+	outlet := outlets[0]
+
+	fmt.Printf("outlet: %+v \n", outlet)
+
 	ch := channel.Channel{
 		Name:       "Ch",
 		Parameters: channel.Parameters{Titi: 1.05, Pipi: 0.95},
@@ -88,7 +94,8 @@ func main() {
 
 	gte := gte.GTE{Name: "test"}
 
-	fmt.Printf("gte: %+v \n", gte)
+	//fmt.Printf("gte: %+v \n", gte)
+	_ = gte
 
 	_ = c
 	_ = ch

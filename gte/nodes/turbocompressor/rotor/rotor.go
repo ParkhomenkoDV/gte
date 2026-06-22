@@ -8,6 +8,8 @@ import (
 	"github.com/ParkhomenkoDV/gte/gte/utils"
 	su "github.com/ParkhomenkoDV/substance/substance"
 	td "github.com/ParkhomenkoDV/thermodynamics/thermodynamics"
+	"gonum.org/v1/gonum/diff/fd"
+	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/optimize"
 )
 
@@ -15,6 +17,10 @@ type Parameters struct {
 	EffEff float64 `doc:"Адиабатический КПД"`
 	TiTi   float64 `doc:"Степень повышения полной температуры"`
 	PiPi   float64 `doc:"Степень повышения полного давления"`
+}
+
+func NewParameters() Parameters {
+	return Parameters{}
 }
 
 type Rotor struct {
@@ -77,25 +83,58 @@ func (r *Rotor) Calculate(inlets ...*su.Substance) ([]*su.Substance, error) {
 		outlet.Parameters["eo"] = inlet.Parameters["eo"]
 	}
 
-	problem := optimize.Problem{
-		Func: func(x []float64) float64 {
-			res := r.Equations(x, inlet, outlet)
-			return metrics.MSE(res...)
-		},
+	loss := func(x []float64) float64 {
+		res := r.Equations(x, inlet, outlet)
+		return metrics.MSE(res...)
 	}
 
-	initialX := []float64{
-		inlet.Parameters["TT"] * 1.5,
-		inlet.Parameters["PP"] * 6,
+	// Численное вычисление градиента
+	grad := func(grad, x []float64) {
+		// Используем численное дифференцирование
+		fd.Gradient(grad, loss, x, &fd.Settings{
+			Formula:    fd.Central, // Центральные разности (наиболее точные)
+			Step:       1e-8,       // Шаг дифференцирования
+			Concurrent: true,       // Параллельное вычисление
+		})
 	}
 
-	settings := &optimize.Settings{}
+	hess := func(hess *mat.SymDense, x []float64) {
+		// Используем численное дифференцирование
+		fd.Hessian(hess, loss, x, &fd.Settings{
+			Formula:    fd.Central, // Центральные разности (наиболее точные)
+			Step:       1e-8,       // Шаг дифференцирования
+			Concurrent: true,       // Параллельное вычисление
+		})
+	}
+
+	problem := optimize.Problem{Func: loss, Grad: grad, Hess: hess}
+
+	k_i := inlet.Parameters["k"]
+
+	if r.EffEff != 0 && r.TiTi != 0 {
+		outlet.Parameters["TT"] = inlet.Parameters["TT"] * r.TiTi
+		outlet.Parameters["PP"] = inlet.Parameters["PP"] * math.Pow((outlet.Parameters["TT"]/inlet.Parameters["TT"]-1)*r.EffEff+1, k_i/(k_i-1))
+	} else if r.EffEff != 0 && r.PiPi != 0 {
+		outlet.Parameters["TT"] = inlet.Parameters["TT"] * (1 + (math.Pow(r.PiPi, (k_i-1)/k_i)-1)/r.EffEff)
+		outlet.Parameters["PP"] = inlet.Parameters["PP"] * r.PiPi
+	} else if r.TiTi != 0 && r.PiPi != 0 {
+		outlet.Parameters["TT"] = inlet.Parameters["TT"] * r.TiTi
+		outlet.Parameters["PP"] = inlet.Parameters["PP"] * r.PiPi
+	}
+	initX := []float64{outlet.Parameters["TT"], outlet.Parameters["PP"]}
+
+	settings := &optimize.Settings{
+		MajorIterations:   1_000, // Максимальное число итераций
+		GradientThreshold: 1e-8,  // Порог для градиента
+		Concurrent:        0,     // Автоматический выбор числа потоков
+	}
 
 	// Выбираем метод. NelderMead не требует градиентов, прост и надежен.
 	// Для более сложных задач используйте &optimize.LBFGS{}
-	method := &optimize.NelderMead{}
+	//method := &optimize.NelderMead{}
+	method := &optimize.LBFGS{}
 
-	result, err := optimize.Minimize(problem, initialX, settings, method)
+	result, err := optimize.Minimize(problem, initX, settings, method)
 
 	outlet.Parameters["TT"], outlet.Parameters["PP"] = result.X[0], result.X[1]
 

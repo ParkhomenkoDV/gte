@@ -8,25 +8,7 @@ import (
 	"github.com/ParkhomenkoDV/gte/gte/nodes/channel"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/nozzle"
 	"github.com/ParkhomenkoDV/gte/gte/nodes/splitter"
-	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/rotor"
 )
-
-func BenchmarkNewRotor(b *testing.B) {
-	parameters := rotor.Parameters{
-		EffEff: rand.Float64(),
-		TiTi:   rand.Float64(),
-		PiPi:   rand.Float64(),
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		node := rotor.Rotor{
-			Name:       "bench",
-			Parameters: parameters,
-		}
-		_ = node
-	}
-}
 
 func BenchmarkNewBurner(b *testing.B) {
 	parameters := burner.Parameters{

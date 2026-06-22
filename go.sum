@@ -1,5 +1,5 @@
-github.com/ParkhomenkoDV/substance v0.0.0-20260621155344-4f3fa1ad0768 h1:l/v3lbnuy2SINJ7HC7mef2VMsSuMo3N7kx2OkRnRiYM=
-github.com/ParkhomenkoDV/substance v0.0.0-20260621155344-4f3fa1ad0768/go.mod h1:4aJrtE8yeMk95fRv+/pUFXxq3eDb9Wom3qp8SPoXmhc=
+github.com/ParkhomenkoDV/substance v0.0.0-20260621160344-5429b4cd5626 h1:NC+7DLRtmSH4y3QR6Akx38+HK6t1fQA906qec+XpDrI=
+github.com/ParkhomenkoDV/substance v0.0.0-20260621160344-5429b4cd5626/go.mod h1:4aJrtE8yeMk95fRv+/pUFXxq3eDb9Wom3qp8SPoXmhc=
 github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260616124537-de38c7331030 h1:Ze24ffK+s6szl9fuMdPWGL802q6Qp8H2XPBt72evk9k=
 github.com/ParkhomenkoDV/thermodynamics v0.0.0-20260616124537-de38c7331030/go.mod h1:uV6HbgL/T8nudcHVOUuS8xed12TlVquqgnIAVf1PEKA=
 golang.org/x/tools v0.46.0 h1:7jTurBkPZu4moS/Uy4OQT1M+QBlsj3wejyZwsT8Z7rk=
