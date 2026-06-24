@@ -165,6 +165,11 @@ gte/
 |-- examples/         # tutorial
 |-- images/           # images
 |-- gte/              # source code gte and gte nodes
+|   └-- config/
+|       |-- config.py
+|       └-- config.go
+|   └-- logger/
+|       └-- logger.go
 |   └-- nodes/
 |       └-- burner/
 |           |-- burner.py
@@ -192,7 +197,6 @@ gte/
 |       └-- utils.py
 |       └-- utils.go
 |   |-- checks.py
-|   |-- config.py
 |   |-- gte_test.py
 |   └-- gte.py
 |-- .gitignore
