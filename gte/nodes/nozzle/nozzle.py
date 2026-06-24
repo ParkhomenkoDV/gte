@@ -138,7 +138,7 @@ class Nozzle(Node):
         args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
         x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]
 
-        result = root(cls._equations, x0, args, method="lm")
+        result = root(cls._equations, x0, args, method="hybr")
         outlet.parameters[gtep.PP] = float(result.x[0])
         for v in cls.variables:
             if v not in parameters_:

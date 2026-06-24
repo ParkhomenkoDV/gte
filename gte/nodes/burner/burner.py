@@ -161,7 +161,7 @@ class Burner(Node):
         args: Dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
         x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]]
 
-        result = root(cls._equations, x0, args, method="lm")
+        result = root(cls._equations, x0, args, method="hybr")
 
         outlet.parameters[gtep.TT], outlet.parameters[gtep.PP] = float(result.x[0]), float(result.x[1])
 
