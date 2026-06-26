@@ -4,13 +4,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ParkhomenkoDV/gte/gte/metrics"
 	"github.com/ParkhomenkoDV/gte/gte/utils"
 	su "github.com/ParkhomenkoDV/substance/substance"
 	td "github.com/ParkhomenkoDV/thermodynamics/thermodynamics"
-	"gonum.org/v1/gonum/diff/fd"
-	"gonum.org/v1/gonum/mat"
-	"gonum.org/v1/gonum/optimize"
 )
 
 type Parameters struct {
@@ -83,31 +79,9 @@ func (r *Rotor) Calculate(inlets ...*su.Substance) ([]*su.Substance, error) {
 		outlet.Parameters["eo"] = inlet.Parameters["eo"]
 	}
 
-	loss := func(x []float64) float64 {
-		res := r.Equations(x, inlet, outlet)
-		return metrics.MSE(res...)
+	f := func(x []float64) []float64 {
+		return r.Equations(x, inlet, outlet)
 	}
-
-	// Численное вычисление градиента
-	grad := func(grad, x []float64) {
-		// Используем численное дифференцирование
-		fd.Gradient(grad, loss, x, &fd.Settings{
-			Formula:    fd.Central, // Центральные разности (наиболее точные)
-			Step:       1e-8,       // Шаг дифференцирования
-			Concurrent: true,       // Параллельное вычисление
-		})
-	}
-
-	hess := func(hess *mat.SymDense, x []float64) {
-		// Используем численное дифференцирование
-		fd.Hessian(hess, loss, x, &fd.Settings{
-			Formula:    fd.Central, // Центральные разности (наиболее точные)
-			Step:       1e-8,       // Шаг дифференцирования
-			Concurrent: true,       // Параллельное вычисление
-		})
-	}
-
-	problem := optimize.Problem{Func: loss, Grad: grad, Hess: hess}
 
 	k_i := inlet.Parameters["k"]
 
@@ -122,21 +96,50 @@ func (r *Rotor) Calculate(inlets ...*su.Substance) ([]*su.Substance, error) {
 		outlet.Parameters["PP"] = inlet.Parameters["PP"] * r.PiPi
 	}
 	initX := []float64{outlet.Parameters["TT"], outlet.Parameters["PP"]}
+	/*
+		loss := func(x []float64) float64 {
+			res := r.Equations(x, inlet, outlet)
+			return metrics.MSE(res...)
+		}
 
-	settings := &optimize.Settings{
-		MajorIterations:   1_000, // Максимальное число итераций
-		GradientThreshold: 1e-8,  // Порог для градиента
-		Concurrent:        0,     // Автоматический выбор числа потоков
-	}
+		// Численное вычисление градиента
+		grad := func(grad, x []float64) {
+			// Используем численное дифференцирование
+			fd.Gradient(grad, loss, x, &fd.Settings{
+				Formula:    fd.Central, // Центральные разности (наиболее точные)
+				Step:       1e-8,       // Шаг дифференцирования
+				Concurrent: true,       // Параллельное вычисление
+			})
+		}
 
-	// Выбираем метод. NelderMead не требует градиентов, прост и надежен.
-	// Для более сложных задач используйте &optimize.LBFGS{}
-	//method := &optimize.NelderMead{}
-	method := &optimize.LBFGS{}
+		hess := func(hess *mat.SymDense, x []float64) {
+			// Используем численное дифференцирование
+			fd.Hessian(hess, loss, x, &fd.Settings{
+				Formula:    fd.Central, // Центральные разности (наиболее точные)
+				Step:       1e-8,       // Шаг дифференцирования
+				Concurrent: true,       // Параллельное вычисление
+			})
+		}
 
-	result, err := optimize.Minimize(problem, initX, settings, method)
+		problem := optimize.Problem{Func: loss, Grad: grad, Hess: hess}
 
-	outlet.Parameters["TT"], outlet.Parameters["PP"] = result.X[0], result.X[1]
+		settings := &optimize.Settings{
+			MajorIterations:   1_000, // Максимальное число итераций
+			GradientThreshold: 1e-8,  // Порог для градиента
+			Concurrent:        0,     // Автоматический выбор числа потоков
+		}
+
+		// Выбираем метод. NelderMead не требует градиентов, прост и надежен.
+		// Для более сложных задач используйте &optimize.LBFGS{}
+		//method := &optimize.NelderMead{}
+		method := &optimize.LBFGS{}
+
+		result, err := optimize.Minimize(problem, initX, settings, method)
+	*/
+
+	result, err := utils.Root(f, initX)
+
+	outlet.Parameters["TT"], outlet.Parameters["PP"] = result[0], result[1]
 
 	return []*su.Substance{outlet}, err
 }

@@ -73,7 +73,7 @@ class Node(ABC):
 
     # TODO
     def add_requirement(self, is_inlet: bool, idx_substance: int, parameter: str, value: float) -> None:
-        """Добавление требований к ГТД"""
+        """Добавление требований к узлу"""
         self.requirements.append({"is_inlet": is_inlet, "idx_substance": idx_substance, "parameter": parameter, "value": value})
 
     @classmethod
