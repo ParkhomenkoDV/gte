@@ -31,27 +31,26 @@ except ImportError:
 # Вещества
 
 air = Substance(
-    "air",
+    name="air",
     composition={"N2": 0.78, "O2": 0.21, "Ar": 0.009, "CO2": 0.0004},
     parameters={
-        gtep.m: 50.0,
-        gtep.gc: 287.14,
-        gtep.TT: 300.0,
-        gtep.PP: 101325.0,
-        gtep.hcp: 1006.0,
-        gtep.k: 1.4,
-        gtep.c: 0.0,
+        gtep.m: 50.0,  # kg
+        gtep.gc: 287.14,  # J/(kg*K)
+        gtep.TT: 300.0,  # K
+        gtep.PP: 101325.0,  # Pa
+        gtep.hcp: 1006.0,  # J/(kg*K)
+        gtep.k: 1.4,  # -
+        gtep.c: 0.0,  # m/s
     },
     functions={
         gtep.gc: Function(
             lambda total_temperature: gas_const("air"),
-            name=gtep.gc,
-            args=(gtep.TT,),
+            name="gas_const",
         ),
         gtep.hcp: Function(
             lambda total_temperature: heat_capacity_p("air", total_temperature),
-            name=gtep.hcp,
-            args=(gtep.TT,),
+            name="heat_capacity_pressure_const",
+            args=("total_temperature",),
         ),
     },
 )
@@ -128,8 +127,8 @@ hpt = Rotor({gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 3}, name="turbine")
 mpt = Rotor({gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 3}, name="turbine")
 lpt = Rotor({gtep.effeff: 1 / 0.9, gtep.pipi: 1 / 3}, name="turbine")
 
-n1 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
-n2 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
+n1 = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
+n2 = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
 
 c2 = Channel({}, name="channel")
 c_cool = Channel({}, name="channel")

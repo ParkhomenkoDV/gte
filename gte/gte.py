@@ -510,7 +510,7 @@ if __name__ == "__main__":
     hpt = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
     lpt = Rotor({gtep.effeff: 1 / 0.9}, name="lpt")
 
-    n = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, name="n")
+    n = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, name="n")
 
     # создаем ГТД
     gte = GTE("test")

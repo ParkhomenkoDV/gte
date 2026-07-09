@@ -1,19 +1,18 @@
 package blade
 
-import su "github.com/ParkhomenkoDV/substance/substance"
+import (
+	"github.com/ParkhomenkoDV/gte/gte/nodes/turbocompressor/blade/foil"
+	su "github.com/ParkhomenkoDV/substance/substance"
+)
 
 type Parameters struct {
-}
-
-// Section - сечение.
-type Section struct {
 }
 
 // Blade - лопатка/лопасть.
 type Blade struct {
 	Material su.Substance
 	Parameters
-	Sections []float64
+	Sections map[float64]foil.Foil
 }
 
 // Конструктор лопатки/лопасти.

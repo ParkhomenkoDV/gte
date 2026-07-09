@@ -52,8 +52,8 @@ class TestNode:
             # Burner
             (Burner, {gtep.efficiency: [0.98, 0.99], gtep.pipi: [0.94, 0.95, 0.96]}),
             # Nozzle
-            (Nozzle, {gtep.eff_speed: [0.98, 0.99], gtep.pipi: [1 / 1.2, 1 / 1.3, 1 / 1.4, 1 / 1.5, 1 / 1.6, 1 / 1.7, 1 / 1.8]}),
-            (Nozzle, {gtep.eff_speed: [0.98, 0.99], gtep.force: [30_000, 40_000, 50_000, 60_000, 70_000, 80_000]}),
+            (Nozzle, {gtep.efficiency: [0.98, 0.99], gtep.pipi: [1 / 1.2, 1 / 1.3, 1 / 1.4, 1 / 1.5, 1 / 1.6, 1 / 1.7, 1 / 1.8]}),
+            (Nozzle, {gtep.efficiency: [0.98, 0.99], gtep.force: [30_000, 40_000, 50_000, 60_000, 70_000, 80_000]}),
             (Nozzle, {gtep.force: [30_000, 40_000, 50_000, 60_000, 70_000, 80_000], gtep.pipi: [1 / 1.2, 1 / 1.3, 1 / 1.4, 1 / 1.5, 1 / 1.6, 1 / 1.7, 1 / 1.8]}),
             # Channel
             (Channel, {gtep.titi: [0.8, 0.9, 1.0, 1.1, 1.2], gtep.pipi: [0.8, 0.9, 1.0, 1.1, 1.2]}),
@@ -412,13 +412,13 @@ class TestNozzle:
         "parameters, inlet, expected_parameters, expected_outlet",
         [
             (
-                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
                 {gtep.force: 34_439},
                 Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
             ),
             (
-                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                {gtep.efficiency: 0.98, gtep.force: 34_439},
                 exhaust,
                 {gtep.pipi: 1 / 1.8},
                 Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
@@ -426,7 +426,7 @@ class TestNozzle:
             (
                 {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
                 exhaust,
-                {gtep.eff_speed: 0.98},
+                {gtep.efficiency: 0.98},
                 Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
             ),
         ],
@@ -443,11 +443,11 @@ class TestNozzle:
         "parameters, inlet",
         [
             (
-                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
             ),
             (
-                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                {gtep.efficiency: 0.98, gtep.force: 34_439},
                 exhaust,
             ),
             (
@@ -467,13 +467,13 @@ class TestNozzle:
         "parameters, inlet, expected_parameters, expected_outlet",
         [
             (
-                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
                 {gtep.force: 34_439},
                 Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
             ),
             (
-                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                {gtep.efficiency: 0.98, gtep.force: 34_439},
                 exhaust,
                 {gtep.pipi: 1 / 1.8},
                 Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
@@ -481,7 +481,7 @@ class TestNozzle:
             (
                 {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
                 exhaust,
-                {gtep.eff_speed: 0.98},
+                {gtep.efficiency: 0.98},
                 Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
             ),
         ],
@@ -498,11 +498,11 @@ class TestNozzle:
         "parameters, inlet",
         [
             (
-                {gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8},
+                {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
             ),
             (
-                {gtep.eff_speed: 0.98, gtep.force: 34_439},
+                {gtep.efficiency: 0.98, gtep.force: 34_439},
                 exhaust,
             ),
             (

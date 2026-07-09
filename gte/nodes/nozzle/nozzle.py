@@ -29,7 +29,7 @@ except ImportError:
 class Nozzle(Node):
     """Выходное устройство"""
 
-    variables: Tuple[str, str] = (gtep.eff_speed, gtep.pipi, gtep.force)
+    variables: Tuple[str, str] = (gtep.efficiency, gtep.pipi, gtep.force)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
@@ -41,11 +41,11 @@ class Nozzle(Node):
     def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
         """
         pi* = P*_outlet / P*_inlet
-        c_outlet = eff_speed * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
+        c_outlet = efficiency * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
         force = m * c_outlet
         """
         outlet_PP = x[0]
-        eff_speed, pipi, force = args.get(gtep.eff_speed, x[1]), args.get(gtep.pipi, x[1]), args.get(gtep.force, x[1])
+        efficiency, pipi, force = args.get(gtep.efficiency, x[1]), args.get(gtep.pipi, x[1]), args.get(gtep.force, x[1])
 
         inlet, outlet = args["inlet"], args["outlet"]
 
@@ -59,7 +59,7 @@ class Nozzle(Node):
         )
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
 
-        c = eff_speed * (2 * hcp * outlet.parameters[gtep.TT] * (1 - pipi ** ((k - 1) / k))) ** 0.5
+        c = efficiency * (2 * hcp * outlet.parameters[gtep.TT] * (1 - pipi ** ((k - 1) / k))) ** 0.5
 
         return (
             pipi - outlet_PP / inlet.parameters[gtep.PP],
@@ -100,17 +100,17 @@ class Nozzle(Node):
 
         vars = {}
 
-        if gtep.eff_speed not in parameters:
+        if gtep.efficiency not in parameters:
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
             outlet.parameters[gtep.c] = parameters[gtep.force] / inlet.parameters[gtep.m]
-            vars[gtep.eff_speed] = outlet.parameters[gtep.c] / (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
+            vars[gtep.efficiency] = outlet.parameters[gtep.c] / (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
         elif gtep.pipi not in parameters:
             outlet.parameters[gtep.c] = parameters[gtep.force] / inlet.parameters[gtep.m]
-            vars[f"{gtep.pipi}"] = (1 - ((outlet.parameters[gtep.c] / parameters[gtep.eff_speed]) ** 2) / (2 * hcp_i * outlet.parameters[gtep.TT])) ** (k_i / (k_i - 1))
+            vars[f"{gtep.pipi}"] = (1 - ((outlet.parameters[gtep.c] / parameters[gtep.efficiency]) ** 2) / (2 * hcp_i * outlet.parameters[gtep.TT])) ** (k_i / (k_i - 1))
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * vars[f"{gtep.pipi}"]
         elif gtep.force not in parameters:
             outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            outlet.parameters[gtep.c] = parameters[gtep.eff_speed] * (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
+            outlet.parameters[gtep.c] = parameters[gtep.efficiency] * (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
             vars[gtep.force] = inlet.parameters[gtep.m] * outlet.parameters[gtep.c]
         else:
             raise ArithmeticError(f"{parameters=}")
@@ -154,23 +154,23 @@ class Nozzle(Node):
         hcp, _ = integral_average(inlet.functions[gtep.hcp], **ranges)
         k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
 
-        outlet.parameters[gtep.c] = parameters_[gtep.eff_speed] * (2 * hcp * outlet.parameters[gtep.TT] * (1 - parameters_[gtep.pipi] ** ((k - 1) / k))) ** 0.5
+        outlet.parameters[gtep.c] = parameters_[gtep.efficiency] * (2 * hcp * outlet.parameters[gtep.TT] * (1 - parameters_[gtep.pipi] ** ((k - 1) / k))) ** 0.5
         outlet.parameters[gtep.T] = outlet.parameters[gtep.TT] - outlet.parameters[gtep.c] ** 2 / (2 * outlet.parameters[gtep.hcp])
 
-        eff_speed = parameters_.get(gtep.eff_speed, cls.efficiency_speed(inlet, outlet))
+        efficiency = parameters_.get(gtep.efficiency, cls.efficiency(inlet, outlet))
         pipi = parameters_.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
         force = parameters_.get(gtep.force, cls.force(inlet, outlet))
 
-        return {gtep.pipi: pipi, gtep.eff_speed: eff_speed, gtep.force: force}, outlet
+        return {gtep.pipi: pipi, gtep.efficiency: efficiency, gtep.force: force}, outlet
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
-        eff_speed = cls.efficiency_speed(inlet, outlet)
+        efficiency = cls.efficiency(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
         force = cls.force(inlet, outlet)
 
-        x0 = (outlet.parameters[gtep.PP], eff_speed, pipi, force)
-        args = {"inlet": inlet, "outlet": outlet, gtep.eff_speed: eff_speed, gtep.pipi: pipi, gtep.force: force}
+        x0 = (outlet.parameters[gtep.PP], efficiency, pipi, force)
+        args = {"inlet": inlet, "outlet": outlet, gtep.efficiency: efficiency, gtep.pipi: pipi, gtep.force: force}
 
         result: Dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
@@ -199,7 +199,7 @@ class Nozzle(Node):
         return ""
 
     @classmethod
-    def efficiency_speed(cls, inlet: Substance, outlet: Substance) -> float:
+    def efficiency(cls, inlet: Substance, outlet: Substance) -> float:
         """КПД сохранения скорости"""
         pipi = cls.total_pressure_ratio(inlet, outlet)  # + проверка
         ranges = {
@@ -239,9 +239,9 @@ if __name__ == "__main__":
     inlet.parameters[gtep.PP] = 101325 * 2
 
     test_cases = (
-        {"parameters": {gtep.pipi: 1 / 1.8, gtep.eff_speed: 0.99}},
+        {"parameters": {gtep.pipi: 1 / 1.8, gtep.efficiency: 0.99}},
         {"parameters": {gtep.pipi: 1 / 1.8, gtep.force: 31_000}},
-        {"parameters": {gtep.eff_speed: 0.99, gtep.force: 31_000}},
+        {"parameters": {gtep.efficiency: 0.99, gtep.force: 31_000}},
     )
     for test_case in test_cases:
         n = Nozzle(test_case["parameters"], name="test")

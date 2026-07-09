@@ -10,6 +10,10 @@ parameters = Constants(
     k="adiabatic_index",  # показатель адиабаты
     gc="gas_const",  # газовая постоянная
     eo="excess_oxidizing",  # коэффициент избытка окислителя
+    m="mass",  # масса
+    v="volume",  # объем
+    power="power",  # мощность
+    force="force",  # сила
     # статические термодинамические параметры
     T="static_temperature",  # статическая темпрература
     P="static_pressure",  # статическое давление
@@ -18,8 +22,6 @@ parameters = Constants(
     TT="total_temperature",  # полная температура
     PP="total_pressure",  # полное давление
     DD="total_density",  # полная плотность
-    m="mass",  # масса
-    v="volume",  # объем
     # скорости
     ss="sound_speed",  # скорость звука
     ss_critical="critical_sound_speed",  # критическая скорость звука
@@ -27,19 +29,18 @@ parameters = Constants(
     u="portable_velocity",  # переносная скорость
     w="relative_velocity",  # относительная скорость
     # безразмерные параметры
-    pipi="total_pressure_ratio",  # степень повышения полного давления
-    pi="static_pressure_ratio",  # степень повышения статического давления
     titi="total_temperature_ratio",  # степень повышения полной температуры
     ti="static_temperature_ratio",  # степень повышения статической температуры
+    pipi="total_pressure_ratio",  # степень повышения полного давления
+    pi="static_pressure_ratio",  # степень повышения статического давления
+    didi="total_density_ratio",  # степень повышения полной плотности
+    di="density_ratio",  # степень повышения статической плотности
     # числа
     Mach="mach_number",  # число Маха
     Nu="nusselt_number",  # число Нуссельта
     # КПД
     efficiency="efficiency",  # КПД
     effeff="total_efficiency",  # полный КПД
-    eff_speed="efficiency_speed",  # КПД скорости
-    power="power",  # мощность
-    force="force",  # сила
 )
 
 EPSREL = 0.01  # относительная ошибка

@@ -58,7 +58,7 @@ def jumo004b():
     hpc = Rotor({gtep.effeff: 0.85, gtep.pipi: 6}, name="compressor")
     cc = Burner({gtep.efficiency: 0.99, gtep.pipi: 0.95}, name="burner")
     hpt = Rotor({gtep.effeff: 1 / 0.9}, name="turbine")
-    n1 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
+    n1 = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, "nozzle")
 
     gte = GTE("Jumo-004b")
 
@@ -87,8 +87,8 @@ def rr():
     mpt = Rotor({gtep.effeff: 1 / 0.9}, name="mpt")
     lpt = Rotor({gtep.effeff: 1 / 0.9}, name="lpt")
 
-    n1 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "n1")
-    n2 = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "n2")
+    n1 = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, "n1")
+    n2 = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, "n2")
 
     c2 = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="c2")
 
@@ -126,7 +126,7 @@ def al31f():
     hpt = Rotor({gtep.effeff: 1 / 0.9}, name="hpt")
     lpt = Rotor({gtep.effeff: 1 / 0.9}, name="lpt")
 
-    n = Nozzle({gtep.eff_speed: 0.98, gtep.pipi: 1 / 1.8}, "n")
+    n = Nozzle({gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8}, "n")
 
     c2 = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="c2")
     c_cool = Channel({gtep.titi: 1.05, gtep.pipi: 0.95}, name="c_cool")
