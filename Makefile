@@ -29,6 +29,7 @@ help:
 	@echo "  make activate       - Activate virtual environment (prints command)"
 	@echo "  make install        - Install production dependences"
 	@echo "  make test           - Run tests"
+	@echo "  make cover          - Run coverage"
 	@echo "  make format         - Format code (black, isort)"
 	@echo "  make lint           - Run linters (flake8, pylint)"
 	@echo "  make doc            - Add documentation"
@@ -58,7 +59,12 @@ install:
 test:
 	@echo "$(BLUE)Running tests...$(RESET)"
 	$(PYTHON_PATH) -m pytest $(TEST_DIR) -v -s -x -m "not benchmark"
-	go test ./...
+	go test ./... -cover
+
+cover:
+	@echo "$(BLUE)Running coverage...$(RESET)"
+	go test ./... -cover -coverprofile=coverage.out
+	go tool cover -html=coverage.out
 
 bench:
 	@echo "$(BLUE)Running benchmarks...$(RESET)"
