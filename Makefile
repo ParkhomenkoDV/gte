@@ -26,8 +26,8 @@ RESET  = \033[0m
 help:
 	@echo "Available commands:"
 	@echo "  make venv           - Create virtual environment"
-	@echo "  make activate       - Activate virtual environment (prints command)"
-	@echo "  make install        - Install production dependences"
+	@echo "  make activate       - Print command for activate virtual environment"
+	@echo "  make install        - Install dependences"
 	@echo "  make test           - Run tests"
 	@echo "  make cover          - Run coverage"
 	@echo "  make format         - Format code (black, isort)"
