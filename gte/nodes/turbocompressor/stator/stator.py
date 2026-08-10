@@ -1,1 +1,2 @@
-from numpy import linspace
+class Stator:
+    """Статор"""

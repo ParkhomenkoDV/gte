@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 from numpy import isnan, nan
 from scipy.optimize import root
@@ -29,16 +29,16 @@ except ImportError:
 class Rotor(Node):
     """Ротор"""
 
-    variables: Tuple[str, str, str] = (gtep.effeff, gtep.titi, gtep.pipi)
+    variables: tuple[str, str, str] = (gtep.effeff, gtep.titi, gtep.pipi)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
 
-    def __init__(self, parameters: Dict[str, float], name: str = "Rotor"):
+    def __init__(self, parameters: dict[str, float], name: str = "Rotor"):
         Node.__init__(self, parameters, name)
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float, float]:
         """
         T*_outlet = T*_inlet * (1 + (pi* ** ((k-1) / k) - 1) / eff*)
         ti* = T*_outlet / T*_inlet
@@ -65,7 +65,7 @@ class Rotor(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -112,7 +112,7 @@ class Rotor(Node):
         return {gtep.effeff: cls.total_efficiency(inlet, outlet), gtep.titi: cls.total_temperature_ratio(inlet, outlet), gtep.pipi: cls.total_pressure_ratio(inlet, outlet)}, outlet
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         prediction, outlet_ = cls.predict(parameters, inlet)
 
         outlet = Substance(
@@ -128,7 +128,7 @@ class Rotor(Node):
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
             outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
-        args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
+        args: dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
         x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
 
         result = root(cls._equations, x0, args, method="hybr")
@@ -143,7 +143,7 @@ class Rotor(Node):
         return {gtep.effeff: effeff, gtep.titi: titi, gtep.pipi: pipi, gtep.power: cls.power(inlet, outlet)}, outlet
 
     @classmethod
-    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:
         effeff = cls.total_efficiency(inlet, outlet)
         titi = cls.total_temperature_ratio(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
@@ -151,7 +151,7 @@ class Rotor(Node):
         x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP], effeff, titi, pipi)
         args = {"inlet": inlet, "outlet": outlet, gtep.effeff: effeff, gtep.titi: titi, gtep.pipi: pipi}
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null
