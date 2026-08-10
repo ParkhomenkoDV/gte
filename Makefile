@@ -1,5 +1,3 @@
-# Makefile for Python project
-
 # Configuration
 PROJECT_NAME = gte
 PYTHON = python3
@@ -8,9 +6,11 @@ VENV_DIR = .venv
 VENV_ACTIVATE = $(VENV_DIR)/bin/activate
 PYTHON_PATH = $(VENV_DIR)/bin/python
 PIP_PATH = $(VENV_DIR)/bin/pip
+
 TEST_DIR = gte
 BENCH_DIR = gte
 SRC_DIR = gte
+
 REQUIREMENTS = requirements.txt
 
 # Colors
@@ -54,11 +54,27 @@ install:
 	@echo "$(BLUE)Installing dependencies...$(RESET)"
 	$(PIP_PATH) install --upgrade -r $(REQUIREMENTS)
 	$(PIP_PATH) install --upgrade black flake8 pylint isort pytest pytest-benchmark
+	
 	go get -u ./...
+
+format:
+	@echo "$(BLUE)Formatting code...$(RESET)"
+	$(PYTHON_PATH) -m black $(SRC_DIR) $(TEST_DIR)
+	$(PYTHON_PATH) -m isort $(SRC_DIR) $(TEST_DIR)
+	
+	go fmt -s -w .
+
+lint:
+	@echo "$(BLUE)Running linters...$(RESET)"
+	$(PYTHON_PATH) -m flake8 $(SRC_DIR) $(TEST_DIR)
+	$(PYTHON_PATH) -m pylint $(SRC_DIR) $(TEST_DIR)
+	
+	go vet ./...
 
 test:
 	@echo "$(BLUE)Running tests...$(RESET)"
 	$(PYTHON_PATH) -m pytest $(TEST_DIR) -v -s -x -m "not benchmark"
+	
 	go test ./... -cover
 
 cover:
@@ -69,19 +85,8 @@ cover:
 bench:
 	@echo "$(BLUE)Running benchmarks...$(RESET)"
 	$(PYTHON_PATH) -m pytest $(BENCH_DIR) -v -s -x -m "benchmark" --benchmark-columns=mean,min,max,stddev,median,rounds,outliers --benchmark-sort=name --benchmark-min-rounds=10
+	
 	go test ./... -bench=. -benchmem -benchtime=1s -count=1
-
-format:
-	@echo "$(BLUE)Formatting code...$(RESET)"
-	$(PYTHON_PATH) -m black $(SRC_DIR) $(TEST_DIR)
-	$(PYTHON_PATH) -m isort $(SRC_DIR) $(TEST_DIR)
-	go fmt -s -w .
-
-lint:
-	@echo "$(BLUE)Running linters...$(RESET)"
-	$(PYTHON_PATH) -m flake8 $(SRC_DIR) $(TEST_DIR)
-	$(PYTHON_PATH) -m pylint $(SRC_DIR) $(TEST_DIR)
-	go vet ./...
 
 doc:
 	go doc ./...
@@ -92,5 +97,6 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -r {} +
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
+	find . -type f -name "*.out" -delete
 	rm -rf .coverage htmlcov
 	go clean -testcache -modcache
