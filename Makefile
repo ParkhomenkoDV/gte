@@ -88,6 +88,22 @@ bench:
 	
 	go test ./... -bench=. -benchmem -benchtime=1s -count=1
 
+pprof:
+	@echo "$(BLUE)Running profiling...$(RESET)"
+	go test -benchmem -benchtime 5s -count=5 -cpuprofile=cpu.out -memprofile=mem.out -trace=trace.out
+
+cpu: pprof
+	go tool pprof -http=:8081 cpu.out
+
+mem: pprof
+	go tool pprof -http=:8082 mem.out
+
+trace: pprof
+	go tool trace -http=:8083 gte.go trace.out
+
+race:
+	go test -race
+
 doc:
 	go doc ./...
 
