@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 from numpy import isnan, nan
 from scipy.optimize import root
@@ -29,16 +29,16 @@ except ImportError:
 class Nozzle(Node):
     """Выходное устройство"""
 
-    variables: Tuple[str, str] = (gtep.efficiency, gtep.pipi, gtep.force)
+    variables: tuple[str, str] = (gtep.efficiency, gtep.pipi, gtep.force)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
 
-    def __init__(self, parameters: Dict[str, float], name: str = "Nozzle"):
+    def __init__(self, parameters: dict[str, float], name: str = "Nozzle"):
         Node.__init__(self, parameters, name)
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float]:
         """
         pi* = P*_outlet / P*_inlet
         c_outlet = efficiency * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
@@ -67,7 +67,7 @@ class Nozzle(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -118,7 +118,7 @@ class Nozzle(Node):
         return vars, outlet
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         parameters_ = parameters.copy()  # необходима копия т.к. словарь передается по ссылке и при добавлении искоромй vars становится нерасчетным
         prediction, outlet_ = cls.predict(parameters_, inlet)
 
@@ -135,7 +135,7 @@ class Nozzle(Node):
             outlet.parameters["oxidizer"] = inlet.parameters["oxidizer"]
             outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
-        args: Dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
+        args: dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
         x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]
 
         result = root(cls._equations, x0, args, method="hybr")
@@ -164,7 +164,7 @@ class Nozzle(Node):
         return {gtep.pipi: pipi, gtep.efficiency: efficiency, gtep.force: force}, outlet
 
     @classmethod
-    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:
         efficiency = cls.efficiency(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
         force = cls.force(inlet, outlet)
@@ -172,7 +172,7 @@ class Nozzle(Node):
         x0 = (outlet.parameters[gtep.PP], efficiency, pipi, force)
         args = {"inlet": inlet, "outlet": outlet, gtep.efficiency: efficiency, gtep.pipi: pipi, gtep.force: force}
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null

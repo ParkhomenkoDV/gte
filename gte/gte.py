@@ -1,7 +1,8 @@
 from collections import deque
+from collections.abc import Generator
 from copy import deepcopy
 from itertools import product
-from typing import Any, Dict, Generator, List, Set, Tuple
+from typing import Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -44,10 +45,10 @@ except ImportError:
 class GTE:
     """Ориентированный ациклический граф потока рабочего тела"""
 
-    NODES: Tuple[Node] = (Rotor, Burner, Channel, Nozzle, Splitter, Joiner)
+    NODES: tuple[Node] = (Rotor, Burner, Channel, Nozzle, Splitter, Joiner)
 
     # Цвета для разных типов узлов
-    NODES_COLORS = {
+    NODES_COLORS = {  # noqa: RUF012
         "Rotor": "#A6CEE3",  # голубой
         "Burner": "#F4A582",  # терракотовый
         "Channel": "#A0D6B4",  # мягкий зелёный
@@ -57,35 +58,34 @@ class GTE:
     }
 
     __slots__ = (
-        "name",  # имя
         "_GTE__nodes",  # все узлы
         "_GTE__predecessors",  # предшественники узела
+        "_GTE__shafts",  # валы (механическая связь)
         "_GTE__successors",  # преемники узла
         "_out_index",  # (from, to) -> индекс выхода
         "_splitter_counter",  # для Splitter
-        "_GTE__shafts",  # валы (механическая связь)
+        "name",  # имя
     )
 
     def __init__(self, name: str):
         self.name: str = name
 
-        self.__nodes: Set[Node] = set()
-        self.__predecessors: Dict[Node, List[Node]] = {}
-        self.__successors: Dict[Node, List[Node]] = {}
+        self.__nodes: set[Node] = set()
+        self.__predecessors: dict[Node, list[Node]] = {}
+        self.__successors: dict[Node, list[Node]] = {}
 
-        self._out_index: Dict[Tuple[Node, Node], int] = {}
-        self._splitter_counter: Dict[Node, int] = {}
+        self._out_index: dict[tuple[Node, Node], int] = {}
+        self._splitter_counter: dict[Node, int] = {}
 
-        self.__shafts: List[Tuple[Node]] = []
+        self.__shafts: list[tuple[Node]] = []
 
     def __repr__(self) -> str:
         """Описание ГТД"""
         return f"{self.__class__.__name__} (name={self.name}, nodes={len(self.__nodes)}, edges={sum(len(v) for v in self.__successors.values())}, shafts={len(self.__shafts)})"
 
     def __setattr__(self, name, value) -> None:
-        if name == "name":
-            if not isinstance(value, str):
-                raise TypeError(TYPE_ERROR.format(f"type(name)={type(value)}", str))
+        if name == "name" and not isinstance(value, str):
+            raise TypeError(TYPE_ERROR.format(f"type(name)={type(value)}", str))
         super().__setattr__(name, value)
 
     def __len__(self) -> int:
@@ -101,7 +101,7 @@ class GTE:
             self.__nodes.add(node)
             self.__predecessors[node], self.__successors[node] = [], []
 
-    def add_edge(self, from_node: Node, to_node: Node, outlet_index: int = None) -> None:
+    def add_edge(self, from_node: Node, to_node: Node, outlet_index: int | None = None) -> None:
         """Добавление связи между узлами from_node и to_node по выходу outlet_index из узла from_node"""
         if not isinstance(from_node, Node):
             raise TypeError(TYPE_ERROR.format(f"{type(from_node)=}", Node))
@@ -136,15 +136,15 @@ class GTE:
                 self.add_node(node)  # автоматически добавляем узел в граф
         self.__shafts.append(tuple(nodes))
 
-    def predecessors(self, node: Node) -> List[Node]:
+    def predecessors(self, node: Node) -> list[Node]:
         """Предшественники"""
         return self.__predecessors.get(node, [])
 
-    def successors(self, node: Node) -> List[Node]:
+    def successors(self, node: Node) -> list[Node]:
         """Преемники"""
         return self.__successors.get(node, [])
 
-    def scheme(self) -> Dict[str, Any]:
+    def scheme(self) -> dict[str, Any]:
         """
         Возвращает три представления графа потоков ГТД:
         - adjacency_matrix: список списков (0/1) размером N x N,
@@ -186,15 +186,15 @@ class GTE:
         }
 
     @property
-    def nodes(self) -> Set[Node]:
+    def nodes(self) -> set[Node]:
         return self.__nodes
 
     @property
-    def shafts(self) -> List[Tuple[Node]]:
+    def shafts(self) -> list[tuple[Node]]:
         return self.__shafts
 
     @property
-    def order(self) -> List[Node]:
+    def order(self) -> list[Node]:
         """Топологическая сортировка (Kahn)"""
         in_degree = {node: len(self.predecessors(node)) for node in self.__nodes}
         queue = deque(n for n in self.__nodes if in_degree[n] == 0)
@@ -274,7 +274,7 @@ class GTE:
         for (u, v), idx in self._out_index.items():
             edge_labels[(u, v)] = str(idx)
         if edge_labels:
-            nx.draw_networkx_edge_labels(g, pos, edge_labels=edge_labels, font_size=fontsize, label_pos=0.7, bbox=dict(facecolor="white", edgecolor="none", alpha=0.7))
+            nx.draw_networkx_edge_labels(g, pos, edge_labels=edge_labels, font_size=fontsize, label_pos=0.7, bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.7})
 
         # Рисуем механические связи (валы) пунктирной линией без стрелок
         for shaft in self.__shafts:
@@ -310,7 +310,7 @@ class GTE:
 
         return fg
 
-    def generator(self, variables: Dict[Node, Dict]) -> Generator:
+    def generator(self, variables: dict[Node, dict]) -> Generator:
         """Генератор решаемых ГТД"""
         # проверяем на решаемость, т.к. это генератор схожей схемы с разными параметрами
         solvable = self.is_solvable
@@ -322,14 +322,14 @@ class GTE:
             raise TypeError(TYPE_ERROR.format(f"{type(variables)}", dict))
 
         # Формируем для каждого узла список кортежей (параметр, [значения])
-        parameters_ranges: Dict[Node, List[Tuple[str, Tuple[float]]]] = {}
+        parameters_ranges: dict[Node, list[tuple[str, tuple[float]]]] = {}
         for node, parameters in variables.items():
             if node not in self.__nodes:
                 raise KeyError(f"{node} not in {self.__nodes}")
             if not isinstance(parameters, dict):
                 raise TypeError(TYPE_ERROR.format(f"{type(node)=}", dict))
 
-            ranges: List[float] = [None] * len(parameters)  # malloc
+            ranges: list[float] = [None] * len(parameters)  # malloc
             for i, (parameter, values) in enumerate(parameters.items()):
                 # проверяем именно parameters, для сохранения решаемости
                 if parameter not in node.parameters:
@@ -361,9 +361,9 @@ class GTE:
             yield new_gte
 
     # TODO
-    def predict(self, inlet: Substance, use_ml: bool = True) -> Tuple[Dict[Node, Dict[str, float]], Dict]:
+    def predict(self, inlet: Substance, use_ml: bool = True) -> tuple[dict[Node, dict[str, float]], dict]:
         """Начальные прибличения"""
-        prediction: Dict[Node, Dict[str, float]] = {}
+        prediction: dict[Node, dict[str, float]] = {}
         for node in self.__nodes:
             if node.is_solvable:
                 continue
@@ -376,7 +376,7 @@ class GTE:
                     if parameter == gtep.effeff:
                         prediction[node][parameter] = 1
                     elif parameter == gtep.titi:
-                        prediction[node][parameter] = 1 / 3  # prod(pipi for pipi in shaft)
+                        prediction[node][parameter] = 1 / 4  # prod(pipi for pipi in shaft)
                     elif parameter == gtep.pipi:
                         prediction[node][parameter] = 1 / 3  # prod(pipi for pipi in shaft)
                     elif parameter == gtep.power:
@@ -389,7 +389,7 @@ class GTE:
 
         return prediction, {}  # для requirements
 
-    def _equations(self, x0: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
+    def _equations(self, x0: tuple[float], args: dict[str, Any]) -> tuple[float, ...]:
         """sum(Compressor.power) = sum(Turbine.power)"""
 
         inlet, fuel = args["inlet"], args.get("fuel")
@@ -404,7 +404,7 @@ class GTE:
 
         vars, substances = self.calculate(inlet, fuel, verbose=verbose)
 
-        power_balances: List[float] = [0] * len(self.__shafts)
+        power_balances: list[float] = [0] * len(self.__shafts)
         # Расчет баланса мощностей по каждому валу
         for i, shaft in enumerate(self.__shafts):
             for node in shaft:
@@ -412,7 +412,7 @@ class GTE:
 
         return tuple(power_balances)
 
-    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> Tuple[Dict[Node, Dict[str, float]], Dict[Node, Tuple[Substance]]]:
+    def calculate(self, inlet: Substance, fuel: Substance = None, verbose: bool = False) -> tuple[dict[Node, dict[str, float]], dict[Node, tuple[Substance]]]:
         """Расчет двигателя 'в строчку'"""
         vars, substances = {}, {}  # Кэш: узел -> (входное вещество/вещества, выходное вещество/вещества)
 
@@ -450,7 +450,7 @@ class GTE:
         return vars, substances
 
     # TODO
-    def solve(self, inlet: Substance, fuels: Dict[Burner, Substance] = None, prediction: Dict[Node, Dict[str, float]] = None, verbose: bool = False) -> bool:
+    def solve(self, inlet: Substance, fuels: dict[Burner, Substance] | None = None, prediction: dict[Node, dict[str, float]] | None = None, verbose: bool = False) -> bool:
         """Термодинамический расчет ГТД"""
         solvable = self.is_solvable
         if not solvable:
@@ -466,18 +466,18 @@ class GTE:
 
         return result.success
 
-    def validate(self, inlet: Substance, fuel: Substance = None, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(self, inlet: Substance, fuel: Substance = None, epsrel: float = EPSREL) -> dict[int, float]:
         """Валиация найденного решения по уравнениям _equations"""
         args = {"inlet": inlet, "fuel": fuel, "prediction": {}}
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(self._equations([], args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null
 
         return result
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "nodes": self.__nodes,

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any
 
 from numpy import isnan
 from substance import Substance
@@ -27,16 +27,16 @@ except ImportError:
 class Joiner(Node):
     """Камера смешения"""
 
-    variables: Tuple[str] = tuple()
+    variables: tuple[str] = ()
     n_vars: int = 0
 
     __slots__ = ()  # нет новых атрибутов
 
-    def __init__(self, parameters: Dict[str, float], name: str = "Joiner"):
+    def __init__(self, parameters: dict[str, float], name: str = "Joiner"):
         Node.__init__(self, parameters, name)
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float]:
         """
         m_outlet = m_inlet_0 + m_inlet_1 + ...
         T*_outlet = (m_inlet_0 * hcp_inlet_0 * T*_inlet_0 + m_inlet_1 * hcp_inlet_1 * T*_inlet_1 + ...) / (m_inlet_0 + m_inlet_1 + ...)
@@ -54,7 +54,7 @@ class Joiner(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], *inlets: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], *inlets: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
@@ -66,7 +66,7 @@ class Joiner(Node):
             if not isinstance(value, (float, int)):
                 raise TypeError(TYPE_ERROR.format(f"{type(value)=}", float))
 
-        names: List[str] = []
+        names: list[str] = []
         gc_args, hcp_args = set(), set()
         oxidizer, required = 0, 0  # окислитель, теоретически необходимое кодичество окислителя
         m, m_hcp, m_t_hcp, m_p = 0, 0, 0, 0
@@ -117,12 +117,12 @@ class Joiner(Node):
             outlet.parameters["oxidizer"] = oxidizer
             outlet.parameters[gtep.eo] = oxidizer / required
 
-        vars: Dict[str, float] = {}
+        vars: dict[str, float] = {}
 
         return vars, outlet
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]], *inlets: Substance) -> Tuple[Dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], *inlets: Substance) -> tuple[dict[str, float], Substance]:
         _, outlet = cls.predict(parameters, *inlets)
 
         outlet = Node.calculate_substance(outlet)
@@ -130,16 +130,16 @@ class Joiner(Node):
         return {}, outlet
 
     @classmethod
-    def validate(cls, *substances: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(cls, *substances: Substance, epsrel: float = EPSREL) -> dict[int, float]:
         if len(substances) < 2:
             raise ValueError(f"{len(substances)=} must be >= 2")
 
         inlets, outlet = substances[:-1], substances[-1]
 
-        x0 = tuple()
+        x0 = ()
         args = {"inlets": inlets, "outlet": outlet}
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null

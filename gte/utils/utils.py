@@ -1,8 +1,9 @@
 import os
 import pickle
 from collections import defaultdict
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.integrate import nquad
@@ -18,18 +19,18 @@ except ImportError:
 class Function:
     """Функция"""
 
-    __slots__ = ("function", "name", "args")
+    __slots__ = ("args", "function", "name")
 
-    def __init__(self, function: Callable, name: str = None, args: Tuple[str] = None) -> None:
+    def __init__(self, function: Callable, name: str | None = None, args: tuple[str] | None = None) -> None:
         self.function: Callable = function
         self.name: str = name if name else function.__name__
 
         if args:
-            self.args: Tuple[str] = args
+            self.args: tuple[str] = args
         else:
             co_varnames = function.__code__.co_varnames  # количество аргументов функции
             co_argcount = function.__code__.co_argcount  # все используемые переменные функции
-            self.args: Tuple[str] = co_varnames[:co_argcount]  # только аргументы функции
+            self.args: tuple[str] = co_varnames[:co_argcount]  # только аргументы функции
 
     def __repr__(self) -> str:
         return self.name
@@ -38,12 +39,12 @@ class Function:
         """Количество аргументов функции"""
         return len(self.args)
 
-    def __call__(self, kwargs: Dict[str, float]) -> float:
+    def __call__(self, kwargs: dict[str, float]) -> float:
         """Вызов функции c избыточными параметрами"""
         return self.function(**{arg: kwargs[arg] for arg in self.args})
 
 
-def integrate(function: Function, **kwargs) -> Tuple[float, float]:
+def integrate(function: Function, **kwargs) -> tuple[float, float]:
     """Интегрирование"""
     if not isinstance(function, Function):
         raise TypeError(TYPE_ERROR.format(f"{type(function)}"), Function)
@@ -56,7 +57,7 @@ def integrate(function: Function, **kwargs) -> Tuple[float, float]:
         if not isinstance(rang, (tuple, list, np.ndarray)):
             raise TypeError(f"type of range must be tuple, but has {type(rang)}")
         if len(rang) != 2:
-            ValueError(f"integral has 2 ranges, but has {len(rang)}")
+            raise ValueError(f"integral has 2 ranges, but has {len(rang)}")
 
         if rang[0] == rang[1]:
             fixed[arg] = rang[0]
@@ -75,7 +76,7 @@ def integrate(function: Function, **kwargs) -> Tuple[float, float]:
     return result, abserr
 
 
-def integral_average(function: Function, **kwargs) -> Tuple[float, float]:
+def integral_average(function: Function, **kwargs) -> tuple[float, float]:
     """Среднее интегральное"""
 
     result, abserr = integrate(function, **kwargs)  # + checks
@@ -101,15 +102,12 @@ class Solvable:
         return str(bool(self))
 
     def __bool__(self) -> bool:
-        if self.reason == "":
-            return True
-        else:
-            return False
+        return self.reason == ""
 
 
-def load_models(*paths) -> Dict[str, Any]:
+def load_models(*paths) -> dict[str, Any]:
     """Загрузка моделей по переданным путям"""
-    models: Dict = {}
+    models: dict = {}
     for path in paths:
         if not os.path.isfile(path):
             raise FileNotFoundError(f"'{path}' not found!")
@@ -125,12 +123,12 @@ class Interpolator:
 
     __slots__ = (
         "features",  # аргументы функции
-        "target",  # целевая переменная (название функции)
-        "function",  # интерполированная функция
         "fill_value",  # значение вне диаппазона интерполирования
+        "function",  # интерполированная функция
+        "target",  # целевая переменная (название функции)
     )
 
-    def __init__(self, datas: List[Dict[str, float]], target: str, features: Optional[List[str]] = None, fill_value: float = np.nan) -> None:
+    def __init__(self, datas: list[dict[str, float]], target: str, features: list[str] | None = None, fill_value: float = np.nan) -> None:
         # Валидация данных
         if not isinstance(datas, (list, tuple)):
             raise TypeError(TYPE_ERROR.format(f"{type(datas)=}", tuple))
@@ -150,7 +148,7 @@ class Interpolator:
             raise TypeError(TYPE_ERROR.format(f"{type(fill_value)=}", float))
 
         # Сбор данных и валидация структуры
-        points: Dict[str, List[float]] = defaultdict(list)
+        points: dict[str, list[float]] = defaultdict(list)
         for i, data in enumerate(datas):
             if not isinstance(data, dict):
                 raise TypeError(TYPE_ERROR.format(f"type(datas[{i}])", dict))
@@ -178,7 +176,7 @@ class Interpolator:
 
         # Определение атрибутов
         self.target: str = target
-        self.features: Tuple[str, ...] = tuple(feature for feature in points if feature != target)
+        self.features: tuple[str, ...] = tuple(feature for feature in points if feature != target)
         if not self.features:
             raise ValueError(f"{len(self.features)=} must be > 0")
         self.fill_value: float = float(fill_value)

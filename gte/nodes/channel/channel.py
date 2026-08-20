@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 from numpy import isnan, nan
 from substance import Substance
@@ -25,16 +25,16 @@ except ImportError:
 class Channel(Node):
     """Канал"""
 
-    variables: Tuple[str, str] = (gtep.titi, gtep.pipi)
+    variables: tuple[str, str] = (gtep.titi, gtep.pipi)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
 
-    def __init__(self, parameters: Dict[str, float], name: str = "Channel"):
+    def __init__(self, parameters: dict[str, float], name: str = "Channel"):
         Node.__init__(self, parameters, name)
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float]:
         """
         ti* = T*_outlet / T*_inlet
         pi* = P*_outlet / P*_inlet
@@ -50,7 +50,7 @@ class Channel(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -83,7 +83,7 @@ class Channel(Node):
         return vars, outlet
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         _, outlet = cls.predict(parameters, inlet)
 
         outlet = Node.calculate_substance(outlet)
@@ -94,14 +94,14 @@ class Channel(Node):
         return {gtep.titi: titi, gtep.pipi: pipi}, outlet
 
     @classmethod
-    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:
         titi = cls.total_temperature_ratio(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
 
         x0 = (titi, pipi)
         args = {"inlet": inlet, "outlet": outlet, gtep.titi: titi, gtep.pipi: pipi}
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 from numpy import isnan
 from substance import Substance
@@ -26,16 +26,16 @@ except ImportError:
 class Splitter(Node):
     """Камера отбора"""
 
-    variables: Tuple[str] = ("splits",)
+    variables: tuple[str] = ("splits",)
     n_vars: int = 1
 
     __slots__ = ()  # нет новых атрибутов
 
-    def __init__(self, parameters: Dict[str, float], name: str = "Splitter"):
+    def __init__(self, parameters: dict[str, float], name: str = "Splitter"):
         Node.__init__(self, parameters, name)
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float, float]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float, float]:
         """
         total_m = sum(m)
         """
@@ -45,7 +45,7 @@ class Splitter(Node):
         return (inlet.parameters[gtep.m] - sum(outlet.parameters[gtep.m] for outlet in outlets),)
 
     @classmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -78,25 +78,25 @@ class Splitter(Node):
             outlet.parameters[gtep.m] *= fraction
             outlets.append(outlet)
 
-        vars: Dict[str, float] = {}
+        vars: dict[str, float] = {}
 
         return vars, tuple(outlets)
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         _, outlets = cls.predict(parameters, inlet)
 
         return {}, outlets
 
     @classmethod
-    def validate(cls, inlet: Substance, *outlets: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(cls, inlet: Substance, *outlets: Substance, epsrel: float = EPSREL) -> dict[int, float]:
 
         args = {
             "inlet": inlet,
             "outlets": outlets,
         }
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(cls._equations([], args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null

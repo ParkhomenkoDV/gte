@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 from numpy import isnan, nan
 from scipy.optimize import root
@@ -29,7 +29,7 @@ except ImportError:
 class Burner(Node):
     """Камера сгорания"""
 
-    variables: Tuple[str, str] = (gtep.efficiency, gtep.pipi)
+    variables: tuple[str, str] = (gtep.efficiency, gtep.pipi)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
@@ -55,11 +55,11 @@ class Burner(Node):
         if fuel.functions.get(gtep.gc) is None:
             raise KeyError(f"fuel has not function '{gtep.gc}'")
 
-    def __init__(self, parameters: Dict[str, float], name="Burner"):
+    def __init__(self, parameters: dict[str, float], name="Burner"):
         Node.__init__(self, parameters, name)
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, float]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float]:
         """
         (m_i * enthalpy_i) + m_f * (Q*efficiency + enthalpy_f) = (m_i + m_f) * enthalpy_o
         pipi = P*_outlet / P*_inlet
@@ -87,7 +87,7 @@ class Burner(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance, fuel: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
         Node.validate_substance(fuel)
@@ -120,7 +120,7 @@ class Burner(Node):
         return parameters, outlet
 
     @classmethod
-    def calculate(cls, parameters: Dict[str, float | int], inlet: Substance, fuel: Substance) -> Tuple[Dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance, fuel: Substance) -> tuple[dict[str, float], Substance]:
         _, outlet_ = cls.predict(parameters, inlet, fuel)
 
         outlet = Substance(
@@ -158,7 +158,7 @@ class Burner(Node):
         inlet.parameters["enthalpy"], _ = integrate(inlet.functions[gtep.hcp], **{gtep.TT: (T0 + 15, inlet.parameters[gtep.TT]), gtep.PP: (101325, inlet.parameters[gtep.PP]), gtep.eo: (1, inlet.parameters.get(gtep.eo, 1))})
         fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
 
-        args: Dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
+        args: dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
         x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]]
 
         result = root(cls._equations, x0, args, method="hybr")
@@ -173,14 +173,14 @@ class Burner(Node):
         return {gtep.efficiency: efficiency, gtep.pipi: pipi}, outlet
 
     @classmethod
-    def validate(cls, inlet: Substance, fuel: Substance, outlet: Substance, epsrel: float = EPSREL) -> Dict[int, float]:
+    def validate(cls, inlet: Substance, fuel: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:
         efficiency = cls.efficiency(inlet, fuel, outlet)
         pipi = cls.total_pressure_ratio(inlet, fuel, outlet)
 
         x0 = (outlet.parameters[gtep.TT], outlet.parameters[gtep.PP])
         args = {"inlet": inlet, "fuel": fuel, "outlet": outlet, gtep.efficiency: efficiency, gtep.pipi: pipi}
 
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
         for i, null in enumerate(cls._equations(x0, args)):
             if isnan(null) or abs(null) > epsrel:
                 result[i] = null

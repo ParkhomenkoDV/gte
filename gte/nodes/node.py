@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Generator
 from itertools import product
-from typing import Any, Dict, Generator, Tuple, Union
+from typing import Any
 
 from substance import Substance
 from thermodynamics import adiabatic_index, critical_sonic_velocity
@@ -32,7 +33,7 @@ class Node(ABC):
             parameters: Словарь с параметрами узла
     """
 
-    variables: Tuple[str, ...]  # переменные узла
+    variables: tuple[str, ...]  # переменные узла
 
     __slots__ = (
         "name",
@@ -40,9 +41,9 @@ class Node(ABC):
         "requirements",  # требования к потоку
     )
 
-    def __init__(self, parameters: Dict[str, float], name: str = "node") -> None:
+    def __init__(self, parameters: dict[str, float], name: str = "node") -> None:
         """Инициализация объекта узла ГТД"""
-        self.parameters: Dict[str, float] = parameters
+        self.parameters: dict[str, float] = parameters
         self.name: str = name
         self.requirements = []
 
@@ -77,9 +78,9 @@ class Node(ABC):
         self.requirements.append({"is_inlet": is_inlet, "idx_substance": idx_substance, "parameter": parameter, "value": value})
 
     @classmethod
-    def _equations(cls, x: Tuple[float], args: Dict[str, Any]) -> Tuple[float, ...]:
+    def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, ...]:
         """Система уравнений"""
-        return tuple()
+        return ()
 
     @property
     def n_vars(self) -> int:
@@ -128,9 +129,8 @@ class Node(ABC):
             raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.TT))
         if gtep.PP not in substance.parameters:
             raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, gtep.PP))
-        if gtep.eo in substance.parameters:  # в случае наличия избытка окислителя
-            if "oxidizer" not in substance.parameters:  # необходимо знать массовую долю окислителя
-                raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, "oxidizer"))  # для перерасчета в случае смешения
+        if gtep.eo in substance.parameters and "oxidizer" not in substance.parameters:  # в случае наличия избытка окислителя необходимо знать массовую долю окислителя
+            raise KeyError(SUBSTANCE_ATTRIBUTE_ERROR.format(substance.name, "oxidizer"))  # для перерасчета в случае смешения
         # validate functions
         tdp_keys = gtep.values()  # разрешенный список термодинамических параметров
         for name, function in substance.functions.items():
@@ -144,13 +144,13 @@ class Node(ABC):
 
     @classmethod
     @abstractmethod
-    def predict(cls, parameters: Dict[str, Union[float, int]], inlet: Substance) -> Tuple[Dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
         """Начальные приближения"""
         raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    def calculate(cls, parameters: Dict[str, Union[float, int]] = None) -> Substance:
+    def calculate(cls, parameters: dict[str, float | int] | None = None) -> Substance:
         """Термодинамический расчет узла по уравнениям _equations"""
         # валидация входных параметров
         # расчет входных параметров
@@ -174,7 +174,7 @@ class Node(ABC):
 
     @classmethod
     @abstractmethod
-    def validate(cls) -> Dict[int, float]:
+    def validate(cls) -> dict[int, float]:
         """Валиация найденного решения по уравнениям _equations"""
         raise NotImplementedError
 
