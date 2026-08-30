@@ -29,7 +29,7 @@ except ImportError:
 class Nozzle(Node):
     """Выходное устройство"""
 
-    variables: tuple[str, str] = (gtep.efficiency, gtep.pipi, gtep.force)
+    variables: tuple[str, str] = (gtep.efficiency, gtep.pipi)
     n_vars: int = 2
 
     __slots__ = ()  # нет новых атрибутов
@@ -41,30 +41,13 @@ class Nozzle(Node):
     def _equations(cls, x: tuple[float], args: dict[str, Any]) -> tuple[float, float]:
         """
         pi* = P*_outlet / P*_inlet
-        c_outlet = efficiency * (2 * hcp * T*_outlet * (1 - pi* ** ((k - 1) / k))) ** 0.5
-        force = m * c_outlet
         """
         outlet_PP = x[0]
-        efficiency, pipi, force = args.get(gtep.efficiency, x[1]), args.get(gtep.pipi, x[1]), args.get(gtep.force, x[1])
+        pipi = args[gtep.pipi]
 
-        inlet, outlet = args["inlet"], args["outlet"]
+        inlet = args["inlet"]
 
-        hcp, _ = integral_average(
-            inlet.functions[gtep.hcp],
-            **{
-                gtep.TT: (inlet.parameters[gtep.TT], outlet.parameters[gtep.TT]),
-                gtep.PP: (inlet.parameters[gtep.PP], outlet_PP),
-                gtep.eo: (inlet.parameters.get(gtep.eo, 0), outlet.parameters.get(gtep.eo, 0)),
-            },
-        )
-        k = adiabatic_index(inlet.parameters[gtep.gc], hcp)
-
-        c = efficiency * (2 * hcp * outlet.parameters[gtep.TT] * (1 - pipi ** ((k - 1) / k))) ** 0.5
-
-        return (
-            pipi - outlet_PP / inlet.parameters[gtep.PP],
-            force - outlet.parameters[gtep.m] * c,
-        )
+        return (pipi - outlet_PP / inlet.parameters[gtep.PP],)
 
     @classmethod
     def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
@@ -99,21 +82,9 @@ class Nozzle(Node):
             outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         vars = {}
-
-        if gtep.efficiency not in parameters:
-            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            outlet.parameters[gtep.c] = parameters[gtep.force] / inlet.parameters[gtep.m]
-            vars[gtep.efficiency] = outlet.parameters[gtep.c] / (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
-        elif gtep.pipi not in parameters:
-            outlet.parameters[gtep.c] = parameters[gtep.force] / inlet.parameters[gtep.m]
-            vars[f"{gtep.pipi}"] = (1 - ((outlet.parameters[gtep.c] / parameters[gtep.efficiency]) ** 2) / (2 * hcp_i * outlet.parameters[gtep.TT])) ** (k_i / (k_i - 1))
-            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * vars[f"{gtep.pipi}"]
-        elif gtep.force not in parameters:
-            outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
-            outlet.parameters[gtep.c] = parameters[gtep.efficiency] * (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
-            vars[gtep.force] = inlet.parameters[gtep.m] * outlet.parameters[gtep.c]
-        else:
-            raise ArithmeticError(f"{parameters=}")
+        outlet.parameters[gtep.PP] = inlet.parameters[gtep.PP] * parameters[gtep.pipi]
+        outlet.parameters[gtep.c] = parameters[gtep.efficiency] * (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
+        vars[gtep.force] = inlet.parameters[gtep.m] * outlet.parameters[gtep.c]
 
         return vars, outlet
 
@@ -157,11 +128,9 @@ class Nozzle(Node):
         outlet.parameters[gtep.c] = parameters_[gtep.efficiency] * (2 * hcp * outlet.parameters[gtep.TT] * (1 - parameters_[gtep.pipi] ** ((k - 1) / k))) ** 0.5
         outlet.parameters[gtep.T] = outlet.parameters[gtep.TT] - outlet.parameters[gtep.c] ** 2 / (2 * outlet.parameters[gtep.hcp])
 
-        efficiency = parameters_.get(gtep.efficiency, cls.efficiency(inlet, outlet))
-        pipi = parameters_.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
-        force = parameters_.get(gtep.force, cls.force(inlet, outlet))
+        force = cls.force(inlet, outlet)
 
-        return {gtep.pipi: pipi, gtep.efficiency: efficiency, gtep.force: force}, outlet
+        return {gtep.pipi: parameters[gtep.pipi], gtep.efficiency: parameters[gtep.efficiency], gtep.force: force}, outlet
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:
@@ -238,11 +207,7 @@ if __name__ == "__main__":
     inlet.parameters[gtep.TT] = 1200
     inlet.parameters[gtep.PP] = 101325 * 2
 
-    test_cases = (
-        {"parameters": {gtep.pipi: 1 / 1.8, gtep.efficiency: 0.99}},
-        {"parameters": {gtep.pipi: 1 / 1.8, gtep.force: 31_000}},
-        {"parameters": {gtep.efficiency: 0.99, gtep.force: 31_000}},
-    )
+    test_cases = ({"parameters": {gtep.pipi: 1 / 1.8, gtep.efficiency: 0.99}},)
     for test_case in test_cases:
         n = Nozzle(test_case["parameters"], name="test")
         print(f"{n.is_solvable=}")
