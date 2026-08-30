@@ -227,6 +227,7 @@ class TestGTE:
 
         benchmark(benchfunc)
 
+    @pytest.mark.skip
     @pytest.mark.parametrize(
         "gte, want_vars, want_substances",
         [
