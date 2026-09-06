@@ -1,4 +1,5 @@
 try:
+    from ....config.config import parameters as gtep
     from ...turbocompressor.rotor import Rotor
     from ...turbocompressor.stator import Stator
 except ImportError:
@@ -7,14 +8,17 @@ except ImportError:
 
     sys.path.insert(0, os.getcwd())
 
+    from gte.config.config import parameters as gtep
     from gte.nodes.turbocompressor.rotor import Rotor
     from gte.nodes.turbocompressor.stator import Stator
 
 
-class Compressor(Rotor):
+class Compressor:
     """Компрессор"""
 
-    def __init__(self, *stages):
-        for stage in stages:
-            if not isinstance(stage, (Rotor, Stator)):
-                raise TypeError
+    slots = ("blade_rows", gtep.pipi, gtep.titi, gtep.effeff)
+
+    def __init__(self, *blade_rows):
+        for blade_row in blade_rows:
+            if not isinstance(blade_row, (Rotor, Stator)):
+                raise TypeError()
