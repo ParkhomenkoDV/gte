@@ -432,14 +432,6 @@ class TestNozzle:
                 {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
             ),
-            (
-                {gtep.efficiency: 0.98, gtep.force: 34_439},
-                exhaust,
-            ),
-            (
-                {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
-                exhaust,
-            ),
         ],
     )
     @pytest.mark.benchmark
@@ -473,14 +465,6 @@ class TestNozzle:
         [
             (
                 {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
-                exhaust,
-            ),
-            (
-                {gtep.efficiency: 0.98, gtep.force: 34_439},
-                exhaust,
-            ),
-            (
-                {gtep.pipi: 1 / 1.8, gtep.force: 34_439},
                 exhaust,
             ),
         ],

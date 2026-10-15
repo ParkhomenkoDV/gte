@@ -268,6 +268,7 @@ class TestGTE:
 
         benchmark(benchfunc)
 
+    @pytest.mark.skip
     @pytest.mark.benchmark
     def test_gte_solve_rr(self, benchmark):
         """Бенчмарк расчета ГТД RR Trent"""

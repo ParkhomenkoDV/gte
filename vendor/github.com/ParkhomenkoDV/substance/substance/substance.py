@@ -1,6 +1,6 @@
+from collections.abc import Callable
 from copy import deepcopy
 from math import nan
-from typing import Callable, Dict, Union
 
 import numpy as np
 
@@ -9,18 +9,18 @@ class Substance:
     """Вещество"""
 
     __slots__ = (  # запрет других атрибутов + ускорение
-        "name",  # имя
         "composition",  # химический состав
-        "parameters",  # параметры
         "functions",  # функции
+        "name",  # имя
+        "parameters",  # параметры
     )
 
     def __init__(
         self,
         name: str,
-        composition: Dict[str, float] = None,
-        parameters: Dict[str, Union[int, float]] = None,
-        functions: Dict[str, Callable] = None,
+        composition: dict[str, float] = None,
+        parameters: dict[str, int | float] = None,
+        functions: dict[str, Callable] = None,
     ) -> None:
         """
         Инициализация вещества.
@@ -32,9 +32,9 @@ class Substance:
             functions: Физические функции (название: функция)
         """
         self.name: str = name
-        self.composition: Dict[str, float] = composition or {}
-        self.parameters: Dict[str, Union[float, int]] = parameters or {}
-        self.functions: Dict[str, Callable] = functions or {}
+        self.composition: dict[str, float] = composition or {}
+        self.parameters: dict[str, float | int] = parameters or {}
+        self.functions: dict[str, Callable] = functions or {}
 
     def __validate_attribute(self, attribute: str, value: str | dict) -> str | dict:
         """Валидирование атрибутов"""
@@ -61,7 +61,7 @@ class Substance:
                 raise AttributeError(f"'{attribute}' not in {self.__slots__}")
 
     @staticmethod
-    def normalize(composition: Dict[str, float]) -> Dict[str, float]:
+    def normalize(composition: dict[str, float]) -> dict[str, float]:
         """Нормализация химического состава смеси"""
         mass = sum(composition.values())
         if mass == 0:
@@ -70,7 +70,7 @@ class Substance:
             composition[element] = fraction / mass
         return composition
 
-    def __validate_composition(self, composition: Dict[str, float]) -> Dict[str, float]:
+    def __validate_composition(self, composition: dict[str, float]) -> dict[str, float]:
         """Валидация смеси химического вещества"""
         for element, fraction in composition.items():
             if not isinstance(element, str):
@@ -82,7 +82,7 @@ class Substance:
         composition = self.normalize(composition)
         return composition
 
-    def __validate_parameter(self, key: str, value: Union[int, float]) -> Union[int, float]:
+    def __validate_parameter(self, key: str, value: int | float) -> int | float:
         """Валидация параметров"""
         if not isinstance(key, str):
             raise TypeError(f"{key} must be a str")

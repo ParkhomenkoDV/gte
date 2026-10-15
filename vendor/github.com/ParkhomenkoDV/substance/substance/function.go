@@ -1,6 +1,9 @@
 package substance
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 const errArgNotFound = "Function '%s': Arg '%s' not found"
 
@@ -29,4 +32,29 @@ func (f Function) Call(ps Parameters) Parameter {
 	}
 	// Вызов
 	return f.Func(ps)
+}
+
+// Непрерывна?
+func (f *Function) IsContinuity(point Parameters, eps, tol float64) bool {
+	f0 := f.Call(point)
+	leftPoint, rightPoint := make(Parameters, len(point)), make(Parameters, len(point))
+	for k, v := range point {
+		leftPoint[k] = v - eps
+		rightPoint[k] = v + eps
+	}
+	left, right := f.Call(leftPoint), f.Call(rightPoint)
+	return math.Abs(left-f0) <= tol && math.Abs(right-f0) <= tol
+}
+
+// Дифференцируема?
+func (f *Function) IsDifferentiable(point Parameters, eps, tol float64) bool {
+	leftPoint, rightPoint := make(Parameters, len(point)), make(Parameters, len(point))
+	for k, v := range point {
+		leftPoint[k] = v - eps
+		rightPoint[k] = v + eps
+	}
+	left := (f.Call(point) - f.Call(leftPoint)) / eps
+	right := (f.Call(rightPoint) - f.Call(point)) / eps
+
+	return math.Abs(left-right) < tol
 }
