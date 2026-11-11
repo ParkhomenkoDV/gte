@@ -54,7 +54,7 @@ class Joiner(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: dict[str, float | int], *inlets: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], *inlets: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
         if not isinstance(parameters, dict):
             raise TypeError(TYPE_ERROR.format(f"{type(parameters)=}", dict))
@@ -119,15 +119,15 @@ class Joiner(Node):
 
         vars: dict[str, float] = {}
 
-        return vars, outlet
+        return vars, (outlet,)
 
     @classmethod
-    def calculate(cls, parameters: dict[str, float | int], *inlets: Substance) -> tuple[dict[str, float], Substance]:
-        _, outlet = cls.predict(parameters, *inlets)
+    def calculate(cls, parameters: dict[str, float | int], *inlets: Substance) -> tuple[dict[str, float], tuple[Substance]]:
+        _, outlets = cls.predict(parameters, *inlets)
 
-        outlet = Node.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlets[0])
 
-        return {}, outlet
+        return {}, (outlet,)
 
     @classmethod
     def validate(cls, *substances: Substance, epsrel: float = EPSREL) -> dict[int, float]:

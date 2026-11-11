@@ -50,7 +50,7 @@ class Nozzle(Node):
         return (pipi - outlet_PP / inlet.parameters[gtep.PP],)
 
     @classmethod
-    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -86,12 +86,12 @@ class Nozzle(Node):
         outlet.parameters[gtep.c] = parameters[gtep.efficiency] * (2 * hcp_i * outlet.parameters[gtep.TT] * (1 - parameters[gtep.pipi] ** ((k_i - 1) / k_i))) ** 0.5
         vars[gtep.force] = inlet.parameters[gtep.m] * outlet.parameters[gtep.c]
 
-        return vars, outlet
+        return vars, (outlet,)
 
     @classmethod
-    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         parameters_ = parameters.copy()  # необходима копия т.к. словарь передается по ссылке и при добавлении искоромй vars становится нерасчетным
-        prediction, outlet_ = cls.predict(parameters_, inlet)
+        prediction, outlets_ = cls.predict(parameters_, inlet)
 
         outlet = Substance(
             inlet.name,
@@ -107,7 +107,7 @@ class Nozzle(Node):
             outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         args: dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters_}  # НУ
-        x0 = [outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]
+        x0 = [outlets_[0].parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters_]
 
         result = root(cls._equations, x0, args, method="hybr")
         outlet.parameters[gtep.PP] = float(result.x[0])
@@ -130,7 +130,11 @@ class Nozzle(Node):
 
         force = cls.force(inlet, outlet)
 
-        return {gtep.pipi: parameters[gtep.pipi], gtep.efficiency: parameters[gtep.efficiency], gtep.force: force}, outlet
+        return {
+            gtep.pipi: parameters[gtep.pipi],
+            gtep.efficiency: parameters[gtep.efficiency],
+            gtep.force: force,
+        }, (outlet,)
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:

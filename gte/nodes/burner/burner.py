@@ -87,7 +87,7 @@ class Burner(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: dict[str, float | int], inlet: Substance, fuel: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance, fuel: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
         Node.validate_substance(fuel)
@@ -117,11 +117,11 @@ class Burner(Node):
             },
         )
 
-        return parameters, outlet
+        return parameters, (outlet,)
 
     @classmethod
-    def calculate(cls, parameters: dict[str, float | int], inlet: Substance, fuel: Substance) -> tuple[dict[str, float], Substance]:
-        _, outlet_ = cls.predict(parameters, inlet, fuel)
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance, fuel: Substance) -> tuple[dict[str, float], tuple[Substance]]:
+        _, outlets_ = cls.predict(parameters, inlet, fuel)
 
         outlet = Substance(
             "exhaust",
@@ -159,7 +159,7 @@ class Burner(Node):
         fuel.parameters["enthalpy"], _ = integrate(fuel.functions[gtep.hc], **{gtep.TT: (T0 + 15, fuel.parameters[gtep.TT])})
 
         args: dict[str, Any] = {"inlet": inlet, "fuel": fuel, "outlet": outlet, **parameters}  # НУ
-        x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]]
+        x0 = (outlets_[0].parameters[gtep.TT], outlets_[0].parameters[gtep.PP])
 
         result = root(cls._equations, x0, args, method="hybr")
 
@@ -170,7 +170,10 @@ class Burner(Node):
         efficiency = parameters.get(gtep.efficiency, cls.efficiency(inlet, fuel, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, fuel, outlet))
 
-        return {gtep.efficiency: efficiency, gtep.pipi: pipi}, outlet
+        return {
+            gtep.efficiency: efficiency,
+            gtep.pipi: pipi,
+        }, (outlet,)
 
     @classmethod
     def validate(cls, inlet: Substance, fuel: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:

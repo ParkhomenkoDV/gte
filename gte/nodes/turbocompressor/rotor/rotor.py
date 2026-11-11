@@ -65,8 +65,12 @@ class Rotor(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], *inlets: list[Substance]) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
+        if len(inlets) != 1:
+            raise ValueError(f"len(inlets)={len(inlets)} must be = 1")
+        inlet = inlets[0]
+
         Node.validate_substance(inlet)
 
         if not isinstance(parameters, dict):
@@ -109,11 +113,19 @@ class Rotor(Node):
 
         outlet = Node.calculate_substance(outlet)
 
-        return {gtep.effeff: cls.total_efficiency(inlet, outlet), gtep.titi: cls.total_temperature_ratio(inlet, outlet), gtep.pipi: cls.total_pressure_ratio(inlet, outlet)}, outlet
+        return {
+            gtep.effeff: cls.total_efficiency(inlet, outlet),
+            gtep.titi: cls.total_temperature_ratio(inlet, outlet),
+            gtep.pipi: cls.total_pressure_ratio(inlet, outlet),
+        }, (outlet,)
 
     @classmethod
-    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
-        prediction, outlet_ = cls.predict(parameters, inlet)
+    def calculate(cls, parameters: dict[str, float | int], *inlets: list[Substance]) -> tuple[dict[str, float], tuple[Substance]]:
+        if len(inlets) != 1:
+            raise ValueError(f"len(inlets)={len(inlets)} must be = 1")
+        inlet = inlets[0]
+
+        prediction, outlets_ = cls.predict(parameters, inlet)
 
         outlet = Substance(
             inlet.name,
@@ -129,7 +141,7 @@ class Rotor(Node):
             outlet.parameters[gtep.eo] = inlet.parameters[gtep.eo]
 
         args: dict[str, Any] = {"inlet": inlet, "outlet": outlet, **parameters}  # НУ
-        x0 = [outlet_.parameters[gtep.TT], outlet_.parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
+        x0 = [outlets_[0].parameters[gtep.TT], outlets_[0].parameters[gtep.PP]] + [prediction[v] for v in cls.variables if v not in parameters]
 
         result = root(cls._equations, x0, args, method="hybr")
 
@@ -140,10 +152,27 @@ class Rotor(Node):
         titi = parameters.get(gtep.titi, cls.total_temperature_ratio(inlet, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
 
-        return {gtep.effeff: effeff, gtep.titi: titi, gtep.pipi: pipi, gtep.power: cls.power(inlet, outlet)}, outlet
+        return {
+            gtep.effeff: effeff,
+            gtep.titi: titi,
+            gtep.pipi: pipi,
+            gtep.power: cls.power(inlet, outlet),
+        }, (outlet,)
 
     @classmethod
-    def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:
+    def validate(cls, inlets: list[Substance], outlets: list[Substance], epsrel: float = EPSREL) -> dict[int, float]:
+        if isinstance(inlets, (tuple, list)):
+            raise TypeError()
+        if len(inlets) != 1:
+            raise ValueError(f"len(inlets)={len(inlets)} must be = 1")
+        inlet = inlets[0]
+
+        if isinstance(outlets, (tuple, list)):
+            raise TypeError(TYPE_ERROR.format(type(outlets), tuple))
+        if len(outlets) != 1:
+            raise ValueError(f"len(outlets)={len(outlets)} must be = 1")
+        outlet = outlets[0]
+
         effeff = cls.total_efficiency(inlet, outlet)
         titi = cls.total_temperature_ratio(inlet, outlet)
         pipi = cls.total_pressure_ratio(inlet, outlet)
@@ -249,12 +278,13 @@ if __name__ == "__main__":
         r = Rotor(test_case["parameters"], "test")
         print(f"{r.is_solvable=}")
 
-        vars, outlet = r.calculate(r.parameters, test_case["inlet"])
+        vars, outlets = r.calculate(r.parameters, test_case["inlet"])
 
-        for k, v in outlet.parameters.items():
-            print(f"{k:25}: {v:.4f}")
+        for outlet in outlets:
+            for k, v in outlet.parameters.items():
+                print(f"{k:25}: {v:.4f}")
         print(vars)
 
-        print(f"{Rotor.validate(test_case["inlet"], outlet) = }")
-        print(f"{Rotor.check_real(test_case["inlet"], outlet) = }")
+        print(f"{Rotor.validate(test_case["inlet"], outlets) = }")
+        print(f"{Rotor.check_real(test_case["inlet"], outlets) = }")
         print()

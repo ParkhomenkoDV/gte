@@ -50,7 +50,7 @@ class Channel(Node):
         )
 
     @classmethod
-    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -80,18 +80,21 @@ class Channel(Node):
 
         vars = {}
 
-        return vars, outlet
+        return vars, (outlet,)
 
     @classmethod
-    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
-        _, outlet = cls.predict(parameters, inlet)
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], tuple[Substance]]:
+        _, outlets = cls.predict(parameters, inlet)
 
-        outlet = Node.calculate_substance(outlet)
+        outlet = Node.calculate_substance(outlets[0])
 
         titi = parameters.get(gtep.titi, cls.total_temperature_ratio(inlet, outlet))
         pipi = parameters.get(gtep.pipi, cls.total_pressure_ratio(inlet, outlet))
 
-        return {gtep.titi: titi, gtep.pipi: pipi}, outlet
+        return {
+            gtep.titi: titi,
+            gtep.pipi: pipi,
+        }, (outlet,)
 
     @classmethod
     def validate(cls, inlet: Substance, outlet: Substance, epsrel: float = EPSREL) -> dict[int, float]:

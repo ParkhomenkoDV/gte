@@ -144,13 +144,13 @@ class Node(ABC):
 
     @classmethod
     @abstractmethod
-    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, float | int], inlets: list[Substance]) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
         raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    def calculate(cls, parameters: dict[str, float | int] | None = None) -> Substance:
+    def calculate(cls, parameters: dict[str, float | int] | None = None, *inlets: list[Substance]) -> tuple[Substance]:
         """Термодинамический расчет узла по уравнениям _equations"""
         # валидация входных параметров
         # расчет входных параметров

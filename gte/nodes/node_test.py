@@ -103,55 +103,56 @@ class TestRotor:
         benchmark(benchfunc)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, expected_parameters, expected_outlet",
+        "parameters, inlet, expected_parameters, expected_outlets",
         [
             # compressor
             (
                 {gtep.titi: 1.8, gtep.effeff: 0.85},  # pipi
                 air,
                 {gtep.pipi: 6.125},
-                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 620_668}),
+                (Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 620_668}),),
             ),
             (
                 {gtep.pipi: 6.0, gtep.titi: 1.8},  # effeff
                 air,
                 {gtep.effeff: 0.822},
-                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 607_950.0}),
+                (Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 607_950.0}),),
             ),
             (
                 {gtep.pipi: 6.0, gtep.effeff: 0.85},  # power
                 air,
                 {gtep.titi: 1.8},
-                Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),
+                (Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),),
             ),
             # turbine
             (
                 {gtep.titi: 1 / 1.3, gtep.effeff: 1 / 0.9},
                 exhaust,
                 {gtep.pipi: 1 / 3.5},
-                Substance("outlet", parameters={gtep.TT: 1153, gtep.PP: 347_798.9}),
+                (Substance("outlet", parameters={gtep.TT: 1153, gtep.PP: 347_798.9}),),
             ),
             (
                 {gtep.pipi: 1 / 3.5, gtep.titi: 1 / 1.3},
                 exhaust,
                 {gtep.effeff: 1 / 0.88},
-                Substance("outlet", parameters={gtep.TT: 1153.7, gtep.PP: 347_400.0}),
+                (Substance("outlet", parameters={gtep.TT: 1153.7, gtep.PP: 347_400.0}),),
             ),
             (
                 {gtep.pipi: 1 / 3.5, gtep.effeff: 1 / 0.9},
                 exhaust,
                 {gtep.titi: 1 / 1.3},
-                Substance("outlet", parameters={gtep.TT: 1153.8, gtep.PP: 347_400.0}),
+                (Substance("outlet", parameters={gtep.TT: 1153.8, gtep.PP: 347_400.0}),),
             ),
         ],
     )
-    def test_predict(self, rotor, parameters, inlet, expected_parameters, expected_outlet):
+    def test_predict(self, rotor, parameters, inlet, expected_parameters, expected_outlets):
         """Тест предсказания ротора"""
-        vars, outlet = rotor.predict(parameters, inlet)
+        vars, outlets = rotor.predict(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet",
@@ -194,55 +195,56 @@ class TestRotor:
         benchmark(benchfunc, rotor, parameters, inlet)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, expected_parameters, expected_outlet",
+        "parameters, inlet, expected_parameters, expected_outlets",
         [
             # compressor
             (
                 {gtep.titi: 1.8, gtep.effeff: 0.85},  # pipi
                 air,
                 {gtep.pipi: 6.292},
-                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 637_540}),
+                (Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 637_540}),),
             ),
             (
                 {gtep.pipi: 6.0, gtep.titi: 1.8},  # effeff
                 air,
                 {gtep.effeff: 0.822},
-                Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 607_950.0}),
+                (Substance("outlet", parameters={gtep.TT: 539.245, gtep.PP: 607_950.0}),),
             ),
             (
                 {gtep.pipi: 6.0, gtep.effeff: 0.85},  # power
                 air,
                 {gtep.titi: 1.77},
-                Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),
+                (Substance("outlet", parameters={gtep.TT: 536.5, gtep.PP: 607_950.0}),),
             ),
             # turbine
             (
                 {gtep.titi: 1 / 1.3, gtep.effeff: 1 / 0.9},
                 exhaust,
                 {gtep.pipi: 1 / 3.41},
-                Substance("outlet", parameters={gtep.TT: 1153, gtep.PP: 355_306}),
+                (Substance("outlet", parameters={gtep.TT: 1153, gtep.PP: 355_306}),),
             ),
             (
                 {gtep.pipi: 1 / 3.5, gtep.titi: 1 / 1.3},
                 exhaust,
                 {gtep.effeff: 1 / 0.88},
-                Substance("outlet", parameters={gtep.TT: 1153.7, gtep.PP: 347_400}),
+                (Substance("outlet", parameters={gtep.TT: 1153.7, gtep.PP: 347_400}),),
             ),
             (
                 {gtep.pipi: 1 / 3.5, gtep.effeff: 1 / 0.9},
                 exhaust,
                 {gtep.titi: 1 / 1.3},
-                Substance("outlet", parameters={gtep.TT: 1153.8, gtep.PP: 347_400}),
+                (Substance("outlet", parameters={gtep.TT: 1153.8, gtep.PP: 347_400}),),
             ),
         ],
     )
-    def test_calculate(self, rotor, parameters, inlet, expected_parameters, expected_outlet):
+    def test_calculate(self, rotor, parameters, inlet, expected_parameters, expected_outlets):
         """Тест расчета компресоора"""
-        vars, outlet = rotor.calculate(parameters, inlet)
+        vars, outlets = rotor.calculate(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet",
@@ -308,23 +310,24 @@ class TestBurner:
         benchmark(benchfunc)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, fuel, expected_outlet",
+        "parameters, inlet, fuel, expected_outlets",
         [
             (
                 {gtep.efficiency: 0.99, gtep.pipi: 0.95},
                 air,
                 kerosene,
-                Substance("outlet", parameters={gtep.TT: 1137.5, gtep.PP: 96_258}),
+                (Substance("outlet", parameters={gtep.TT: 1137.5, gtep.PP: 96_258}),),
             ),
         ],
     )
-    def test_predict(self, burner, parameters, inlet, fuel, expected_outlet):
+    def test_predict(self, burner, parameters, inlet, fuel, expected_outlets):
         """Тест предсказания камеры сгорания"""
-        vars, outlet = burner.predict(parameters, inlet, fuel)
+        vars, outlets = burner.predict(parameters, inlet, fuel)
         for k, v in parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet, fuel",
@@ -346,23 +349,24 @@ class TestBurner:
         benchmark(benchfunc, burner, parameters, inlet, fuel)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, fuel, expected_outlet",
+        "parameters, inlet, fuel, expected_outlets",
         [
             (
                 {gtep.efficiency: 0.99, gtep.pipi: 0.95},
                 air,
                 kerosene,
-                Substance("outlet", parameters={gtep.TT: 1079, gtep.PP: 96_258}),
+                (Substance("outlet", parameters={gtep.TT: 1079, gtep.PP: 96_258}),),
             ),
         ],
     )
-    def test_calculate(self, burner, parameters, inlet, fuel, expected_outlet):
+    def test_calculate(self, burner, parameters, inlet, fuel, expected_outlets):
         """Тест предсказания камеры сгорания"""
-        vars, outlet = burner.calculate(parameters, inlet, fuel)
+        vars, outlets = burner.calculate(parameters, inlet, fuel)
         for k, v in parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet, fuel",
@@ -407,23 +411,24 @@ class TestNozzle:
         benchmark(benchfunc)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, expected_parameters, expected_outlet",
+        "parameters, inlet, expected_parameters, expected_outlets",
         [
             (
                 {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
                 {gtep.force: 34_439},
-                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+                (Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),),
             ),
         ],
     )
-    def test_predict(self, nozzle, parameters, inlet, expected_parameters, expected_outlet):
+    def test_predict(self, nozzle, parameters, inlet, expected_parameters, expected_outlets):
         """Тест предсказания"""
-        vars, outlet = nozzle.predict(parameters, inlet)
+        vars, outlets = nozzle.predict(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet",
@@ -442,23 +447,24 @@ class TestNozzle:
         benchmark(benchfunc, nozzle, parameters, inlet)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, expected_parameters, expected_outlet",
+        "parameters, inlet, expected_parameters, expected_outlets",
         [
             (
                 {gtep.efficiency: 0.98, gtep.pipi: 1 / 1.8},
                 exhaust,
                 {gtep.force: 34_439},
-                Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),
+                (Substance("outlet", parameters={gtep.TT: exhaust.parameters[gtep.TT], gtep.PP: exhaust.parameters[gtep.PP] / 1.8}),),
             ),
         ],
     )
-    def test_calculate(self, nozzle, parameters, inlet, expected_parameters, expected_outlet):
+    def test_calculate(self, nozzle, parameters, inlet, expected_parameters, expected_outlets):
         """Тест расчетв"""
-        vars, outlet = nozzle.calculate(parameters, inlet)
+        vars, outlets = nozzle.calculate(parameters, inlet)
         for k, v in expected_parameters.items():
             assert vars[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet",
@@ -500,21 +506,21 @@ class TestChannel:
         benchmark(benchfunc)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, expected_outlet",
+        "parameters, inlet, expected_outlets",
         [
             (
                 {gtep.titi: 1.05, gtep.pipi: 0.95},
                 air,
-                Substance("outlet", parameters={gtep.TT: air.parameters[gtep.TT] * 1.05, gtep.PP: air.parameters[gtep.PP] * 0.95}),
+                (Substance("outlet", parameters={gtep.TT: air.parameters[gtep.TT] * 1.05, gtep.PP: air.parameters[gtep.PP] * 0.95}),),
             ),
         ],
     )
-    def test_predict(self, channel, parameters, inlet, expected_outlet):
+    def test_predict(self, channel, parameters, inlet, expected_outlets):
         """Тест предсказания"""
-        _, outlet = channel.predict(parameters, inlet)
-
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        _, outlets = channel.predict(parameters, inlet)
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet",
@@ -533,20 +539,21 @@ class TestChannel:
         benchmark(benchfunc, channel, parameters, inlet)
 
     @pytest.mark.parametrize(
-        "parameters, inlet, expected_outlet",
+        "parameters, inlet, expected_outlets",
         [
             (
                 {gtep.titi: 1.05, gtep.pipi: 0.95},
                 air,
-                Substance("outlet", parameters={gtep.TT: air.parameters[gtep.TT] * 1.05, gtep.PP: air.parameters[gtep.PP] * 0.95}),
+                (Substance("outlet", parameters={gtep.TT: air.parameters[gtep.TT] * 1.05, gtep.PP: air.parameters[gtep.PP] * 0.95}),),
             )
         ],
     )
-    def test_calculate(self, channel, parameters, inlet, expected_outlet):
+    def test_calculate(self, channel, parameters, inlet, expected_outlets):
         """Тест расчетв"""
-        _, outlet = channel.calculate(parameters, inlet)
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
+        _, outlets = channel.calculate(parameters, inlet)
+        assert len(outlets) == len(expected_outlets)
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "parameters, inlet",
@@ -693,28 +700,30 @@ class TestJoiner:
         benchmark(benchfunc)
 
     @pytest.mark.parametrize(
-        "inlets, expected_outlet",
+        "inlets, expected_outlets",
         [
             (
                 (air, exhaust),
-                Substance(
-                    f"{air.name}+{exhaust.name}",
-                    parameters={
-                        gtep.m: air.parameters[gtep.m] + exhaust.parameters[gtep.m],
-                        gtep.TT: (air.parameters[gtep.m] * air.parameters[gtep.TT] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.TT] * exhaust.parameters[gtep.hcp])
-                        / (air.parameters[gtep.m] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.hcp]),
-                        gtep.PP: (air.parameters[gtep.m] * air.parameters[gtep.PP] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.PP]) / (air.parameters[gtep.m] + exhaust.parameters[gtep.m]),
-                    },
+                (
+                    Substance(
+                        f"{air.name}+{exhaust.name}",
+                        parameters={
+                            gtep.m: air.parameters[gtep.m] + exhaust.parameters[gtep.m],
+                            gtep.TT: (air.parameters[gtep.m] * air.parameters[gtep.TT] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.TT] * exhaust.parameters[gtep.hcp])
+                            / (air.parameters[gtep.m] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.hcp]),
+                            gtep.PP: (air.parameters[gtep.m] * air.parameters[gtep.PP] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.PP]) / (air.parameters[gtep.m] + exhaust.parameters[gtep.m]),
+                        },
+                    ),
                 ),
             ),
         ],
     )
-    def test_predict(self, joiner, inlets, expected_outlet):
+    def test_predict(self, joiner, inlets, expected_outlets):
         """Тест предсказания"""
-        _, outlet = joiner.predict({}, *inlets)
+        _, outlets = joiner.predict({}, *inlets)
 
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL * 2), AssertionError(f"{k=} {v=}")
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL * 2), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "inlets",
@@ -730,28 +739,30 @@ class TestJoiner:
         benchmark(benchfunc, joiner, inlets)
 
     @pytest.mark.parametrize(
-        "inlets, expected_outlet",
+        "inlets, expected_outlets",
         [
             (
                 (air, exhaust),
-                Substance(
-                    f"{air.name}+{exhaust.name}",
-                    parameters={
-                        gtep.m: air.parameters[gtep.m] + exhaust.parameters[gtep.m],
-                        gtep.TT: (air.parameters[gtep.m] * air.parameters[gtep.TT] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.TT] * exhaust.parameters[gtep.hcp])
-                        / (air.parameters[gtep.m] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.hcp]),
-                        gtep.PP: (air.parameters[gtep.m] * air.parameters[gtep.PP] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.PP]) / (air.parameters[gtep.m] + exhaust.parameters[gtep.m]),
-                    },
+                (
+                    Substance(
+                        f"{air.name}+{exhaust.name}",
+                        parameters={
+                            gtep.m: air.parameters[gtep.m] + exhaust.parameters[gtep.m],
+                            gtep.TT: (air.parameters[gtep.m] * air.parameters[gtep.TT] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.TT] * exhaust.parameters[gtep.hcp])
+                            / (air.parameters[gtep.m] * air.parameters[gtep.hcp] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.hcp]),
+                            gtep.PP: (air.parameters[gtep.m] * air.parameters[gtep.PP] + exhaust.parameters[gtep.m] * exhaust.parameters[gtep.PP]) / (air.parameters[gtep.m] + exhaust.parameters[gtep.m]),
+                        },
+                    ),
                 ),
             ),
         ],
     )
-    def test_calculate(self, joiner, inlets, expected_outlet):
+    def test_calculate(self, joiner, inlets, expected_outlets):
         """Тест расчетв"""
-        _, outlet = joiner.calculate({}, *inlets)
+        _, outlets = joiner.calculate({}, *inlets)
 
-        for k, v in expected_outlet.parameters.items():
-            assert outlet.parameters[k] == pytest.approx(v, rel=EPSREL * 2), AssertionError(f"{k=} {v=}")
+        for k, v in expected_outlets[0].parameters.items():
+            assert outlets[0].parameters[k] == pytest.approx(v, rel=EPSREL * 2), AssertionError(f"{k=} {v=}")
 
     @pytest.mark.parametrize(
         "inlets",

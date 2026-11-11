@@ -45,7 +45,7 @@ class Splitter(Node):
         return (inlet.parameters[gtep.m] - sum(outlet.parameters[gtep.m] for outlet in outlets),)
 
     @classmethod
-    def predict(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def predict(cls, parameters: dict[str, tuple[float] | list[float]], inlet: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         """Начальные приближения"""
         Node.validate_substance(inlet)
 
@@ -70,20 +70,20 @@ class Splitter(Node):
 
         total = sum(splits)  # общая масса
 
-        outlets = []
-        for split in splits:
+        outlets = [None] * len(splits)  # malloc
+        for i, split in enumerate(splits):
             fraction = split / total  # нормализация
 
             outlet = deepcopy(inlet)
             outlet.parameters[gtep.m] *= fraction
-            outlets.append(outlet)
+            outlets[i] = outlet
 
         vars: dict[str, float] = {}
 
         return vars, tuple(outlets)
 
     @classmethod
-    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], Substance]:
+    def calculate(cls, parameters: dict[str, float | int], inlet: Substance) -> tuple[dict[str, float], tuple[Substance]]:
         _, outlets = cls.predict(parameters, inlet)
 
         return {}, outlets
