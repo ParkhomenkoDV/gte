@@ -21,19 +21,7 @@ BLUE   = \033[0;34m
 RESET  = \033[0m
 
 # Targets
-.PHONY: help venv activate install test bench lint format clean
-
-help:
-	@echo "Available commands:"
-	@echo "  make venv           - Create virtual environment"
-	@echo "  make activate       - Print command for activate virtual environment"
-	@echo "  make install        - Install dependences"
-	@echo "  make test           - Run tests"
-	@echo "  make cover          - Run coverage"
-	@echo "  make format         - Format code (black, isort)"
-	@echo "  make lint           - Run linters (flake8, pylint)"
-	@echo "  make doc            - Add documentation"
-	@echo "  make clean          - Clean project"
+.PHONY: venv activate install test bench lint format clean
 
 venv:
 	@echo "$(BLUE)Creating virtual environment...$(RESET)"
